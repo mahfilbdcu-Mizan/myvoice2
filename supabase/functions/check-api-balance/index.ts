@@ -15,12 +15,19 @@ serve(async (req) => {
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "API key is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          valid: false,
+          error: "API key is required",
+          character_count: 0,
+          character_limit: 0,
+          credits: 0,
+          tier: "unknown"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check user info / subscription from ai33.pro API
+    // Check user info / subscription from API
     const response = await fetch("https://api.ai33.pro/v1/user/subscription", {
       method: "GET",
       headers: {
@@ -31,8 +38,17 @@ serve(async (req) => {
     if (!response.ok) {
       console.error("API error:", response.status);
       return new Response(
-        JSON.stringify({ error: "Invalid API key or could not fetch balance" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          valid: false,
+          error: response.status === 401 
+            ? "Invalid API key or insufficient credits" 
+            : "Could not verify API key",
+          character_count: 0,
+          character_limit: 0,
+          credits: 0,
+          tier: "unknown"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -41,6 +57,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        valid: true,
         character_count: data.character_count || 0,
         character_limit: data.character_limit || 0,
         credits: data.character_count || 0,
@@ -51,8 +68,15 @@ serve(async (req) => {
   } catch (error) {
     console.error("Check balance error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        valid: false,
+        error: "Service temporarily unavailable",
+        character_count: 0,
+        character_limit: 0,
+        credits: 0,
+        tier: "unknown"
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

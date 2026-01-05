@@ -81,10 +81,10 @@ serve(async (req) => {
     const API_KEY = await getApiKey();
     
     if (!API_KEY) {
-      console.error("API key is not configured");
+      console.log("API key is not configured, returning empty voices");
       return new Response(
-        JSON.stringify({ error: "API key not configured. Please set it in Admin Settings." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ voices: [], has_more: false, error: "API key not configured" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -129,18 +129,17 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("API error:", response.status, errorText);
       
-      // Return empty voices on API error instead of failing completely
-      if (response.status >= 500) {
-        console.log("Returning empty voices due to API error");
-        return new Response(
-          JSON.stringify({ voices: [], has_more: false, error: "API temporarily unavailable" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
+      // Return empty voices on any API error to prevent blank screen
+      console.log("Returning empty voices due to API error");
       return new Response(
-        JSON.stringify({ error: "Failed to fetch voices", details: errorText }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          voices: [], 
+          has_more: false, 
+          error: response.status === 401 
+            ? "API key invalid or out of credits. Please update in Admin Settings." 
+            : "API temporarily unavailable" 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
