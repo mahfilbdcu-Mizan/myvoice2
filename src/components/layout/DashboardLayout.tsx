@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   Mic, 
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -38,11 +39,41 @@ const navItems = [
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [userApiBalance, setUserApiBalance] = useState<number | null>(null);
+  const [hasUserApiKey, setHasUserApiKey] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user, signOut, isLoading } = useAuth();
 
   const credits = profile?.credits ?? 0;
+
+  // Fetch user API key balance
+  useEffect(() => {
+    async function fetchUserApiKeyBalance() {
+      if (!user) return;
+      
+      try {
+        const { data: apiKeyData } = await supabase
+          .from("user_api_keys")
+          .select("remaining_credits")
+          .eq("user_id", user.id)
+          .eq("provider", "ai33")
+          .maybeSingle();
+        
+        if (apiKeyData) {
+          setHasUserApiKey(true);
+          setUserApiBalance(apiKeyData.remaining_credits);
+        } else {
+          setHasUserApiKey(false);
+          setUserApiBalance(null);
+        }
+      } catch (error) {
+        console.error("Error fetching API key balance:", error);
+      }
+    }
+    
+    fetchUserApiKeyBalance();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -93,12 +124,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Zap className="h-4 w-4 text-primary" />
             </div>
           ) : (
-            <div className="rounded-xl bg-primary/10 p-4">
-              <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                <span className="text-2xl font-bold">{credits.toLocaleString()}</span>
+            <div className="space-y-3">
+              {/* Platform Credits */}
+              <div className="rounded-xl bg-primary/10 p-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <span className="text-xl font-bold">{credits.toLocaleString()}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Platform Credits</p>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">Credits available</p>
+              
+              {/* User API Key Balance */}
+              {hasUserApiKey && (
+                <div className="rounded-xl bg-green-500/10 p-3">
+                  <div className="flex items-center gap-2">
+                    <Key className="h-4 w-4 text-green-500" />
+                    <span className="text-xl font-bold text-green-600">
+                      {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">API Key Balance</p>
+                </div>
+              )}
             </div>
           )}
         </div>
