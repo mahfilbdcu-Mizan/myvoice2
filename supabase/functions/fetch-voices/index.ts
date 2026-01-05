@@ -170,10 +170,12 @@ serve(async (req) => {
       );
     }
 
-    // Build query params - use /v2/voices for better search support
+    // Build query params - use /v1/shared-voices for all community voices
+    // Search is done client-side for better results
     const params = new URLSearchParams();
     params.set("page_size", String(page_size));
-    if (search) params.set("search", search);
+    if (page > 0) params.set("page", String(page));
+    // Only use API filters for gender/language/age, not search
     if (gender) params.set("gender", gender);
     if (language) params.set("language", language);
     if (age) params.set("age", age);
@@ -181,8 +183,8 @@ serve(async (req) => {
     if (category) params.set("category", category);
     if (use_cases) params.set("use_cases", use_cases);
 
-    // Use /v2/voices endpoint which has better search and filtering
-    const apiUrl = `https://api.ai33.pro/v2/voices?${params.toString()}`;
+    // Use /v1/shared-voices for more voices (community library)
+    const apiUrl = `https://api.ai33.pro/v1/shared-voices?${params.toString()}`;
 
     console.log(`Fetching voices from: ${apiUrl}`);
 
