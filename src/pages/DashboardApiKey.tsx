@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Key, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, ExternalLink, Trash2 } from "lucide-react";
+import { Key, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, Trash2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -234,7 +234,7 @@ export default function DashboardApiKey() {
         <div>
           <h1 className="text-2xl font-bold">API Key</h1>
           <p className="text-muted-foreground">
-            Add your own AI33 API key for unlimited text generation
+            Add your own API key for unlimited text generation
           </p>
         </div>
 
@@ -338,23 +338,14 @@ export default function DashboardApiKey() {
           <CardHeader>
             <CardTitle>{savedKey ? "Update API Key" : "Add API Key"}</CardTitle>
             <CardDescription>
-              Get your API key from{" "}
-              <a
-                href="https://ai33.pro"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
-              >
-                ai33.pro
-                <ExternalLink className="h-3 w-3" />
-              </a>
+              Enter your API key to enable unlimited voice generation
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-3">
               <Input
                 type="password"
-                placeholder="Enter your AI33 API key"
+                placeholder="Enter your API key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="flex-1"
@@ -389,7 +380,7 @@ export default function DashboardApiKey() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">3</span>
-                <span>Your API balance is deducted directly from your ai33.pro account</span>
+                <span>Your API balance is deducted directly from your account</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">4</span>
