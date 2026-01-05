@@ -170,10 +170,9 @@ serve(async (req) => {
       );
     }
 
-    // Build query params for shared-voices endpoint which has more voices
+    // Build query params - use /v2/voices for better search support
     const params = new URLSearchParams();
     params.set("page_size", String(page_size));
-    if (page > 0) params.set("page", String(page));
     if (search) params.set("search", search);
     if (gender) params.set("gender", gender);
     if (language) params.set("language", language);
@@ -182,7 +181,8 @@ serve(async (req) => {
     if (category) params.set("category", category);
     if (use_cases) params.set("use_cases", use_cases);
 
-    const apiUrl = `https://api.ai33.pro/v1/shared-voices?${params.toString()}`;
+    // Use /v2/voices endpoint which has better search and filtering
+    const apiUrl = `https://api.ai33.pro/v2/voices?${params.toString()}`;
 
     console.log(`Fetching voices from: ${apiUrl}`);
 
