@@ -2,11 +2,22 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface Voice {
   voice_id: string;
+  public_owner_id?: string;
   name: string;
   category?: string;
   description?: string;
+  // Flat fields from shared-voices API
+  gender?: string;
+  age?: string;
+  accent?: string;
+  language?: string;
+  locale?: string;
+  use_case?: string;
+  descriptive?: string;
+  // Nested labels for v2/voices API
   labels?: Record<string, string>;
   preview_url?: string;
+  image_url?: string;
   high_quality_base_model_ids?: string[];
   fine_tuning?: {
     is_allowed_to_fine_tune: boolean;
@@ -25,6 +36,13 @@ export interface Voice {
     style?: number;
     use_speaker_boost?: boolean;
   };
+  verified_languages?: Array<{
+    accent: string;
+    language: string;
+    locale: string;
+    model_id: string;
+    preview_url: string;
+  }>;
 }
 
 export interface VoiceModel {
@@ -62,8 +80,25 @@ export interface TaskResult {
   type: string;
 }
 
-// Fetch voices from ai33.pro API
-export async function fetchVoicesFromAPI(type: "recommended" | "shared" = "recommended"): Promise<Voice[]> {
+export interface FetchVoicesOptions {
+  page_size?: number;
+  page?: number;
+  search?: string;
+  gender?: string;
+  language?: string;
+  age?: string;
+  accent?: string;
+  category?: string;
+}
+
+export interface FetchVoicesResult {
+  voices: Voice[];
+  has_more: boolean;
+  last_sort_id?: string;
+}
+
+// Fetch voices from ai33.pro API with pagination
+export async function fetchVoicesFromAPI(options: FetchVoicesOptions = {}): Promise<FetchVoicesResult> {
   try {
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-voices`,
@@ -74,22 +109,54 @@ export async function fetchVoicesFromAPI(type: "recommended" | "shared" = "recom
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({
+          page_size: options.page_size || 100,
+          page: options.page || 0,
+          search: options.search || "",
+          gender: options.gender || "",
+          language: options.language || "",
+          age: options.age || "",
+          accent: options.accent || "",
+          category: options.category || "",
+        }),
       }
     );
 
     if (!response.ok) {
       const error = await response.json();
       console.error("Error fetching voices:", error);
-      return [];
+      return { voices: [], has_more: false };
     }
 
     const data = await response.json();
-    return data.voices || [];
+    return {
+      voices: data.voices || [],
+      has_more: data.has_more || false,
+      last_sort_id: data.last_sort_id,
+    };
   } catch (err) {
     console.error("Error fetching voices:", err);
-    return [];
+    return { voices: [], has_more: false };
   }
+}
+
+// Fetch all voices with automatic pagination
+export async function fetchAllVoices(): Promise<Voice[]> {
+  const allVoices: Voice[] = [];
+  let page = 0;
+  let hasMore = true;
+  
+  while (hasMore) {
+    const result = await fetchVoicesFromAPI({ page_size: 100, page });
+    allVoices.push(...result.voices);
+    hasMore = result.has_more;
+    page++;
+    
+    // Safety limit to prevent infinite loops
+    if (page > 50) break;
+  }
+  
+  return allVoices;
 }
 
 // Fetch models from ai33.pro API
@@ -229,7 +296,7 @@ export async function waitForTask(taskId: string, maxAttempts = 60, intervalMs =
   return null;
 }
 
-// Helper to parse voice labels into structured data
+// Helper to parse voice labels into structured data (supports both flat and nested formats)
 export function parseVoiceLabels(voice: Voice): {
   accent?: string;
   gender?: string;
@@ -237,31 +304,28 @@ export function parseVoiceLabels(voice: Voice): {
   description?: string;
   useCase?: string;
 } {
+  // Support both flat fields (shared-voices API) and nested labels (v2/voices API)
   const labels = voice.labels || {};
   return {
-    accent: labels.accent,
-    gender: labels.gender,
-    age: labels.age,
-    description: labels.description || voice.description,
-    useCase: labels.use_case,
+    accent: voice.accent || labels.accent,
+    gender: voice.gender || labels.gender,
+    age: voice.age || labels.age,
+    description: voice.description || labels.description,
+    useCase: voice.use_case || labels.use_case,
   };
 }
 
 // Legacy function for backward compatibility with database voices
 export async function getVoices(): Promise<Voice[]> {
   // Fetch from API instead of database
-  return fetchVoicesFromAPI("recommended");
+  const result = await fetchVoicesFromAPI({ page_size: 100 });
+  return result.voices;
 }
 
 export async function getVoiceById(voiceId: string): Promise<Voice | null> {
-  // Try to find in recommended voices first
-  const voices = await fetchVoicesFromAPI("recommended");
-  const found = voices.find(v => v.voice_id === voiceId);
-  if (found) return found;
-  
-  // Try shared voices
-  const sharedVoices = await fetchVoicesFromAPI("shared");
-  return sharedVoices.find(v => v.voice_id === voiceId) || null;
+  // Search for specific voice by ID
+  const result = await fetchVoicesFromAPI({ search: voiceId, page_size: 10 });
+  return result.voices.find(v => v.voice_id === voiceId) || null;
 }
 
 export async function deductCredits(userId: string, amount: number): Promise<boolean> {
