@@ -114,7 +114,7 @@ export default function AdminSettings() {
               <CardTitle>Voice Generation API Key</CardTitle>
             </div>
             <CardDescription>
-              Configure the AI33.pro API key used for all voice generation. This key is shared by all users.
+              Configure the API key used for all voice generation. This key is shared by all users.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -126,14 +126,14 @@ export default function AdminSettings() {
             </Alert>
             
             <div className="space-y-2">
-              <Label>AI33.pro API Key</Label>
+              <Label>Platform API Key</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
                     type={showApiKey ? "text" : "password"}
                     value={settings.ai33_api_key || ""}
                     onChange={(e) => updateSetting("ai33_api_key", e.target.value)}
-                    placeholder="Enter your AI33.pro API key"
+                    placeholder="Enter your platform API key"
                     className="pr-10"
                   />
                   <Button
@@ -152,15 +152,7 @@ export default function AdminSettings() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Get your API key from{" "}
-                <a
-                  href="https://ai33.pro/app"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
-                >
-                  ai33.pro/app
-                </a>
+                Enter the API key for voice generation service
               </p>
             </div>
 
