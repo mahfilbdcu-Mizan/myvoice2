@@ -76,28 +76,37 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch voices from API (without search - we filter client-side)
-  const fetchVoices = useCallback(async (page: number = 0) => {
+  // Fetch ALL voices from API (load multiple pages)
+  const fetchAllVoicesFromAPI = useCallback(async () => {
     setIsLoading(true);
     setApiError(null);
     try {
-      const result = await fetchVoicesFromAPI({
-        page_size: PAGE_SIZE,
-        page: page,
-        gender: selectedGender !== "All" ? selectedGender : undefined,
-        language: selectedLanguage !== "All" ? selectedLanguage : undefined,
-        age: selectedAge !== "All" ? selectedAge : undefined,
-      });
+      let allLoadedVoices: Voice[] = [];
+      let page = 0;
+      let hasMorePages = true;
       
-      if (page === 0) {
-        setAllVoices(result.voices);
-      } else {
-        setAllVoices(prev => [...prev, ...result.voices]);
+      // Load up to 500 voices (5 pages of 100)
+      while (hasMorePages && page < 5) {
+        const result = await fetchVoicesFromAPI({
+          page_size: PAGE_SIZE,
+          page: page,
+          gender: selectedGender !== "All" ? selectedGender : undefined,
+          language: selectedLanguage !== "All" ? selectedLanguage : undefined,
+          age: selectedAge !== "All" ? selectedAge : undefined,
+        });
+        
+        allLoadedVoices = [...allLoadedVoices, ...result.voices];
+        hasMorePages = result.has_more;
+        page++;
+        
+        if (result.error) {
+          setApiError(result.error);
+          break;
+        }
       }
-      setHasMore(result.has_more);
-      if (result.error) {
-        setApiError(result.error);
-      }
+      
+      setAllVoices(allLoadedVoices);
+      setHasMore(hasMorePages);
     } catch (error) {
       console.error("Failed to fetch voices:", error);
       setApiError("Failed to load voices. Please try again.");
@@ -106,8 +115,8 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   }, [selectedGender, selectedLanguage, selectedAge]);
 
   useEffect(() => {
-    fetchVoices(0);
-  }, [fetchVoices]);
+    fetchAllVoicesFromAPI();
+  }, [fetchAllVoicesFromAPI]);
 
   // Client-side search filtering
   const filteredVoices = useMemo(() => {
@@ -282,14 +291,14 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
               Next
               <ChevronRight className="h-4 w-4" />
             </Button>
-            {hasMore && (
+            {hasMore && !isLoading && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => fetchVoices(Math.ceil(allVoices.length / PAGE_SIZE))}
+                onClick={() => fetchAllVoicesFromAPI()}
                 disabled={isLoading}
               >
-                Load More
+                Reload All
               </Button>
             )}
           </div>
