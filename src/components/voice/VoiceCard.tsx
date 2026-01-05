@@ -2,7 +2,6 @@ import { Play, Pause, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 interface VoiceCardProps {
   id: string;
@@ -10,10 +9,11 @@ interface VoiceCardProps {
   accent?: string;
   gender?: string;
   age?: string;
-  languages?: string[];
+  description?: string;
   category?: string;
   previewUrl?: string;
   isSelected?: boolean;
+  isPlaying?: boolean;
   onSelect?: (id: string) => void;
   onPlay?: (id: string) => void;
 }
@@ -21,27 +21,30 @@ interface VoiceCardProps {
 export function VoiceCard({
   id,
   name,
-  accent = "American",
-  gender = "Female",
-  age = "Young",
-  languages = ["English"],
-  category = "Conversational",
+  accent,
+  gender,
+  age,
+  description,
+  category,
   previewUrl,
   isSelected = false,
+  isPlaying = false,
   onSelect,
   onPlay,
 }: VoiceCardProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsPlaying(!isPlaying);
-    onPlay?.(id);
+    if (previewUrl) {
+      onPlay?.(id);
+    }
   };
 
   const handleSelect = () => {
     onSelect?.(id);
   };
+
+  // Build description line from available data
+  const infoLine = [accent, gender, age].filter(Boolean).join(" · ") || "Voice";
 
   return (
     <div
@@ -65,8 +68,12 @@ export function VoiceCard({
         <Button
           variant="secondary"
           size="icon"
-          className="h-12 w-12 shrink-0 rounded-full"
+          className={cn(
+            "h-12 w-12 shrink-0 rounded-full",
+            !previewUrl && "opacity-50 cursor-not-allowed"
+          )}
           onClick={handlePlay}
+          disabled={!previewUrl}
         >
           {isPlaying ? (
             <Pause className="h-5 w-5" />
@@ -78,23 +85,22 @@ export function VoiceCard({
         {/* Voice Info */}
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-base font-semibold">{name}</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {accent} · {gender} · {age}
+          <p className="mt-0.5 text-sm text-muted-foreground capitalize">
+            {infoLine}
           </p>
+          
+          {/* Description */}
+          {description && (
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+              {description}
+            </p>
+          )}
           
           {/* Tags */}
           <div className="mt-3 flex flex-wrap gap-1.5">
-            <Badge variant="secondary" className="text-xs">
-              {category}
-            </Badge>
-            {languages.slice(0, 2).map((lang) => (
-              <Badge key={lang} variant="outline" className="text-xs">
-                {lang}
-              </Badge>
-            ))}
-            {languages.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{languages.length - 2}
+            {category && (
+              <Badge variant="secondary" className="text-xs capitalize">
+                {category}
               </Badge>
             )}
           </div>

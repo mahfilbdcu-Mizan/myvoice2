@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Search, X } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Search, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,13 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getVoices, getVoiceById, type Voice } from "@/lib/voice-api";
+import { fetchVoicesFromAPI, type Voice, parseVoiceLabels } from "@/lib/voice-api";
 
-const languages = ["All", "English", "Spanish", "French", "German", "Italian", "Portuguese"];
-const accents = ["All", "American", "British", "Australian", "Irish"];
-const genders = ["All", "Male", "Female"];
-const ages = ["All", "Young", "Middle-aged", "Senior"];
-const categories = ["All", "Conversational", "Narration", "News", "Documentary", "Audiobook", "Corporate", "Gaming"];
+const languages = ["All", "English", "Spanish", "French", "German", "Italian", "Portuguese", "Chinese", "Japanese", "Korean"];
+const accents = ["All", "American", "British", "Australian", "Irish", "Indian"];
+const genders = ["All", "male", "female"];
+const ages = ["All", "young", "middle aged", "old"];
+const categories = ["All", "premade", "cloned", "generated", "professional"];
 
 interface VoiceLibraryProps {
   onSelectVoice?: (voice: { id: string; name: string }) => void;
@@ -40,74 +40,81 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   const [selectedAge, setSelectedAge] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
-  const [showVoiceIdPopup, setShowVoiceIdPopup] = useState(false);
-  const [foundVoice, setFoundVoice] = useState<Voice | null>(null);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch voices on mount
   useEffect(() => {
     async function fetchVoices() {
       setIsLoading(true);
-      const data = await getVoices();
-      setVoices(data);
+      try {
+        const recommended = await fetchVoicesFromAPI("recommended");
+        setVoices(recommended);
+      } catch (error) {
+        console.error("Failed to fetch voices:", error);
+      }
       setIsLoading(false);
     }
     fetchVoices();
   }, []);
 
-  // Check if search query is a voice ID (long alphanumeric string)
-  const isVoiceId = searchQuery.length > 10 && !searchQuery.includes(" ");
-
   // Filter voices
   const filteredVoices = useMemo(() => {
     return voices.filter((voice) => {
+      const labels = parseVoiceLabels(voice);
+      
       const matchesSearch = 
         voice.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        voice.id.toLowerCase() === searchQuery.toLowerCase();
-      const matchesLanguage = selectedLanguage === "All" || (voice.languages?.includes(selectedLanguage) ?? false);
-      const matchesAccent = selectedAccent === "All" || voice.accent === selectedAccent;
-      const matchesGender = selectedGender === "All" || voice.gender === selectedGender;
-      const matchesAge = selectedAge === "All" || voice.age === selectedAge;
-      const matchesCategory = selectedCategory === "All" || voice.category === selectedCategory;
+        voice.voice_id.toLowerCase() === searchQuery.toLowerCase();
+      
+      const matchesLanguage = selectedLanguage === "All" || 
+        voice.labels?.language?.toLowerCase().includes(selectedLanguage.toLowerCase());
+      
+      const matchesAccent = selectedAccent === "All" || 
+        labels.accent?.toLowerCase() === selectedAccent.toLowerCase();
+      
+      const matchesGender = selectedGender === "All" || 
+        labels.gender?.toLowerCase() === selectedGender.toLowerCase();
+      
+      const matchesAge = selectedAge === "All" || 
+        labels.age?.toLowerCase() === selectedAge.toLowerCase();
+      
+      const matchesCategory = selectedCategory === "All" || 
+        voice.category?.toLowerCase() === selectedCategory.toLowerCase();
 
       return matchesSearch && matchesLanguage && matchesAccent && matchesGender && matchesAge && matchesCategory;
     });
   }, [searchQuery, selectedLanguage, selectedAccent, selectedGender, selectedAge, selectedCategory, voices]);
 
-  // Check for voice ID match
-  const handleSearchChange = async (value: string) => {
-    setSearchQuery(value);
-    
-    // Check if it's a voice ID
-    if (value.length > 10 && !value.includes(" ")) {
-      // First check local voices
-      let found = voices.find(v => v.id.toLowerCase() === value.toLowerCase());
-      
-      // If not found locally, try to fetch from API
-      if (!found) {
-        found = await getVoiceById(value) ?? undefined;
-      }
-      
-      if (found) {
-        setFoundVoice(found);
-        setShowVoiceIdPopup(true);
-      } else {
-        setShowVoiceIdPopup(false);
-        setFoundVoice(null);
-      }
-    } else {
-      setShowVoiceIdPopup(false);
-      setFoundVoice(null);
-    }
-  };
-
   const handleVoiceSelect = (voiceId: string) => {
     setSelectedVoiceId(voiceId);
-    const voice = voices.find(v => v.id === voiceId) || foundVoice;
+    const voice = voices.find(v => v.voice_id === voiceId);
     if (voice && onSelectVoice) {
-      onSelectVoice({ id: voice.id, name: voice.name });
+      onSelectVoice({ id: voice.voice_id, name: voice.name });
       if (isModal && onClose) {
         onClose();
       }
+    }
+  };
+
+  const handlePlayVoice = (voiceId: string) => {
+    const voice = voices.find(v => v.voice_id === voiceId);
+    if (!voice?.preview_url) return;
+
+    if (playingVoiceId === voiceId) {
+      // Stop playing
+      audioRef.current?.pause();
+      setPlayingVoiceId(null);
+    } else {
+      // Play new voice
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      const audio = new Audio(voice.preview_url);
+      audio.onended = () => setPlayingVoiceId(null);
+      audio.play();
+      audioRef.current = audio;
+      setPlayingVoiceId(voiceId);
     }
   };
 
@@ -144,38 +151,11 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name or paste a Voice ID..."
             className="pl-10"
           />
         </div>
-
-        {/* Voice ID Popup */}
-        {showVoiceIdPopup && foundVoice && (
-          <div className="animate-scale-in rounded-xl border border-primary bg-primary/5 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <span className="text-lg">🎤</span>
-                </div>
-                <div>
-                  <p className="font-semibold">{foundVoice.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {foundVoice.accent} · {foundVoice.gender} · {foundVoice.category}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline">
-                  Preview
-                </Button>
-                <Button size="sm" onClick={() => handleVoiceSelect(foundVoice.id)}>
-                  Use this voice
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Filter Row */}
         <div className="flex flex-wrap items-center gap-3">
@@ -207,7 +187,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
             </SelectTrigger>
             <SelectContent>
               {genders.map((gender) => (
-                <SelectItem key={gender} value={gender}>{gender}</SelectItem>
+                <SelectItem key={gender} value={gender}>{gender === "All" ? "All" : gender.charAt(0).toUpperCase() + gender.slice(1)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -218,7 +198,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
             </SelectTrigger>
             <SelectContent>
               {ages.map((age) => (
-                <SelectItem key={age} value={age}>{age}</SelectItem>
+                <SelectItem key={age} value={age}>{age === "All" ? "All" : age.charAt(0).toUpperCase() + age.slice(1)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -229,7 +209,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
             </SelectTrigger>
             <SelectContent>
               {categories.map((cat) => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                <SelectItem key={cat} value={cat}>{cat === "All" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -244,26 +224,39 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
 
         {/* Results count */}
         <p className="text-sm text-muted-foreground">
-          {isLoading ? "Loading voices..." : `Showing ${filteredVoices.length} of ${voices.length} voices`}
+          {isLoading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading voices from API...
+            </span>
+          ) : (
+            `Showing ${filteredVoices.length} of ${voices.length} voices`
+          )}
         </p>
       </div>
 
       {/* Voice Grid */}
       <div className="grid flex-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-        {filteredVoices.map((voice) => (
-          <VoiceCard
-            key={voice.id}
-            id={voice.id}
-            name={voice.name}
-            accent={voice.accent || undefined}
-            gender={voice.gender || undefined}
-            age={voice.age || undefined}
-            languages={voice.languages || undefined}
-            category={voice.category || undefined}
-            isSelected={selectedVoiceId === voice.id}
-            onSelect={handleVoiceSelect}
-          />
-        ))}
+        {filteredVoices.map((voice) => {
+          const labels = parseVoiceLabels(voice);
+          return (
+            <VoiceCard
+              key={voice.voice_id}
+              id={voice.voice_id}
+              name={voice.name}
+              accent={labels.accent}
+              gender={labels.gender}
+              age={labels.age}
+              description={labels.description}
+              category={voice.category}
+              previewUrl={voice.preview_url}
+              isSelected={selectedVoiceId === voice.voice_id}
+              isPlaying={playingVoiceId === voice.voice_id}
+              onSelect={handleVoiceSelect}
+              onPlay={handlePlayVoice}
+            />
+          );
+        })}
       </div>
 
       {filteredVoices.length === 0 && !isLoading && (

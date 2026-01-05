@@ -5,11 +5,14 @@ import {
   Pause, 
   Settings2, 
   ChevronDown,
-  Loader2
+  Loader2,
+  Upload,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -23,7 +26,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { generateSpeech } from "@/lib/voice-api";
+import { generateSpeech, waitForTask, fetchModelsFromAPI, type VoiceModel } from "@/lib/voice-api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -32,12 +35,7 @@ interface TextToSpeechPanelProps {
   onOpenVoiceLibrary?: () => void;
 }
 
-const providers = [
-  { id: "elevenlabs", name: "Provider A" },
-  { id: "minimax", name: "Provider B" },
-];
-
-const models = [
+const defaultModels = [
   { id: "eleven_multilingual_v2", name: "Multilingual v2" },
   { id: "eleven_turbo_v2_5", name: "Turbo v2.5" },
   { id: "eleven_monolingual_v1", name: "English v1" },
@@ -53,20 +51,32 @@ export function TextToSpeechPanel({
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [models, setModels] = useState<Array<{ id: string; name: string }>>(defaultModels);
+  const [taskStatus, setTaskStatus] = useState<string | null>(null);
   
   // Voice settings
-  const [provider, setProvider] = useState("elevenlabs");
   const [model, setModel] = useState("eleven_multilingual_v2");
   const [stability, setStability] = useState([0.5]);
   const [similarity, setSimilarity] = useState([0.75]);
-  const [speed, setSpeed] = useState([1.0]);
   const [style, setStyle] = useState([0.5]);
 
+  // File upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
-  const hasEnoughCredits = (profile?.credits ?? 0) >= wordCount;
+
+  // Fetch models on mount
+  useEffect(() => {
+    async function loadModels() {
+      const apiModels = await fetchModelsFromAPI();
+      if (apiModels.length > 0) {
+        setModels(apiModels.map(m => ({ id: m.model_id, name: m.name })));
+      }
+    }
+    loadModels();
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -77,30 +87,81 @@ export function TextToSpeechPanel({
     }
   }, [audioUrl]);
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (extension === 'txt' || extension === 'srt') {
+      const content = await file.text();
+      
+      if (extension === 'srt') {
+        // Parse SRT format - extract only text, not timestamps
+        const lines = content.split('\n');
+        const textLines: string[] = [];
+        let isTextLine = false;
+        
+        for (const line of lines) {
+          const trimmed = line.trim();
+          // Skip empty lines, numbers, and timestamps
+          if (!trimmed) {
+            isTextLine = false;
+            continue;
+          }
+          if (/^\d+$/.test(trimmed)) {
+            isTextLine = true;
+            continue;
+          }
+          if (/^\d{2}:\d{2}:\d{2}/.test(trimmed)) {
+            continue;
+          }
+          if (isTextLine || textLines.length > 0) {
+            textLines.push(trimmed);
+          }
+        }
+        setText(textLines.join('\n'));
+      } else {
+        setText(content);
+      }
+      
+      toast({
+        title: "File loaded",
+        description: `Loaded ${file.name}`,
+      });
+    } else if (extension === 'zip') {
+      toast({
+        title: "ZIP files",
+        description: "ZIP support coming soon. Please extract and upload TXT or SRT files.",
+      });
+    } else {
+      toast({
+        title: "Unsupported format",
+        description: "Please upload .txt, .srt, or .zip files",
+        variant: "destructive",
+      });
+    }
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleGenerate = async () => {
     if (!text.trim() || !selectedVoice) return;
     
-    if (!hasEnoughCredits) {
-      toast({
-        title: "Insufficient credits",
-        description: `You need ${wordCount} credits but only have ${profile?.credits ?? 0}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setIsGenerating(true);
     setAudioUrl(null);
+    setTaskStatus("Starting generation...");
     
     try {
       const result = await generateSpeech({
         text: text.trim(),
         voiceId: selectedVoice.id,
-        provider,
         model,
         stability: stability[0],
         similarity: similarity[0],
-        speed: speed[0],
         style: style[0],
       });
 
@@ -110,14 +171,45 @@ export function TextToSpeechPanel({
           description: result.error,
           variant: "destructive",
         });
+        setTaskStatus(null);
       } else if (result.audioUrl) {
+        // Direct audio response
         setAudioUrl(result.audioUrl);
+        setTaskStatus(null);
         toast({
           title: "Speech generated!",
-          description: `Used ${wordCount} credits.`,
+          description: "Your audio is ready to play and download.",
         });
-        // Refresh profile to get updated credits
         refreshProfile();
+      } else if (result.taskId) {
+        // Task-based response - poll for completion
+        setTaskStatus("Processing...");
+        
+        const task = await waitForTask(result.taskId);
+        
+        if (task?.status === "done" && task.metadata?.audio_url) {
+          setAudioUrl(task.metadata.audio_url);
+          setTaskStatus(null);
+          toast({
+            title: "Speech generated!",
+            description: "Your audio is ready to play and download.",
+          });
+          refreshProfile();
+        } else if (task?.status === "failed") {
+          toast({
+            title: "Generation failed",
+            description: task.error_message || "Task failed",
+            variant: "destructive",
+          });
+          setTaskStatus(null);
+        } else {
+          toast({
+            title: "Generation timeout",
+            description: "Task is taking too long. Please try again.",
+            variant: "destructive",
+          });
+          setTaskStatus(null);
+        }
       }
     } catch (error) {
       toast({
@@ -125,6 +217,7 @@ export function TextToSpeechPanel({
         description: "Failed to generate speech. Please try again.",
         variant: "destructive",
       });
+      setTaskStatus(null);
     } finally {
       setIsGenerating(false);
     }
@@ -141,13 +234,52 @@ export function TextToSpeechPanel({
     }
   };
 
-  const handleDownload = () => {
-    if (audioUrl) {
+  const handleDownload = async (format: 'mp3' | 'txt' | 'srt') => {
+    if (!audioUrl) return;
+
+    if (format === 'mp3') {
       const a = document.createElement("a");
       a.href = audioUrl;
       a.download = `speech-${Date.now()}.mp3`;
       a.click();
+    } else if (format === 'txt') {
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `text-${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'srt') {
+      // Generate basic SRT format
+      const lines = text.split('\n').filter(l => l.trim());
+      let srtContent = '';
+      let time = 0;
+      
+      lines.forEach((line, index) => {
+        const duration = Math.ceil(line.length / 15); // Rough estimate
+        const startTime = formatSrtTime(time);
+        const endTime = formatSrtTime(time + duration);
+        srtContent += `${index + 1}\n${startTime} --> ${endTime}\n${line}\n\n`;
+        time += duration;
+      });
+      
+      const blob = new Blob([srtContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `subtitle-${Date.now()}.srt`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
+  };
+
+  const formatSrtTime = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const ms = 0;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
   };
 
   return (
@@ -159,20 +291,8 @@ export function TextToSpeechPanel({
           <p className="text-muted-foreground">Convert your text into natural speech</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={provider} onValueChange={setProvider}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {providers.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Select value={model} onValueChange={setModel}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -202,6 +322,28 @@ export function TextToSpeechPanel({
             </div>
           </div>
 
+          {/* File Upload */}
+          <div className="mt-4 flex items-center gap-3">
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.srt,.zip"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Upload File
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Supports .txt, .srt, .zip formats
+            </span>
+          </div>
+
           {/* Voice Selection */}
           <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-3">
@@ -227,16 +369,15 @@ export function TextToSpeechPanel({
 
           {/* Generate Button */}
           <Button
-            size="xl"
-            variant="hero"
-            className="mt-4"
+            size="lg"
+            className="mt-4 h-14 text-lg"
             onClick={handleGenerate}
-            disabled={!text.trim() || !selectedVoice || isGenerating || !hasEnoughCredits}
+            disabled={!text.trim() || !selectedVoice || isGenerating}
           >
             {isGenerating ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Generating...
+                {taskStatus || "Generating..."}
               </>
             ) : (
               <>
@@ -245,12 +386,6 @@ export function TextToSpeechPanel({
               </>
             )}
           </Button>
-          
-          {!hasEnoughCredits && wordCount > 0 && (
-            <p className="mt-2 text-center text-sm text-destructive">
-              Insufficient credits. You need {wordCount} but have {profile?.credits ?? 0}.
-            </p>
-          )}
         </div>
 
         {/* Settings & Output Panel */}
@@ -309,21 +444,6 @@ export function TextToSpeechPanel({
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Speed</label>
-                  <span className="text-sm text-muted-foreground">{speed[0].toFixed(1)}x</span>
-                </div>
-                <Slider
-                  value={speed}
-                  onValueChange={setSpeed}
-                  min={0.5}
-                  max={2}
-                  step={0.1}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Style Exaggeration</label>
                   <span className="text-sm text-muted-foreground">{style[0].toFixed(2)}</span>
                 </div>
@@ -369,7 +489,7 @@ export function TextToSpeechPanel({
                         key={i}
                         className={cn(
                           "w-1 rounded-full transition-all",
-                          isPlaying ? "bg-primary animate-pulse-soft" : "bg-primary/30"
+                          isPlaying ? "bg-primary animate-pulse" : "bg-primary/30"
                         )}
                         style={{
                           height: `${Math.random() * 100}%`,
@@ -381,14 +501,37 @@ export function TextToSpeechPanel({
                 </div>
               </div>
 
-              <Button
-                variant="outline"
-                className="mt-4 w-full"
-                onClick={handleDownload}
-              >
-                <Download className="h-4 w-4" />
-                Download MP3
-              </Button>
+              {/* Download Options */}
+              <div className="mt-4 space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => handleDownload('mp3')}
+                >
+                  <Download className="h-4 w-4" />
+                  Download MP3
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDownload('txt')}
+                  >
+                    <FileText className="h-4 w-4" />
+                    .TXT
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDownload('srt')}
+                  >
+                    <FileText className="h-4 w-4" />
+                    .SRT
+                  </Button>
+                </div>
+              </div>
 
               <audio ref={audioRef} src={audioUrl} className="hidden" />
             </div>
@@ -396,12 +539,12 @@ export function TextToSpeechPanel({
 
           {/* Usage Info */}
           <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-2 font-semibold">Credit Usage</h3>
+            <h3 className="mb-2 font-semibold">Generation Info</h3>
             <p className="text-sm text-muted-foreground">
-              This generation will use <span className="font-semibold text-foreground">{wordCount}</span> credits
+              Text length: <span className="font-semibold text-foreground">{charCount}</span> characters
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              1 credit = 1 word
+            <p className="mt-1 text-sm text-muted-foreground">
+              Word count: <span className="font-semibold text-foreground">{wordCount}</span> words
             </p>
           </div>
         </div>
