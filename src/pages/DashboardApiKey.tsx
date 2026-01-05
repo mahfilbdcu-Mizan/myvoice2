@@ -77,8 +77,24 @@ export default function DashboardApiKey() {
 
       if (balanceResponse.ok) {
         const balanceData = await balanceResponse.json();
+        isValid = balanceData.valid !== false; // Key is valid if response succeeded
         remainingCredits = balanceData.character_count || balanceData.credits || null;
-        isValid = true;
+      } else {
+        // Check if it's an invalid key error
+        try {
+          const errorData = await balanceResponse.json();
+          if (errorData.valid === false) {
+            toast({
+              title: "Invalid API Key",
+              description: "The API key you entered is not valid.",
+              variant: "destructive",
+            });
+            setIsSaving(false);
+            return;
+          }
+        } catch {
+          // Ignore parse errors
+        }
       }
 
       // Save or update the API key
@@ -147,27 +163,48 @@ export default function DashboardApiKey() {
 
       if (response.ok) {
         const data = await response.json();
-        const credits = data.character_count || data.credits || 0;
+        
+        if (data.valid === false) {
+          toast({
+            title: "Invalid API Key",
+            description: "Your API key is no longer valid.",
+            variant: "destructive",
+          });
+          
+          await supabase
+            .from("user_api_keys")
+            .update({
+              is_valid: false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", savedKey.id);
+          
+          fetchUserApiKey();
+          return;
+        }
+        
+        const credits = data.character_count || data.credits;
+        const hasBalanceInfo = credits !== null && credits !== undefined;
         
         await supabase
           .from("user_api_keys")
           .update({
-            remaining_credits: credits,
+            remaining_credits: hasBalanceInfo ? credits : null,
             is_valid: true,
             updated_at: new Date().toISOString(),
           })
           .eq("id", savedKey.id);
 
         toast({
-          title: "Balance Updated",
-          description: `Your API balance: ${credits.toLocaleString()} credits`,
+          title: data.message ? "API Key Valid" : "Balance Updated",
+          description: data.message || `Your API balance: ${credits?.toLocaleString() || 'N/A'} credits`,
         });
         
         fetchUserApiKey();
       } else {
         toast({
           title: "Check Failed",
-          description: "Could not verify API key balance",
+          description: "Could not verify API key",
           variant: "destructive",
         });
       }
