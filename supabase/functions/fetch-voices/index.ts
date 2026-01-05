@@ -129,18 +129,11 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("API error:", response.status, errorText);
       
-      // Return empty voices on API error instead of failing completely
-      if (response.status >= 500) {
-        console.log("Returning empty voices due to API error");
-        return new Response(
-          JSON.stringify({ voices: [], has_more: false, error: "API temporarily unavailable" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
+      // Return empty voices on any API error instead of failing
+      console.log("Returning empty voices due to API error");
       return new Response(
-        JSON.stringify({ error: "Failed to fetch voices", details: errorText }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ voices: [], has_more: false }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
