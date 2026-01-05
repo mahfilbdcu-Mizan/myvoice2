@@ -66,7 +66,37 @@ serve(async (req) => {
       use_cases = ""
     } = body;
 
-    // Build query params for shared-voices endpoint which has more voices
+    // Check if search looks like a voice ID (alphanumeric, typically 20+ chars)
+    const isVoiceIdSearch = search && /^[a-zA-Z0-9]{10,}$/.test(search.trim());
+
+    if (isVoiceIdSearch) {
+      // Try to fetch specific voice by ID
+      console.log(`Searching for voice ID: ${search}`);
+      try {
+        const voiceResponse = await fetch(`https://api.ai33.pro/v1/voices/${search.trim()}`, {
+          method: "GET",
+          headers: {
+            "xi-api-key": API_KEY,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (voiceResponse.ok) {
+          const voice = await voiceResponse.json();
+          console.log(`Found voice by ID: ${voice.name}`);
+          return new Response(JSON.stringify({
+            voices: [voice],
+            has_more: false
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (e) {
+        console.log("Voice ID lookup failed, falling back to search");
+      }
+    }
+
+    // Build query params for shared-voices endpoint
     const params = new URLSearchParams();
     params.set("page_size", String(page_size));
     if (page > 0) params.set("page", String(page));
