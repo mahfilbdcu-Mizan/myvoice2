@@ -17,3 +17,15 @@ verify_jwt = false
 
 [functions.check-api-balance]
 verify_jwt = false
+
+[functions.list-tasks]
+verify_jwt = false
+
+[functions.delete-task]
+verify_jwt = false
+
+[functions.get-credits]
+verify_jwt = false
+
+[functions.health-check]
+verify_jwt = false
