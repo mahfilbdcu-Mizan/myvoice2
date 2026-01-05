@@ -37,6 +37,63 @@ async function getApiKey(): Promise<string | null> {
   }
 }
 
+// Fetch with retry logic for transient errors
+async function fetchWithRetry(
+  url: string, 
+  options: RequestInit, 
+  maxRetries = 3,
+  delayMs = 1000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      // Retry on 502, 503, 504 errors
+      if (response.status >= 502 && response.status <= 504) {
+        console.log(`Attempt ${attempt + 1}: Got ${response.status}, retrying...`);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+          continue;
+        }
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.log(`Attempt ${attempt + 1} failed:`, lastError.message);
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+      }
+    }
+  }
+  
+  throw lastError || new Error("Failed after retries");
+}
+
+// Default models to return when API is unavailable
+const defaultModels = [
+  {
+    model_id: "eleven_multilingual_v2",
+    name: "Eleven Multilingual v2",
+    description: "High quality multilingual model",
+    can_be_finetuned: false,
+    can_do_text_to_speech: true,
+    can_do_voice_conversion: false,
+    languages: [{ language_id: "en", name: "English" }]
+  },
+  {
+    model_id: "eleven_turbo_v2_5",
+    name: "Eleven Turbo v2.5",
+    description: "Fast and efficient model",
+    can_be_finetuned: false,
+    can_do_text_to_speech: true,
+    can_do_voice_conversion: false,
+    languages: [{ language_id: "en", name: "English" }]
+  }
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -46,16 +103,15 @@ serve(async (req) => {
     const API_KEY = await getApiKey();
     
     if (!API_KEY) {
-      console.error("API key is not configured");
-      return new Response(
-        JSON.stringify({ error: "API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.log("API key is not configured, returning default models");
+      return new Response(JSON.stringify(defaultModels), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log("Fetching models from ai33.pro");
+    console.log("Fetching models from API");
 
-    const response = await fetch("https://api.ai33.pro/v1/models", {
+    const response = await fetchWithRetry("https://api.ai33.pro/v1/models", {
       method: "GET",
       headers: {
         "xi-api-key": API_KEY,
@@ -66,10 +122,12 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("API error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch models", details: errorText }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      
+      // Return default models on API error instead of failing
+      console.log("Returning default models due to API error");
+      return new Response(JSON.stringify(defaultModels), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await response.json();
@@ -80,9 +138,9 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Fetch models error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Return default models on error instead of failing
+    return new Response(JSON.stringify(defaultModels), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
