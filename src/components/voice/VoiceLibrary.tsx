@@ -50,7 +50,7 @@ interface VoiceLibraryProps {
 }
 
 export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceLibraryProps) {
-  const [voices, setVoices] = useState<Voice[]>([]);
+  const [allVoices, setAllVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -61,11 +61,11 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [totalLoaded, setTotalLoaded] = useState(0);
   const [apiError, setApiError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const PAGE_SIZE = 100;
+  const DISPLAY_PAGE_SIZE = 24;
 
   // Debounce search query
   useEffect(() => {
@@ -76,22 +76,25 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch voices
-  const fetchVoices = useCallback(async () => {
+  // Fetch voices from API (without search - we filter client-side)
+  const fetchVoices = useCallback(async (page: number = 0) => {
     setIsLoading(true);
     setApiError(null);
     try {
       const result = await fetchVoicesFromAPI({
         page_size: PAGE_SIZE,
-        page: currentPage,
-        search: debouncedSearch || undefined,
+        page: page,
         gender: selectedGender !== "All" ? selectedGender : undefined,
         language: selectedLanguage !== "All" ? selectedLanguage : undefined,
         age: selectedAge !== "All" ? selectedAge : undefined,
       });
-      setVoices(result.voices);
+      
+      if (page === 0) {
+        setAllVoices(result.voices);
+      } else {
+        setAllVoices(prev => [...prev, ...result.voices]);
+      }
       setHasMore(result.has_more);
-      setTotalLoaded(result.voices.length);
       if (result.error) {
         setApiError(result.error);
       }
@@ -100,11 +103,32 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
       setApiError("Failed to load voices. Please try again.");
     }
     setIsLoading(false);
-  }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge]);
+  }, [selectedGender, selectedLanguage, selectedAge]);
 
   useEffect(() => {
-    fetchVoices();
+    fetchVoices(0);
   }, [fetchVoices]);
+
+  // Client-side search filtering
+  const filteredVoices = useMemo(() => {
+    if (!debouncedSearch) return allVoices;
+    
+    const searchLower = debouncedSearch.toLowerCase().trim();
+    return allVoices.filter(voice => 
+      voice.name.toLowerCase().includes(searchLower) ||
+      voice.voice_id.toLowerCase().includes(searchLower)
+    );
+  }, [allVoices, debouncedSearch]);
+
+  // Paginated voices for display
+  const paginatedVoices = useMemo(() => {
+    const start = currentPage * DISPLAY_PAGE_SIZE;
+    const end = start + DISPLAY_PAGE_SIZE;
+    return filteredVoices.slice(start, end);
+  }, [filteredVoices, currentPage]);
+
+  const totalPages = Math.ceil(filteredVoices.length / DISPLAY_PAGE_SIZE);
+  const hasMorePages = currentPage < totalPages - 1;
 
   // Reset page when filters change
   useEffect(() => {
@@ -113,7 +137,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
 
   const handleVoiceSelect = (voiceId: string) => {
     setSelectedVoiceId(voiceId);
-    const voice = voices.find(v => v.voice_id === voiceId);
+    const voice = filteredVoices.find(v => v.voice_id === voiceId);
     if (voice && onSelectVoice) {
       onSelectVoice({ id: voice.voice_id, name: voice.name });
       if (isModal && onClose) {
@@ -123,7 +147,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   };
 
   const handlePlayVoice = (voiceId: string) => {
-    const voice = voices.find(v => v.voice_id === voiceId);
+    const voice = filteredVoices.find(v => v.voice_id === voiceId);
     if (!voice?.preview_url) return;
 
     if (playingVoiceId === voiceId) {
@@ -231,7 +255,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
                 Loading voices...
               </span>
             ) : (
-              `Showing ${voices.length} voices${hasMore ? ' (more available)' : ''}`
+              `Showing ${paginatedVoices.length} of ${filteredVoices.length} voices${hasMore ? ' (more available from API)' : ''}`
             )}
           </p>
           
@@ -247,24 +271,34 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
               Prev
             </Button>
             <span className="text-sm text-muted-foreground">
-              Page {currentPage + 1}
+              Page {currentPage + 1} of {Math.max(1, totalPages)}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentPage(p => p + 1)}
-              disabled={!hasMore || isLoading}
+              disabled={!hasMorePages || isLoading}
             >
               Next
               <ChevronRight className="h-4 w-4" />
             </Button>
+            {hasMore && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchVoices(Math.ceil(allVoices.length / PAGE_SIZE))}
+                disabled={isLoading}
+              >
+                Load More
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Voice Grid */}
       <div className="grid flex-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {voices.map((voice) => {
+        {paginatedVoices.map((voice) => {
           const labels = parseVoiceLabels(voice);
           return (
             <VoiceCard
@@ -295,7 +329,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
         </div>
       )}
 
-      {voices.length === 0 && !isLoading && (
+      {paginatedVoices.length === 0 && !isLoading && (
         <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <Search className="h-8 w-8 text-muted-foreground" />
