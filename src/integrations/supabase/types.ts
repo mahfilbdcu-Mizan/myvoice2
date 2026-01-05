@@ -14,16 +14,237 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      credit_orders: {
+        Row: {
+          admin_notes: string | null
+          amount_usdt: number
+          created_at: string
+          credits: number
+          id: string
+          network: string | null
+          processed_at: string | null
+          status: string
+          txid: string | null
+          user_id: string
+          wallet_address: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount_usdt: number
+          created_at?: string
+          credits: number
+          id?: string
+          network?: string | null
+          processed_at?: string | null
+          status?: string
+          txid?: string | null
+          user_id: string
+          wallet_address?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          amount_usdt?: number
+          created_at?: string
+          credits?: number
+          id?: string
+          network?: string | null
+          processed_at?: string | null
+          status?: string
+          txid?: string | null
+          user_id?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      generation_tasks: {
+        Row: {
+          audio_url: string | null
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          input_text: string
+          model: string | null
+          progress: number | null
+          provider: string
+          settings: Json | null
+          status: string
+          user_id: string
+          voice_id: string
+          words_count: number
+        }
+        Insert: {
+          audio_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_text: string
+          model?: string | null
+          progress?: number | null
+          provider?: string
+          settings?: Json | null
+          status?: string
+          user_id: string
+          voice_id: string
+          words_count: number
+        }
+        Update: {
+          audio_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_text?: string
+          model?: string | null
+          progress?: number | null
+          provider?: string
+          settings?: Json | null
+          status?: string
+          user_id?: string
+          voice_id?: string
+          words_count?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          credits: number
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          credits?: number
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          credits?: number
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_api_keys: {
+        Row: {
+          created_at: string
+          encrypted_key: string
+          id: string
+          is_valid: boolean | null
+          provider: string
+          remaining_credits: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_key: string
+          id?: string
+          is_valid?: boolean | null
+          provider: string
+          remaining_credits?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_key?: string
+          id?: string
+          is_valid?: boolean | null
+          provider?: string
+          remaining_credits?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      voices: {
+        Row: {
+          accent: string | null
+          age: string | null
+          category: string | null
+          created_at: string
+          gender: string | null
+          id: string
+          is_active: boolean
+          languages: string[] | null
+          name: string
+          preview_url: string | null
+          provider: string
+        }
+        Insert: {
+          accent?: string | null
+          age?: string | null
+          category?: string | null
+          created_at?: string
+          gender?: string | null
+          id: string
+          is_active?: boolean
+          languages?: string[] | null
+          name: string
+          preview_url?: string | null
+          provider?: string
+        }
+        Update: {
+          accent?: string | null
+          age?: string | null
+          category?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_active?: boolean
+          languages?: string[] | null
+          name?: string
+          preview_url?: string | null
+          provider?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +371,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
