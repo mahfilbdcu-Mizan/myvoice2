@@ -97,7 +97,7 @@ export interface FetchVoicesResult {
   last_sort_id?: string;
 }
 
-// Fetch voices from ai33.pro API with pagination
+// Fetch voices from Voice API with pagination
 export async function fetchVoicesFromAPI(options: FetchVoicesOptions = {}): Promise<FetchVoicesResult> {
   try {
     const response = await fetch(
@@ -159,7 +159,7 @@ export async function fetchAllVoices(): Promise<Voice[]> {
   return allVoices;
 }
 
-// Fetch models from ai33.pro API
+// Fetch models from Voice API
 export async function fetchModelsFromAPI(): Promise<VoiceModel[]> {
   try {
     const response = await fetch(
@@ -207,7 +207,7 @@ export interface GenerateResult {
   error?: string;
 }
 
-// Generate speech using ai33.pro API
+// Generate speech using Voice API
 export async function generateSpeech(options: GenerateOptions): Promise<GenerateResult> {
   try {
     const response = await fetch(

@@ -216,7 +216,7 @@ serve(async (req) => {
       requestBody.voice_settings = voiceSettings;
     }
 
-    // Call ai33.pro API (ElevenLabs proxy)
+    // Call Voice API
     const response = await fetch(
       `https://api.ai33.pro/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
       {
@@ -231,7 +231,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("ai33.pro API error:", response.status, errorText);
+      console.error("Voice API error:", response.status, errorText);
       
       let errorMessage = "Failed to generate speech";
       try {
