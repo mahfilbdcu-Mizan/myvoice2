@@ -1,14 +1,19 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Zap, Loader2, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
 export default function Login() {
-  const { user, isLoading, signInWithGoogle } = useAuth();
+  const { user, isLoading, signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -24,6 +29,33 @@ export default function Login() {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Missing fields",
+        description: "Please enter both email and password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const { error } = await signInWithEmail(email, password);
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      navigate("/dashboard");
     }
   };
 
@@ -59,7 +91,55 @@ export default function Login() {
               Sign in to your account to continue
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Email/Password Form */}
+            <form onSubmit={handleEmailSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="mr-2 h-4 w-4" />
+                )}
+                Sign in with Email
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+
             <Button
               variant="outline"
               size="lg"
@@ -87,7 +167,7 @@ export default function Login() {
               Continue with Google
             </Button>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
+            <div className="text-center text-sm text-muted-foreground">
               <p>By signing in, you agree to our</p>
               <p className="mt-1">
                 <Link to="/terms" className="text-primary hover:underline">
@@ -100,7 +180,7 @@ export default function Login() {
               </p>
             </div>
 
-            <div className="mt-6 rounded-lg bg-muted/50 p-4 text-center">
+            <div className="rounded-lg bg-muted/50 p-4 text-center">
               <p className="text-sm font-medium">New users get 100 free credits!</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Start creating audio content right away
