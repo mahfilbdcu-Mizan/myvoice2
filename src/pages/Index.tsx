@@ -110,7 +110,7 @@ export default function Index() {
               </div>
 
               <p className="animate-fade-in delay-300 mt-6 text-sm text-muted-foreground">
-                Start with 100 free credits • No credit card required
+                Start with 100 free characters • No credit card required
               </p>
             </div>
 
@@ -244,7 +244,7 @@ export default function Index() {
                         <Zap className="h-8 w-8 text-primary-foreground" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold">100 Credits</p>
+                        <p className="text-2xl font-bold">100 Characters</p>
                         <p className="text-muted-foreground">Free to start</p>
                       </div>
                     </div>
