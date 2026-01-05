@@ -20,93 +20,56 @@ serve(async (req) => {
       );
     }
 
-    // Try multiple endpoints to check if API key is valid
-    const endpoints = [
-      "https://api.ai33.pro/v1/user/subscription",
-      "https://api.ai33.pro/v1/user",
-      "https://api.ai33.pro/v1/user/info",
-    ];
+    // Use the /v1/credits endpoint to get user credits
+    console.log("Fetching credits from /v1/credits");
+    const response = await fetch("https://api.ai33.pro/v1/credits", {
+      method: "GET",
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
 
-    let data = null;
-    let success = false;
-
-    for (const endpoint of endpoints) {
-      console.log(`Trying endpoint: ${endpoint}`);
+    if (!response.ok) {
+      console.error("API error:", response.status);
+      
+      // Try to get more info about the error
+      let errorMessage = "Invalid API key or could not fetch balance";
       try {
-        const response = await fetch(endpoint, {
-          method: "GET",
-          headers: {
-            "xi-api-key": apiKey,
-          },
-        });
-
-        if (response.ok) {
-          data = await response.json();
-          console.log("Success! Data:", JSON.stringify(data).substring(0, 300));
-          success = true;
-          break;
-        } else {
-          console.log(`Endpoint ${endpoint} returned ${response.status}`);
-        }
-      } catch (e) {
-        console.log(`Endpoint ${endpoint} failed:`, e);
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        // Ignore parse errors
       }
+      
+      return new Response(
+        JSON.stringify({ error: errorMessage, valid: false }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // If all subscription endpoints failed, validate key by trying to fetch models
-    if (!success) {
-      console.log("Subscription endpoints failed, validating key with models endpoint...");
-      try {
-        const modelsResponse = await fetch("https://api.ai33.pro/v1/models", {
-          method: "GET",
-          headers: {
-            "xi-api-key": apiKey,
-          },
-        });
+    const data = await response.json();
+    console.log("Credits data:", JSON.stringify(data));
 
-        if (modelsResponse.ok) {
-          // Key is valid but subscription endpoint not available
-          console.log("API key is valid (models endpoint worked)");
-          return new Response(
-            JSON.stringify({
-              character_count: null,
-              character_limit: null,
-              credits: null,
-              tier: "unknown",
-              valid: true,
-              message: "API key is valid. Balance info not available for this provider.",
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        } else {
-          console.error("Models endpoint also failed:", modelsResponse.status);
-          return new Response(
-            JSON.stringify({ error: "Invalid API key", valid: false }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } catch (e) {
-        console.error("Models endpoint error:", e);
-        return new Response(
-          JSON.stringify({ error: "Could not validate API key", valid: false }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    // Response format: { "success": true, "credits": 123 }
+    if (data.success) {
+      return new Response(
+        JSON.stringify({
+          credits: data.credits || 0,
+          character_count: data.credits || 0,
+          valid: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } else {
+      return new Response(
+        JSON.stringify({ 
+          error: data.message || "Could not fetch credits",
+          valid: false 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-
-    // Extract subscription info - it may be nested or flat
-    const subscription = data?.subscription || data;
-    
-    return new Response(
-      JSON.stringify({
-        character_count: subscription?.character_count || data?.character_count || 0,
-        character_limit: subscription?.character_limit || data?.character_limit || 0,
-        credits: subscription?.character_count || data?.character_count || 0,
-        tier: subscription?.tier || data?.tier || "free",
-        valid: true,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (error) {
     console.error("Check balance error:", error);
     return new Response(
