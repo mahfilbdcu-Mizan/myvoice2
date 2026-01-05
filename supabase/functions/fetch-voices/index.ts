@@ -72,22 +72,75 @@ async function fetchWithRetry(
   throw lastError || new Error("Failed after retries");
 }
 
+// Fetch cached voices from database
+async function getCachedVoices(filters: {
+  search?: string;
+  gender?: string;
+  language?: string;
+  page_size?: number;
+  page?: number;
+}): Promise<{ voices: any[]; has_more: boolean }> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return { voices: [], has_more: false };
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    let query = supabase
+      .from("voices")
+      .select("*")
+      .eq("is_active", true)
+      .order("name");
+
+    if (filters.search) {
+      query = query.ilike("name", `%${filters.search}%`);
+    }
+    if (filters.gender) {
+      query = query.eq("gender", filters.gender);
+    }
+    
+    const pageSize = filters.page_size || 100;
+    const page = filters.page || 0;
+    query = query.range(page * pageSize, (page + 1) * pageSize - 1);
+
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error("Database query error:", error);
+      return { voices: [], has_more: false };
+    }
+
+    // Transform to API format
+    const voices = (data || []).map(v => ({
+      voice_id: v.id,
+      name: v.name,
+      preview_url: v.preview_url,
+      category: v.category || "generated",
+      labels: {
+        gender: v.gender,
+        age: v.age,
+        accent: v.accent,
+        language: v.languages?.[0] || "en",
+      },
+    }));
+
+    return { voices, has_more: voices.length === pageSize };
+  } catch (e) {
+    console.error("Error fetching cached voices:", e);
+    return { voices: [], has_more: false };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const API_KEY = await getApiKey();
-    
-    if (!API_KEY) {
-      console.log("API key is not configured, returning empty voices");
-      return new Response(
-        JSON.stringify({ voices: [], has_more: false, error: "API key not configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const body = await req.json().catch(() => ({}));
     const { 
       page_size = 100,
@@ -100,6 +153,22 @@ serve(async (req) => {
       category = "",
       use_cases = ""
     } = body;
+
+    const API_KEY = await getApiKey();
+    
+    if (!API_KEY) {
+      console.log("API key is not configured, trying cached voices");
+      const cached = await getCachedVoices({ search, gender, language, page_size, page });
+      return new Response(
+        JSON.stringify({ 
+          voices: cached.voices, 
+          has_more: cached.has_more, 
+          source: "cache",
+          error: cached.voices.length === 0 ? "API key not configured. Please add API key in Admin Settings." : undefined
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Build query params for shared-voices endpoint which has more voices
     const params = new URLSearchParams();
@@ -129,15 +198,18 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("API error:", response.status, errorText);
       
-      // Return empty voices on any API error to prevent blank screen
-      console.log("Returning empty voices due to API error");
+      // Try cached voices as fallback
+      console.log("API failed, trying cached voices as fallback");
+      const cached = await getCachedVoices({ search, gender, language, page_size, page });
+      
       return new Response(
         JSON.stringify({ 
-          voices: [], 
-          has_more: false, 
+          voices: cached.voices, 
+          has_more: cached.has_more, 
+          source: "cache",
           error: response.status === 401 
             ? "API key invalid or out of credits. Please update in Admin Settings." 
-            : "API temporarily unavailable" 
+            : "API temporarily unavailable. Showing cached voices." 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -146,14 +218,21 @@ serve(async (req) => {
     const data = await response.json();
     console.log(`Fetched ${data.voices?.length || 0} voices, has_more: ${data.has_more}`);
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({ ...data, source: "api" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Fetch voices error:", error);
-    // Return empty voices on error instead of failing
+    
+    // Try cached voices as last resort
+    const cached = await getCachedVoices({});
     return new Response(
-      JSON.stringify({ voices: [], has_more: false, error: "Service temporarily unavailable" }),
+      JSON.stringify({ 
+        voices: cached.voices, 
+        has_more: cached.has_more, 
+        source: "cache",
+        error: "Service temporarily unavailable. Showing cached voices."
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
