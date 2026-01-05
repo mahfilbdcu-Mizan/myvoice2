@@ -9,6 +9,8 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import DashboardVoices from "./pages/DashboardVoices";
 import DashboardCredits from "./pages/DashboardCredits";
+import DashboardApiKey from "./pages/DashboardApiKey";
+import DashboardHistory from "./pages/DashboardHistory";
 import Pricing from "./pages/Pricing";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/voices" element={<DashboardVoices />} />
             <Route path="/dashboard/credits" element={<DashboardCredits />} />
+            <Route path="/dashboard/api-key" element={<DashboardApiKey />} />
+            <Route path="/dashboard/history" element={<DashboardHistory />} />
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />

@@ -62,15 +62,19 @@ export type Database = {
           completed_at: string | null
           created_at: string
           error_message: string | null
+          expires_at: string | null
+          external_task_id: string | null
+          file_size: number | null
           id: string
           input_text: string
           model: string | null
           progress: number | null
-          provider: string
+          provider: string | null
           settings: Json | null
           status: string
           user_id: string
           voice_id: string
+          voice_name: string | null
           words_count: number
         }
         Insert: {
@@ -78,31 +82,39 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           error_message?: string | null
+          expires_at?: string | null
+          external_task_id?: string | null
+          file_size?: number | null
           id?: string
           input_text: string
           model?: string | null
           progress?: number | null
-          provider?: string
+          provider?: string | null
           settings?: Json | null
           status?: string
           user_id: string
           voice_id: string
-          words_count: number
+          voice_name?: string | null
+          words_count?: number
         }
         Update: {
           audio_url?: string | null
           completed_at?: string | null
           created_at?: string
           error_message?: string | null
+          expires_at?: string | null
+          external_task_id?: string | null
+          file_size?: number | null
           id?: string
           input_text?: string
           model?: string | null
           progress?: number | null
-          provider?: string
+          provider?: string | null
           settings?: Json | null
           status?: string
           user_id?: string
           voice_id?: string
+          voice_name?: string | null
           words_count?: number
         }
         Relationships: []
@@ -173,6 +185,8 @@ export type Database = {
           encrypted_key: string
           id: string
           is_valid: boolean | null
+          key_name: string | null
+          last_balance_check: string | null
           provider: string
           remaining_credits: number | null
           updated_at: string
@@ -183,6 +197,8 @@ export type Database = {
           encrypted_key: string
           id?: string
           is_valid?: boolean | null
+          key_name?: string | null
+          last_balance_check?: string | null
           provider: string
           remaining_credits?: number | null
           updated_at?: string
@@ -193,6 +209,8 @@ export type Database = {
           encrypted_key?: string
           id?: string
           is_valid?: boolean | null
+          key_name?: string | null
+          last_balance_check?: string | null
           provider?: string
           remaining_credits?: number | null
           updated_at?: string

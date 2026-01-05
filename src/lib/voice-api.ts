@@ -192,15 +192,18 @@ export async function fetchModelsFromAPI(): Promise<VoiceModel[]> {
 export interface GenerateOptions {
   text: string;
   voiceId: string;
+  voiceName?: string;
   model?: string;
   stability?: number;
   similarity?: number;
   style?: number;
+  userId?: string;
 }
 
 export interface GenerateResult {
   audioUrl?: string;
   taskId?: string;
+  localTaskId?: string;
   error?: string;
 }
 
@@ -216,7 +219,16 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify(options),
+        body: JSON.stringify({
+          text: options.text,
+          voiceId: options.voiceId,
+          voiceName: options.voiceName,
+          model: options.model,
+          stability: options.stability,
+          similarity: options.similarity,
+          style: options.style,
+          userId: options.userId,
+        }),
       }
     );
 
@@ -236,7 +248,10 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
       // Task-based response
       const taskData = await response.json();
       if (taskData.success && taskData.task_id) {
-        return { taskId: taskData.task_id };
+        return { taskId: taskData.task_id, localTaskId: taskData.localTaskId };
+      }
+      if (taskData.localTaskId) {
+        return { localTaskId: taskData.localTaskId };
       }
       return { error: taskData.error || "Unknown response format" };
     }
