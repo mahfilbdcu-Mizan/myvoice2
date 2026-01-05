@@ -21,12 +21,32 @@ serve(async (req) => {
       );
     }
 
-    const { type = "recommended" } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const { 
+      page_size = 100,
+      page = 0,
+      search = "",
+      gender = "",
+      language = "",
+      age = "",
+      accent = "",
+      category = "",
+      use_cases = ""
+    } = body;
 
-    let apiUrl = "https://api.ai33.pro/v2/voices";
-    if (type === "shared") {
-      apiUrl = "https://api.ai33.pro/v1/shared-voices";
-    }
+    // Build query params for shared-voices endpoint which has more voices
+    const params = new URLSearchParams();
+    params.set("page_size", String(page_size));
+    if (page > 0) params.set("page", String(page));
+    if (search) params.set("search", search);
+    if (gender) params.set("gender", gender);
+    if (language) params.set("language", language);
+    if (age) params.set("age", age);
+    if (accent) params.set("accent", accent);
+    if (category) params.set("category", category);
+    if (use_cases) params.set("use_cases", use_cases);
+
+    const apiUrl = `https://api.ai33.pro/v1/shared-voices?${params.toString()}`;
 
     console.log(`Fetching voices from: ${apiUrl}`);
 
@@ -48,7 +68,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log(`Fetched ${data.voices?.length || 0} voices`);
+    console.log(`Fetched ${data.voices?.length || 0} voices, has_more: ${data.has_more}`);
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

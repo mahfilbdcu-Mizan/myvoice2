@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, X, Loader2 } from "lucide-react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { Search, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,11 +18,30 @@ import {
 } from "@/components/ui/dialog";
 import { fetchVoicesFromAPI, type Voice, parseVoiceLabels } from "@/lib/voice-api";
 
-const languages = ["All", "English", "Spanish", "French", "German", "Italian", "Portuguese", "Chinese", "Japanese", "Korean"];
-const accents = ["All", "American", "British", "Australian", "Irish", "Indian"];
+const languages = ["All", "en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko", "ar", "hi", "ru"];
+const languageLabels: Record<string, string> = {
+  "All": "All Languages",
+  "en": "English",
+  "es": "Spanish",
+  "fr": "French",
+  "de": "German",
+  "it": "Italian",
+  "pt": "Portuguese",
+  "zh": "Chinese",
+  "ja": "Japanese",
+  "ko": "Korean",
+  "ar": "Arabic",
+  "hi": "Hindi",
+  "ru": "Russian"
+};
 const genders = ["All", "male", "female"];
-const ages = ["All", "young", "middle aged", "old"];
-const categories = ["All", "premade", "cloned", "generated", "professional"];
+const ages = ["All", "young", "middle_aged", "old"];
+const ageLabels: Record<string, string> = {
+  "All": "All Ages",
+  "young": "Young",
+  "middle_aged": "Middle Aged",
+  "old": "Old"
+};
 
 interface VoiceLibraryProps {
   onSelectVoice?: (voice: { id: string; name: string }) => void;
@@ -34,57 +53,57 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("All");
-  const [selectedAccent, setSelectedAccent] = useState("All");
   const [selectedGender, setSelectedGender] = useState("All");
   const [selectedAge, setSelectedAge] = useState("All");
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalLoaded, setTotalLoaded] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Fetch voices on mount
+  const PAGE_SIZE = 100;
+
+  // Debounce search query
   useEffect(() => {
-    async function fetchVoices() {
-      setIsLoading(true);
-      try {
-        const recommended = await fetchVoicesFromAPI("recommended");
-        setVoices(recommended);
-      } catch (error) {
-        console.error("Failed to fetch voices:", error);
-      }
-      setIsLoading(false);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch voices
+  const fetchVoices = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await fetchVoicesFromAPI({
+        page_size: PAGE_SIZE,
+        page: currentPage,
+        search: debouncedSearch || undefined,
+        gender: selectedGender !== "All" ? selectedGender : undefined,
+        language: selectedLanguage !== "All" ? selectedLanguage : undefined,
+        age: selectedAge !== "All" ? selectedAge : undefined,
+      });
+      setVoices(result.voices);
+      setHasMore(result.has_more);
+      setTotalLoaded(result.voices.length);
+    } catch (error) {
+      console.error("Failed to fetch voices:", error);
     }
+    setIsLoading(false);
+  }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge]);
+
+  useEffect(() => {
     fetchVoices();
-  }, []);
+  }, [fetchVoices]);
 
-  // Filter voices
-  const filteredVoices = useMemo(() => {
-    return voices.filter((voice) => {
-      const labels = parseVoiceLabels(voice);
-      
-      const matchesSearch = 
-        voice.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        voice.voice_id.toLowerCase() === searchQuery.toLowerCase();
-      
-      const matchesLanguage = selectedLanguage === "All" || 
-        voice.labels?.language?.toLowerCase().includes(selectedLanguage.toLowerCase());
-      
-      const matchesAccent = selectedAccent === "All" || 
-        labels.accent?.toLowerCase() === selectedAccent.toLowerCase();
-      
-      const matchesGender = selectedGender === "All" || 
-        labels.gender?.toLowerCase() === selectedGender.toLowerCase();
-      
-      const matchesAge = selectedAge === "All" || 
-        labels.age?.toLowerCase() === selectedAge.toLowerCase();
-      
-      const matchesCategory = selectedCategory === "All" || 
-        voice.category?.toLowerCase() === selectedCategory.toLowerCase();
-
-      return matchesSearch && matchesLanguage && matchesAccent && matchesGender && matchesAge && matchesCategory;
-    });
-  }, [searchQuery, selectedLanguage, selectedAccent, selectedGender, selectedAge, selectedCategory, voices]);
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedGender, selectedLanguage, selectedAge]);
 
   const handleVoiceSelect = (voiceId: string) => {
     setSelectedVoiceId(voiceId);
@@ -102,11 +121,9 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
     if (!voice?.preview_url) return;
 
     if (playingVoiceId === voiceId) {
-      // Stop playing
       audioRef.current?.pause();
       setPlayingVoiceId(null);
     } else {
-      // Play new voice
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -120,18 +137,17 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
 
   const clearFilters = () => {
     setSelectedLanguage("All");
-    setSelectedAccent("All");
     setSelectedGender("All");
     setSelectedAge("All");
-    setSelectedCategory("All");
+    setSearchQuery("");
+    setCurrentPage(0);
   };
 
   const hasActiveFilters = 
     selectedLanguage !== "All" || 
-    selectedAccent !== "All" || 
     selectedGender !== "All" || 
-    selectedAge !== "All" || 
-    selectedCategory !== "All";
+    selectedAge !== "All" ||
+    searchQuery !== "";
 
   const content = (
     <div className="flex h-full flex-col">
@@ -140,7 +156,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Voice Library</h1>
           <p className="text-muted-foreground">
-            Explore and select from our collection of AI voices
+            Explore and select from thousands of AI voices powered by ElevenLabs
           </p>
         </div>
       )}
@@ -160,23 +176,12 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
         {/* Filter Row */}
         <div className="flex flex-wrap items-center gap-3">
           <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-[130px]">
+            <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Language" />
             </SelectTrigger>
             <SelectContent>
               {languages.map((lang) => (
-                <SelectItem key={lang} value={lang}>{lang}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedAccent} onValueChange={setSelectedAccent}>
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Accent" />
-            </SelectTrigger>
-            <SelectContent>
-              {accents.map((accent) => (
-                <SelectItem key={accent} value={accent}>{accent}</SelectItem>
+                <SelectItem key={lang} value={lang}>{languageLabels[lang]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -198,18 +203,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
             </SelectTrigger>
             <SelectContent>
               {ages.map((age) => (
-                <SelectItem key={age} value={age}>{age === "All" ? "All" : age.charAt(0).toUpperCase() + age.slice(1)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat} value={cat}>{cat === "All" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}</SelectItem>
+                <SelectItem key={age} value={age}>{ageLabels[age]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -222,22 +216,49 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
           )}
         </div>
 
-        {/* Results count */}
-        <p className="text-sm text-muted-foreground">
-          {isLoading ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading voices from API...
+        {/* Results count & pagination info */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading voices...
+              </span>
+            ) : (
+              `Showing ${voices.length} voices${hasMore ? ' (more available)' : ''}`
+            )}
+          </p>
+          
+          {/* Pagination controls */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              disabled={currentPage === 0 || isLoading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Prev
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage + 1}
             </span>
-          ) : (
-            `Showing ${filteredVoices.length} of ${voices.length} voices`
-          )}
-        </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => p + 1)}
+              disabled={!hasMore || isLoading}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Voice Grid */}
-      <div className="grid flex-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-        {filteredVoices.map((voice) => {
+      <div className="grid flex-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {voices.map((voice) => {
           const labels = parseVoiceLabels(voice);
           return (
             <VoiceCard
@@ -259,7 +280,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
         })}
       </div>
 
-      {filteredVoices.length === 0 && !isLoading && (
+      {voices.length === 0 && !isLoading && (
         <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <Search className="h-8 w-8 text-muted-foreground" />
@@ -276,11 +297,11 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   if (isModal) {
     return (
       <Dialog open onOpenChange={onClose}>
-        <DialogContent className="max-h-[85vh] max-w-4xl overflow-hidden">
+        <DialogContent className="max-h-[85vh] max-w-5xl overflow-hidden">
           <DialogHeader>
             <DialogTitle>Select a Voice</DialogTitle>
           </DialogHeader>
-          <div className="h-[60vh] overflow-y-auto">
+          <div className="h-[65vh] overflow-y-auto">
             {content}
           </div>
         </DialogContent>
