@@ -1,8 +1,7 @@
-import { useState, useMemo } from "react";
-import { Search, Filter, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -17,33 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-interface Voice {
-  id: string;
-  name: string;
-  accent: string;
-  gender: string;
-  age: string;
-  languages: string[];
-  category: string;
-  previewUrl?: string;
-}
-
-// Mock voices data
-const mockVoices: Voice[] = [
-  { id: "1", name: "Sarah", accent: "American", gender: "Female", age: "Young", languages: ["English"], category: "Conversational" },
-  { id: "2", name: "Roger", accent: "British", gender: "Male", age: "Middle-aged", languages: ["English"], category: "Narration" },
-  { id: "3", name: "Alice", accent: "American", gender: "Female", age: "Young", languages: ["English", "Spanish"], category: "News" },
-  { id: "4", name: "Brian", accent: "British", gender: "Male", age: "Middle-aged", languages: ["English"], category: "Documentary" },
-  { id: "5", name: "Lily", accent: "Australian", gender: "Female", age: "Young", languages: ["English"], category: "Conversational" },
-  { id: "6", name: "George", accent: "British", gender: "Male", age: "Senior", languages: ["English"], category: "Audiobook" },
-  { id: "7", name: "Emma", accent: "American", gender: "Female", age: "Middle-aged", languages: ["English", "French"], category: "Corporate" },
-  { id: "8", name: "Daniel", accent: "Irish", gender: "Male", age: "Young", languages: ["English"], category: "Conversational" },
-  { id: "9", name: "Charlotte", accent: "British", gender: "Female", age: "Young", languages: ["English", "German"], category: "News" },
-  { id: "10", name: "William", accent: "American", gender: "Male", age: "Young", languages: ["English"], category: "Gaming" },
-  { id: "11", name: "Jessica", accent: "American", gender: "Female", age: "Middle-aged", languages: ["English"], category: "Corporate" },
-  { id: "12", name: "Eric", accent: "American", gender: "Male", age: "Young", languages: ["English", "Spanish"], category: "Conversational" },
-];
+import { getVoices, getVoiceById, type Voice } from "@/lib/voice-api";
 
 const languages = ["All", "English", "Spanish", "French", "German", "Italian", "Portuguese"];
 const accents = ["All", "American", "British", "Australian", "Irish"];
@@ -52,12 +25,14 @@ const ages = ["All", "Young", "Middle-aged", "Senior"];
 const categories = ["All", "Conversational", "Narration", "News", "Documentary", "Audiobook", "Corporate", "Gaming"];
 
 interface VoiceLibraryProps {
-  onSelectVoice?: (voice: Voice) => void;
+  onSelectVoice?: (voice: { id: string; name: string }) => void;
   isModal?: boolean;
   onClose?: () => void;
 }
 
 export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceLibraryProps) {
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("All");
   const [selectedAccent, setSelectedAccent] = useState("All");
@@ -68,16 +43,27 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   const [showVoiceIdPopup, setShowVoiceIdPopup] = useState(false);
   const [foundVoice, setFoundVoice] = useState<Voice | null>(null);
 
-  // Check if search query is a voice ID
+  // Fetch voices on mount
+  useEffect(() => {
+    async function fetchVoices() {
+      setIsLoading(true);
+      const data = await getVoices();
+      setVoices(data);
+      setIsLoading(false);
+    }
+    fetchVoices();
+  }, []);
+
+  // Check if search query is a voice ID (long alphanumeric string)
   const isVoiceId = searchQuery.length > 10 && !searchQuery.includes(" ");
 
   // Filter voices
   const filteredVoices = useMemo(() => {
-    return mockVoices.filter((voice) => {
+    return voices.filter((voice) => {
       const matchesSearch = 
         voice.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         voice.id.toLowerCase() === searchQuery.toLowerCase();
-      const matchesLanguage = selectedLanguage === "All" || voice.languages.includes(selectedLanguage);
+      const matchesLanguage = selectedLanguage === "All" || (voice.languages?.includes(selectedLanguage) ?? false);
       const matchesAccent = selectedAccent === "All" || voice.accent === selectedAccent;
       const matchesGender = selectedGender === "All" || voice.gender === selectedGender;
       const matchesAge = selectedAge === "All" || voice.age === selectedAge;
@@ -85,18 +71,28 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
 
       return matchesSearch && matchesLanguage && matchesAccent && matchesGender && matchesAge && matchesCategory;
     });
-  }, [searchQuery, selectedLanguage, selectedAccent, selectedGender, selectedAge, selectedCategory]);
+  }, [searchQuery, selectedLanguage, selectedAccent, selectedGender, selectedAge, selectedCategory, voices]);
 
   // Check for voice ID match
-  const handleSearchChange = (value: string) => {
+  const handleSearchChange = async (value: string) => {
     setSearchQuery(value);
     
     // Check if it's a voice ID
     if (value.length > 10 && !value.includes(" ")) {
-      const found = mockVoices.find(v => v.id.toLowerCase() === value.toLowerCase());
+      // First check local voices
+      let found = voices.find(v => v.id.toLowerCase() === value.toLowerCase());
+      
+      // If not found locally, try to fetch from API
+      if (!found) {
+        found = await getVoiceById(value) ?? undefined;
+      }
+      
       if (found) {
         setFoundVoice(found);
         setShowVoiceIdPopup(true);
+      } else {
+        setShowVoiceIdPopup(false);
+        setFoundVoice(null);
       }
     } else {
       setShowVoiceIdPopup(false);
@@ -106,9 +102,9 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
 
   const handleVoiceSelect = (voiceId: string) => {
     setSelectedVoiceId(voiceId);
-    const voice = mockVoices.find(v => v.id === voiceId);
+    const voice = voices.find(v => v.id === voiceId) || foundVoice;
     if (voice && onSelectVoice) {
-      onSelectVoice(voice);
+      onSelectVoice({ id: voice.id, name: voice.name });
       if (isModal && onClose) {
         onClose();
       }
@@ -248,7 +244,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
 
         {/* Results count */}
         <p className="text-sm text-muted-foreground">
-          Showing {filteredVoices.length} of {mockVoices.length} voices
+          {isLoading ? "Loading voices..." : `Showing ${filteredVoices.length} of ${voices.length} voices`}
         </p>
       </div>
 
@@ -259,18 +255,18 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
             key={voice.id}
             id={voice.id}
             name={voice.name}
-            accent={voice.accent}
-            gender={voice.gender}
-            age={voice.age}
-            languages={voice.languages}
-            category={voice.category}
+            accent={voice.accent || undefined}
+            gender={voice.gender || undefined}
+            age={voice.age || undefined}
+            languages={voice.languages || undefined}
+            category={voice.category || undefined}
             isSelected={selectedVoiceId === voice.id}
             onSelect={handleVoiceSelect}
           />
         ))}
       </div>
 
-      {filteredVoices.length === 0 && (
+      {filteredVoices.length === 0 && !isLoading && (
         <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <Search className="h-8 w-8 text-muted-foreground" />

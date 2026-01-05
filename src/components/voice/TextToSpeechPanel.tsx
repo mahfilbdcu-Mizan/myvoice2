@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { 
   Play, 
   Download, 
@@ -23,6 +23,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { generateSpeech } from "@/lib/voice-api";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TextToSpeechPanelProps {
   selectedVoice?: { id: string; name: string } | null;
@@ -35,15 +38,16 @@ const providers = [
 ];
 
 const models = [
-  { id: "multilingual_v2", name: "Multilingual v2" },
-  { id: "turbo_v2", name: "Turbo v2.5" },
-  { id: "english_v1", name: "English v1" },
+  { id: "eleven_multilingual_v2", name: "Multilingual v2" },
+  { id: "eleven_turbo_v2_5", name: "Turbo v2.5" },
+  { id: "eleven_monolingual_v1", name: "English v1" },
 ];
 
 export function TextToSpeechPanel({ 
   selectedVoice, 
   onOpenVoiceLibrary 
 }: TextToSpeechPanelProps) {
+  const { profile, refreshProfile } = useAuth();
   const [text, setText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -52,7 +56,7 @@ export function TextToSpeechPanel({
   
   // Voice settings
   const [provider, setProvider] = useState("elevenlabs");
-  const [model, setModel] = useState("multilingual_v2");
+  const [model, setModel] = useState("eleven_multilingual_v2");
   const [stability, setStability] = useState([0.5]);
   const [similarity, setSimilarity] = useState([0.75]);
   const [speed, setSpeed] = useState([1.0]);
@@ -62,17 +66,68 @@ export function TextToSpeechPanel({
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
+  const hasEnoughCredits = (profile?.credits ?? 0) >= wordCount;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      const handleEnded = () => setIsPlaying(false);
+      audio.addEventListener("ended", handleEnded);
+      return () => audio.removeEventListener("ended", handleEnded);
+    }
+  }, [audioUrl]);
 
   const handleGenerate = async () => {
     if (!text.trim() || !selectedVoice) return;
     
+    if (!hasEnoughCredits) {
+      toast({
+        title: "Insufficient credits",
+        description: `You need ${wordCount} credits but only have ${profile?.credits ?? 0}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsGenerating(true);
-    // Simulate API call - will be replaced with actual implementation
-    setTimeout(() => {
+    setAudioUrl(null);
+    
+    try {
+      const result = await generateSpeech({
+        text: text.trim(),
+        voiceId: selectedVoice.id,
+        provider,
+        model,
+        stability: stability[0],
+        similarity: similarity[0],
+        speed: speed[0],
+        style: style[0],
+      });
+
+      if (result.error) {
+        toast({
+          title: "Generation failed",
+          description: result.error,
+          variant: "destructive",
+        });
+      } else if (result.audioUrl) {
+        setAudioUrl(result.audioUrl);
+        toast({
+          title: "Speech generated!",
+          description: `Used ${wordCount} credits.`,
+        });
+        // Refresh profile to get updated credits
+        refreshProfile();
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate speech. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsGenerating(false);
-      // Mock audio URL for now
-      setAudioUrl("mock-audio-url");
-    }, 2000);
+    }
   };
 
   const togglePlayback = () => {
@@ -83,6 +138,15 @@ export function TextToSpeechPanel({
         audioRef.current.play();
       }
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleDownload = () => {
+    if (audioUrl) {
+      const a = document.createElement("a");
+      a.href = audioUrl;
+      a.download = `speech-${Date.now()}.mp3`;
+      a.click();
     }
   };
 
@@ -167,7 +231,7 @@ export function TextToSpeechPanel({
             variant="hero"
             className="mt-4"
             onClick={handleGenerate}
-            disabled={!text.trim() || !selectedVoice || isGenerating}
+            disabled={!text.trim() || !selectedVoice || isGenerating || !hasEnoughCredits}
           >
             {isGenerating ? (
               <>
@@ -181,6 +245,12 @@ export function TextToSpeechPanel({
               </>
             )}
           </Button>
+          
+          {!hasEnoughCredits && wordCount > 0 && (
+            <p className="mt-2 text-center text-sm text-destructive">
+              Insufficient credits. You need {wordCount} but have {profile?.credits ?? 0}.
+            </p>
+          )}
         </div>
 
         {/* Settings & Output Panel */}
@@ -297,7 +367,10 @@ export function TextToSpeechPanel({
                     {Array.from({ length: 40 }).map((_, i) => (
                       <div
                         key={i}
-                        className="w-1 rounded-full bg-primary/30"
+                        className={cn(
+                          "w-1 rounded-full transition-all",
+                          isPlaying ? "bg-primary animate-pulse-soft" : "bg-primary/30"
+                        )}
                         style={{
                           height: `${Math.random() * 100}%`,
                           minHeight: "4px",
@@ -311,12 +384,13 @@ export function TextToSpeechPanel({
               <Button
                 variant="outline"
                 className="mt-4 w-full"
+                onClick={handleDownload}
               >
                 <Download className="h-4 w-4" />
                 Download MP3
               </Button>
 
-              <audio ref={audioRef} className="hidden" />
+              <audio ref={audioRef} src={audioUrl} className="hidden" />
             </div>
           )}
 
