@@ -65,7 +65,7 @@ export function TextToSpeechPanel({
   selectedVoice, 
   onOpenVoiceLibrary 
 }: TextToSpeechPanelProps) {
-  const { profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [text, setText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -73,6 +73,10 @@ export function TextToSpeechPanel({
   const [showSettings, setShowSettings] = useState(true);
   const [models, setModels] = useState<Array<{ id: string; name: string }>>(defaultModels);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
+  
+  // User API key balance
+  const [userApiBalance, setUserApiBalance] = useState<number | null>(null);
+  const [hasUserApiKey, setHasUserApiKey] = useState(false);
   
   // Voice settings
   const [model, setModel] = useState("eleven_multilingual_v2");
@@ -100,6 +104,66 @@ export function TextToSpeechPanel({
     }
     loadModels();
   }, []);
+
+  // Fetch user API key balance
+  useEffect(() => {
+    async function fetchUserApiKeyBalance() {
+      if (!user) return;
+      
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        
+        // Get user's API key
+        const { data: apiKeyData } = await supabase
+          .from("user_api_keys")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("provider", "ai33")
+          .maybeSingle();
+        
+        if (apiKeyData) {
+          setHasUserApiKey(true);
+          setUserApiBalance(apiKeyData.remaining_credits);
+          
+          // Optionally refresh balance from API
+          if (apiKeyData.encrypted_key) {
+            const response = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                },
+                body: JSON.stringify({ apiKey: apiKeyData.encrypted_key }),
+              }
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.valid && data.credits !== null) {
+                setUserApiBalance(data.credits);
+                
+                // Update in database
+                await supabase
+                  .from("user_api_keys")
+                  .update({ remaining_credits: data.credits, updated_at: new Date().toISOString() })
+                  .eq("id", apiKeyData.id);
+              }
+            }
+          }
+        } else {
+          setHasUserApiKey(false);
+          setUserApiBalance(null);
+        }
+      } catch (error) {
+        console.error("Error fetching API key balance:", error);
+      }
+    }
+    
+    fetchUserApiKeyBalance();
+  }, [user]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -634,16 +698,36 @@ export function TextToSpeechPanel({
           )}
 
           {/* Credits Info */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+            {/* Platform Credits */}
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                 <Zap className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{profile?.credits?.toLocaleString() || 0}</p>
-                <p className="text-sm text-muted-foreground">Credits available</p>
+                <p className="text-sm text-muted-foreground">Platform Credits</p>
               </div>
             </div>
+            
+            {/* User API Key Balance */}
+            {hasUserApiKey && (
+              <>
+                <div className="border-t border-primary/10 pt-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
+                      <Zap className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-green-600">
+                        {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">API Key Balance</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Usage Info */}
