@@ -151,6 +151,8 @@ export function TextToSpeechPanel({
   const handleGenerate = async () => {
     if (!text.trim() || !selectedVoice) return;
     
+    const { data: userData } = await import("@/integrations/supabase/client").then(m => m.supabase.auth.getUser());
+    
     setIsGenerating(true);
     setAudioUrl(null);
     setTaskStatus("Starting generation...");
@@ -159,10 +161,12 @@ export function TextToSpeechPanel({
       const result = await generateSpeech({
         text: text.trim(),
         voiceId: selectedVoice.id,
+        voiceName: selectedVoice.name,
         model,
         stability: stability[0],
         similarity: similarity[0],
         style: style[0],
+        userId: userData?.user?.id,
       });
 
       if (result.error) {

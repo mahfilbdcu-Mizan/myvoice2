@@ -12,7 +12,9 @@ import {
   ChevronRight,
   LogOut,
   User,
-  Loader2
+  Loader2,
+  Key,
+  History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,8 @@ interface DashboardLayoutProps {
 const navItems = [
   { icon: Mic, label: "Text to Speech", href: "/dashboard" },
   { icon: Library, label: "Voice Library", href: "/dashboard/voices" },
+  { icon: History, label: "History", href: "/dashboard/history" },
+  { icon: Key, label: "API Key", href: "/dashboard/api-key" },
   { icon: FileAudio, label: "Speech to Text", href: "/dashboard/stt" },
   { icon: Languages, label: "Dubbing", href: "/dashboard/dubbing" },
   { icon: CreditCard, label: "Buy Credits", href: "/dashboard/credits" },
