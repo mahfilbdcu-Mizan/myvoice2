@@ -20,14 +20,15 @@ serve(async (req) => {
       );
     }
 
-    // Check user info / subscription from Voice API
-    const response = await fetch("https://api.ai33.pro/v1/user/subscription", {
+    // Try /v1/user endpoint first (returns subscription data)
+    let response = await fetch("https://api.ai33.pro/v1/user", {
       method: "GET",
       headers: {
         "xi-api-key": apiKey,
       },
     });
 
+    // If /v1/user fails, the key is likely invalid
     if (!response.ok) {
       console.error("API error:", response.status);
       return new Response(
@@ -37,14 +38,17 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Subscription data:", data);
+    console.log("User data:", JSON.stringify(data).substring(0, 200));
 
+    // Extract subscription info - it may be nested or flat
+    const subscription = data.subscription || data;
+    
     return new Response(
       JSON.stringify({
-        character_count: data.character_count || 0,
-        character_limit: data.character_limit || 0,
-        credits: data.character_count || 0,
-        tier: data.tier || "free",
+        character_count: subscription.character_count || data.character_count || 0,
+        character_limit: subscription.character_limit || data.character_limit || 0,
+        credits: subscription.character_count || data.character_count || 0,
+        tier: subscription.tier || data.tier || "free",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
