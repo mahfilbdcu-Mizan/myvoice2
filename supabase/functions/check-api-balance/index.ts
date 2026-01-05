@@ -30,9 +30,16 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error("API error:", response.status);
+      // Return zero balance instead of failing - allows UI to show "no credits"
       return new Response(
-        JSON.stringify({ error: "Invalid API key or could not fetch balance" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          character_count: 0, 
+          character_limit: 0, 
+          credits: 0, 
+          tier: "unknown",
+          error: "Could not verify API key"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
