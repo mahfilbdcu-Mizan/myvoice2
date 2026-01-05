@@ -37,41 +37,6 @@ async function getApiKey(): Promise<string | null> {
   }
 }
 
-// Fetch with retry logic for transient errors
-async function fetchWithRetry(
-  url: string, 
-  options: RequestInit, 
-  maxRetries = 3,
-  delayMs = 1000
-): Promise<Response> {
-  let lastError: Error | null = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const response = await fetch(url, options);
-      
-      // Retry on 502, 503, 504 errors
-      if (response.status >= 502 && response.status <= 504) {
-        console.log(`Attempt ${attempt + 1}: Got ${response.status}, retrying...`);
-        if (attempt < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
-          continue;
-        }
-      }
-      
-      return response;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.log(`Attempt ${attempt + 1} failed:`, lastError.message);
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
-      }
-    }
-  }
-  
-  throw lastError || new Error("Failed after retries");
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -117,7 +82,7 @@ serve(async (req) => {
 
     console.log(`Fetching voices from: ${apiUrl}`);
 
-    const response = await fetchWithRetry(apiUrl, {
+    const response = await fetch(apiUrl, {
       method: "GET",
       headers: {
         "xi-api-key": API_KEY,
@@ -128,12 +93,9 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("API error:", response.status, errorText);
-      
-      // Return empty voices on any API error instead of failing
-      console.log("Returning empty voices due to API error");
       return new Response(
-        JSON.stringify({ voices: [], has_more: false }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Failed to fetch voices", details: errorText }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -145,10 +107,9 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Fetch voices error:", error);
-    // Return empty voices on error instead of failing
     return new Response(
-      JSON.stringify({ voices: [], has_more: false, error: "Service temporarily unavailable" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
