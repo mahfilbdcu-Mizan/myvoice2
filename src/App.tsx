@@ -10,6 +10,10 @@ import Dashboard from "./pages/Dashboard";
 import DashboardVoices from "./pages/DashboardVoices";
 import DashboardCredits from "./pages/DashboardCredits";
 import Pricing from "./pages/Pricing";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminOrders from "./pages/admin/AdminOrders";
+import AdminSettings from "./pages/admin/AdminSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,7 +32,12 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/voices" element={<DashboardVoices />} />
             <Route path="/dashboard/credits" element={<DashboardCredits />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
