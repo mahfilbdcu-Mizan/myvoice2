@@ -7,12 +7,16 @@ import {
   ChevronDown,
   Loader2,
   Upload,
-  FileText
+  FileText,
+  RotateCcw,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -41,6 +45,22 @@ const defaultModels = [
   { id: "eleven_monolingual_v1", name: "English v1" },
 ];
 
+const languages = [
+  { id: "auto", name: "Auto detect", recommended: true },
+  { id: "en", name: "English" },
+  { id: "es", name: "Spanish" },
+  { id: "fr", name: "French" },
+  { id: "de", name: "German" },
+  { id: "it", name: "Italian" },
+  { id: "pt", name: "Portuguese" },
+  { id: "zh", name: "Chinese" },
+  { id: "ja", name: "Japanese" },
+  { id: "ko", name: "Korean" },
+  { id: "ar", name: "Arabic" },
+  { id: "hi", name: "Hindi" },
+  { id: "ru", name: "Russian" },
+];
+
 export function TextToSpeechPanel({ 
   selectedVoice, 
   onOpenVoiceLibrary 
@@ -50,15 +70,18 @@ export function TextToSpeechPanel({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
   const [models, setModels] = useState<Array<{ id: string; name: string }>>(defaultModels);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   
   // Voice settings
   const [model, setModel] = useState("eleven_multilingual_v2");
+  const [language, setLanguage] = useState("auto");
+  const [speed, setSpeed] = useState([1.0]);
   const [stability, setStability] = useState([0.5]);
   const [similarity, setSimilarity] = useState([0.75]);
-  const [style, setStyle] = useState([0.5]);
+  const [style, setStyle] = useState([0]);
+  const [speakerBoost, setSpeakerBoost] = useState(false);
 
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -411,11 +434,51 @@ export function TextToSpeechPanel({
                 )} />
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="mt-4 space-y-6 rounded-xl border border-border bg-card p-4">
-              <div className="space-y-3">
+            <CollapsibleContent className="mt-4 space-y-5 rounded-xl border border-border bg-card p-4">
+              {/* Language Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select language</label>
+                <Select value={language} onValueChange={setLanguage}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {languages.map((lang) => (
+                      <SelectItem key={lang.id} value={lang.id}>
+                        {lang.name} {lang.recommended && <span className="text-muted-foreground text-xs ml-2">Recommended</span>}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Speed */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Stability</label>
-                  <span className="text-sm text-muted-foreground">{stability[0].toFixed(2)}</span>
+                  <label className="text-sm font-medium">Speed: {speed[0].toFixed(2)}</label>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                  <span>Slower</span>
+                  <span>Faster</span>
+                </div>
+                <Slider
+                  value={speed}
+                  onValueChange={setSpeed}
+                  min={0.7}
+                  max={1.2}
+                  step={0.01}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Stability */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Stability: {Math.round(stability[0] * 100)}%</label>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                  <span>More variable</span>
+                  <span>More stable</span>
                 </div>
                 <Slider
                   value={stability}
@@ -424,15 +487,16 @@ export function TextToSpeechPanel({
                   step={0.01}
                   className="w-full"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Higher stability means more consistent voice
-                </p>
               </div>
 
-              <div className="space-y-3">
+              {/* Similarity */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Similarity</label>
-                  <span className="text-sm text-muted-foreground">{similarity[0].toFixed(2)}</span>
+                  <label className="text-sm font-medium">Similarity: {Math.round(similarity[0] * 100)}%</label>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                  <span>Low</span>
+                  <span>High</span>
                 </div>
                 <Slider
                   value={similarity}
@@ -441,15 +505,16 @@ export function TextToSpeechPanel({
                   step={0.01}
                   className="w-full"
                 />
-                <p className="text-xs text-muted-foreground">
-                  How closely to match the original voice
-                </p>
               </div>
 
-              <div className="space-y-3">
+              {/* Style Exaggeration */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Style Exaggeration</label>
-                  <span className="text-sm text-muted-foreground">{style[0].toFixed(2)}</span>
+                  <label className="text-sm font-medium">Style Exaggeration: {Math.round(style[0] * 100)}%</label>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                  <span>None</span>
+                  <span>Exaggerated</span>
                 </div>
                 <Slider
                   value={style}
@@ -458,10 +523,37 @@ export function TextToSpeechPanel({
                   step={0.01}
                   className="w-full"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Amplify the style of the original speaker
-                </p>
               </div>
+
+              {/* Speaker Boost */}
+              <div className="flex items-center justify-between py-2 border-t border-border">
+                <Label htmlFor="speaker-boost" className="text-sm font-medium cursor-pointer">
+                  Speaker Boost
+                </Label>
+                <Switch
+                  id="speaker-boost"
+                  checked={speakerBoost}
+                  onCheckedChange={setSpeakerBoost}
+                />
+              </div>
+
+              {/* Reset Values */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => {
+                  setLanguage("auto");
+                  setSpeed([1.0]);
+                  setStability([0.5]);
+                  setSimilarity([0.75]);
+                  setStyle([0]);
+                  setSpeakerBoost(false);
+                }}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset values
+              </Button>
             </CollapsibleContent>
           </Collapsible>
 
@@ -540,6 +632,19 @@ export function TextToSpeechPanel({
               <audio ref={audioRef} src={audioUrl} className="hidden" />
             </div>
           )}
+
+          {/* Credits Info */}
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{profile?.credits?.toLocaleString() || 0}</p>
+                <p className="text-sm text-muted-foreground">Credits available</p>
+              </div>
+            </div>
+          </div>
 
           {/* Usage Info */}
           <div className="rounded-xl border border-border bg-card p-4">
