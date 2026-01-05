@@ -62,6 +62,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [totalLoaded, setTotalLoaded] = useState(0);
+  const [apiError, setApiError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const PAGE_SIZE = 100;
@@ -78,6 +79,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   // Fetch voices
   const fetchVoices = useCallback(async () => {
     setIsLoading(true);
+    setApiError(null);
     try {
       const result = await fetchVoicesFromAPI({
         page_size: PAGE_SIZE,
@@ -90,8 +92,12 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
       setVoices(result.voices);
       setHasMore(result.has_more);
       setTotalLoaded(result.voices.length);
+      if (result.error) {
+        setApiError(result.error);
+      }
     } catch (error) {
       console.error("Failed to fetch voices:", error);
+      setApiError("Failed to load voices. Please try again.");
     }
     setIsLoading(false);
   }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge]);
@@ -280,6 +286,15 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
         })}
       </div>
 
+      {/* API Error Message */}
+      {apiError && (
+        <div className="mb-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4">
+          <p className="text-sm text-yellow-600 dark:text-yellow-400">
+            ⚠️ {apiError}
+          </p>
+        </div>
+      )}
+
       {voices.length === 0 && !isLoading && (
         <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -287,7 +302,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
           </div>
           <h3 className="text-lg font-semibold">No voices found</h3>
           <p className="mt-1 text-muted-foreground">
-            Try adjusting your search or filters
+            {apiError ? "Please check your API key in Admin Settings" : "Try adjusting your search or filters"}
           </p>
         </div>
       )}
