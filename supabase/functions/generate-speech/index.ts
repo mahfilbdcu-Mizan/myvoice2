@@ -106,7 +106,7 @@ async function createTask(
   if (!supabaseUrl || !supabaseKey) return null;
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const charCount = text.trim().length;
+  const wordsCount = text.trim().split(/\s+/).length;
 
   const { data, error } = await supabase
     .from("generation_tasks")
@@ -115,7 +115,7 @@ async function createTask(
       voice_id: voiceId,
       voice_name: voiceName,
       input_text: text,
-      words_count: charCount,
+      words_count: wordsCount,
       model,
       settings,
       status: "processing",
@@ -161,7 +161,7 @@ serve(async (req) => {
       );
     }
 
-    const charCount = text.trim().length;
+    const wordCount = text.trim().split(/\s+/).length;
 
     // Get API key (user's own or platform's)
     const { apiKey, isUserKey } = await getApiKeyForUser(userId);
@@ -177,10 +177,10 @@ serve(async (req) => {
     // If using platform key, check and deduct credits
     if (!isUserKey && userId) {
       const userCredits = await getUserCredits(userId);
-      if (userCredits < charCount) {
+      if (userCredits < wordCount) {
         return new Response(
           JSON.stringify({ 
-            error: `Insufficient credits. You have ${userCredits} characters, but need ${charCount}. Add your own API key for unlimited generation.`
+            error: `Insufficient credits. You have ${userCredits} words, but need ${wordCount}. Add your own API key for unlimited generation.`
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -267,7 +267,7 @@ serve(async (req) => {
 
       // Deduct credits if using platform key
       if (!isUserKey && userId) {
-        await deductUserCredits(userId, charCount);
+        await deductUserCredits(userId, wordCount);
       }
 
       return new Response(JSON.stringify({ ...taskData, localTaskId: taskId }), {
@@ -281,7 +281,7 @@ serve(async (req) => {
 
     // Deduct credits if using platform key
     if (!isUserKey && userId) {
-      await deductUserCredits(userId, charCount);
+      await deductUserCredits(userId, wordCount);
     }
 
     // Update task with audio (we'd need to upload to storage for persistence, but for now just mark done)

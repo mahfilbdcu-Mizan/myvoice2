@@ -73,13 +73,11 @@ export interface TaskResult {
   error_message: string | null;
   credit_cost: number;
   metadata: {
-    audio_url?: string | string[];
+    audio_url?: string;
     srt_url?: string;
     json_url?: string;
-    cover_url?: string | string[];
   };
   type: string;
-  progress?: number;
 }
 
 export interface FetchVoicesOptions {
@@ -97,8 +95,6 @@ export interface FetchVoicesResult {
   voices: Voice[];
   has_more: boolean;
   last_sort_id?: string;
-  error?: string;
-  source?: string;
 }
 
 // Fetch voices from ai33.pro API with pagination
@@ -129,7 +125,7 @@ export async function fetchVoicesFromAPI(options: FetchVoicesOptions = {}): Prom
     if (!response.ok) {
       const error = await response.json();
       console.error("Error fetching voices:", error);
-      return { voices: [], has_more: false, error: "Failed to fetch voices" };
+      return { voices: [], has_more: false };
     }
 
     const data = await response.json();
@@ -137,12 +133,10 @@ export async function fetchVoicesFromAPI(options: FetchVoicesOptions = {}): Prom
       voices: data.voices || [],
       has_more: data.has_more || false,
       last_sort_id: data.last_sort_id,
-      error: data.error,
-      source: data.source,
     };
   } catch (err) {
     console.error("Error fetching voices:", err);
-    return { voices: [], has_more: false, error: "Failed to connect to server" };
+    return { voices: [], has_more: false };
   }
 }
 

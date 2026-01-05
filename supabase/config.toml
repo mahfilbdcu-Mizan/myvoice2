@@ -17,39 +17,3 @@ verify_jwt = false
 
 [functions.check-api-balance]
 verify_jwt = false
-
-[functions.list-tasks]
-verify_jwt = false
-
-[functions.delete-task]
-verify_jwt = false
-
-[functions.get-credits]
-verify_jwt = false
-
-[functions.health-check]
-verify_jwt = false
-
-[functions.minimax-tts]
-verify_jwt = false
-
-[functions.minimax-voices]
-verify_jwt = false
-
-[functions.minimax-config]
-verify_jwt = false
-
-[functions.dubbing]
-verify_jwt = false
-
-[functions.speech-to-text]
-verify_jwt = false
-
-[functions.voice-clone]
-verify_jwt = false
-
-[functions.music-generation]
-verify_jwt = false
-
-[functions.shared-voices]
-verify_jwt = false

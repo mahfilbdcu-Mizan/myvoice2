@@ -50,7 +50,7 @@ interface VoiceLibraryProps {
 }
 
 export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceLibraryProps) {
-  const [allVoices, setAllVoices] = useState<Voice[]>([]);
+  const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -61,11 +61,10 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [totalLoaded, setTotalLoaded] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const PAGE_SIZE = 100;
-  const DISPLAY_PAGE_SIZE = 24;
 
   // Debounce search query
   useEffect(() => {
@@ -76,68 +75,30 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch ALL voices from API (load multiple pages)
-  const fetchAllVoicesFromAPI = useCallback(async () => {
+  // Fetch voices
+  const fetchVoices = useCallback(async () => {
     setIsLoading(true);
-    setApiError(null);
     try {
-      let allLoadedVoices: Voice[] = [];
-      let page = 0;
-      let hasMorePages = true;
-      
-      // Load up to 500 voices (5 pages of 100)
-      while (hasMorePages && page < 5) {
-        const result = await fetchVoicesFromAPI({
-          page_size: PAGE_SIZE,
-          page: page,
-          gender: selectedGender !== "All" ? selectedGender : undefined,
-          language: selectedLanguage !== "All" ? selectedLanguage : undefined,
-          age: selectedAge !== "All" ? selectedAge : undefined,
-        });
-        
-        allLoadedVoices = [...allLoadedVoices, ...result.voices];
-        hasMorePages = result.has_more;
-        page++;
-        
-        if (result.error) {
-          setApiError(result.error);
-          break;
-        }
-      }
-      
-      setAllVoices(allLoadedVoices);
-      setHasMore(hasMorePages);
+      const result = await fetchVoicesFromAPI({
+        page_size: PAGE_SIZE,
+        page: currentPage,
+        search: debouncedSearch || undefined,
+        gender: selectedGender !== "All" ? selectedGender : undefined,
+        language: selectedLanguage !== "All" ? selectedLanguage : undefined,
+        age: selectedAge !== "All" ? selectedAge : undefined,
+      });
+      setVoices(result.voices);
+      setHasMore(result.has_more);
+      setTotalLoaded(result.voices.length);
     } catch (error) {
       console.error("Failed to fetch voices:", error);
-      setApiError("Failed to load voices. Please try again.");
     }
     setIsLoading(false);
-  }, [selectedGender, selectedLanguage, selectedAge]);
+  }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge]);
 
   useEffect(() => {
-    fetchAllVoicesFromAPI();
-  }, [fetchAllVoicesFromAPI]);
-
-  // Client-side search filtering
-  const filteredVoices = useMemo(() => {
-    if (!debouncedSearch) return allVoices;
-    
-    const searchLower = debouncedSearch.toLowerCase().trim();
-    return allVoices.filter(voice => 
-      voice.name.toLowerCase().includes(searchLower) ||
-      voice.voice_id.toLowerCase().includes(searchLower)
-    );
-  }, [allVoices, debouncedSearch]);
-
-  // Paginated voices for display
-  const paginatedVoices = useMemo(() => {
-    const start = currentPage * DISPLAY_PAGE_SIZE;
-    const end = start + DISPLAY_PAGE_SIZE;
-    return filteredVoices.slice(start, end);
-  }, [filteredVoices, currentPage]);
-
-  const totalPages = Math.ceil(filteredVoices.length / DISPLAY_PAGE_SIZE);
-  const hasMorePages = currentPage < totalPages - 1;
+    fetchVoices();
+  }, [fetchVoices]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -146,7 +107,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
 
   const handleVoiceSelect = (voiceId: string) => {
     setSelectedVoiceId(voiceId);
-    const voice = filteredVoices.find(v => v.voice_id === voiceId);
+    const voice = voices.find(v => v.voice_id === voiceId);
     if (voice && onSelectVoice) {
       onSelectVoice({ id: voice.voice_id, name: voice.name });
       if (isModal && onClose) {
@@ -156,7 +117,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
   };
 
   const handlePlayVoice = (voiceId: string) => {
-    const voice = filteredVoices.find(v => v.voice_id === voiceId);
+    const voice = voices.find(v => v.voice_id === voiceId);
     if (!voice?.preview_url) return;
 
     if (playingVoiceId === voiceId) {
@@ -264,7 +225,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
                 Loading voices...
               </span>
             ) : (
-              `Showing ${paginatedVoices.length} of ${filteredVoices.length} voices${hasMore ? ' (more available from API)' : ''}`
+              `Showing ${voices.length} voices${hasMore ? ' (more available)' : ''}`
             )}
           </p>
           
@@ -280,34 +241,24 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
               Prev
             </Button>
             <span className="text-sm text-muted-foreground">
-              Page {currentPage + 1} of {Math.max(1, totalPages)}
+              Page {currentPage + 1}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentPage(p => p + 1)}
-              disabled={!hasMorePages || isLoading}
+              disabled={!hasMore || isLoading}
             >
               Next
               <ChevronRight className="h-4 w-4" />
             </Button>
-            {hasMore && !isLoading && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchAllVoicesFromAPI()}
-                disabled={isLoading}
-              >
-                Reload All
-              </Button>
-            )}
           </div>
         </div>
       </div>
 
       {/* Voice Grid */}
       <div className="grid flex-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {paginatedVoices.map((voice) => {
+        {voices.map((voice) => {
           const labels = parseVoiceLabels(voice);
           return (
             <VoiceCard
@@ -329,23 +280,14 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
         })}
       </div>
 
-      {/* API Error Message */}
-      {apiError && (
-        <div className="mb-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4">
-          <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            ⚠️ {apiError}
-          </p>
-        </div>
-      )}
-
-      {paginatedVoices.length === 0 && !isLoading && (
+      {voices.length === 0 && !isLoading && (
         <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <Search className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold">No voices found</h3>
           <p className="mt-1 text-muted-foreground">
-            {apiError ? "Please check your API key in Admin Settings" : "Try adjusting your search or filters"}
+            Try adjusting your search or filters
           </p>
         </div>
       )}

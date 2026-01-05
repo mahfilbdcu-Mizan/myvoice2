@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Save, Loader2, Eye, EyeOff, Key, AlertCircle, Activity, RefreshCw, Coins } from "lucide-react";
+import { Save, Loader2, Eye, EyeOff, Key, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,25 +18,15 @@ interface PlatformSetting {
   is_secret: boolean;
 }
 
-interface HealthStatus {
-  elevenlabs: string;
-  minimax: string;
-}
-
 export default function AdminSettings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
-  const [isLoadingHealth, setIsLoadingHealth] = useState(false);
-  const [apiCredits, setApiCredits] = useState<number | null>(null);
-  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
 
   // Fetch settings on mount
   useEffect(() => {
     fetchSettings();
-    fetchHealthStatus();
   }, []);
 
   const fetchSettings = async () => {
@@ -54,11 +43,6 @@ export default function AdminSettings() {
         settingsMap[setting.key] = setting.value || "";
       });
       setSettings(settingsMap);
-      
-      // Fetch credits if API key is set
-      if (settingsMap.ai33_api_key) {
-        fetchApiCredits(settingsMap.ai33_api_key);
-      }
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast({
@@ -68,64 +52,6 @@ export default function AdminSettings() {
       });
     }
     setIsLoading(false);
-  };
-
-  const fetchHealthStatus = async () => {
-    setIsLoadingHealth(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-check`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({}),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setHealthStatus(data.data);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching health status:", error);
-    } finally {
-      setIsLoadingHealth(false);
-    }
-  };
-
-  const fetchApiCredits = async (apiKey: string) => {
-    setIsLoadingCredits(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-credits`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ apiKey }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setApiCredits(data.credits);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching credits:", error);
-    } finally {
-      setIsLoadingCredits(false);
-    }
   };
 
   const updateSetting = (key: string, value: string) => {
@@ -149,11 +75,6 @@ export default function AdminSettings() {
         title: "Settings saved",
         description: "Your changes have been saved successfully",
       });
-      
-      // Refresh credits if API key changed
-      if (settings.ai33_api_key) {
-        fetchApiCredits(settings.ai33_api_key);
-      }
     } catch (error) {
       console.error("Error saving settings:", error);
       toast({
@@ -163,19 +84,6 @@ export default function AdminSettings() {
       });
     }
     setIsSaving(false);
-  };
-
-  const getHealthBadge = (status: string) => {
-    switch (status) {
-      case "good":
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Good</Badge>;
-      case "degraded":
-        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Degraded</Badge>;
-      case "overloaded":
-        return <Badge variant="destructive">Overloaded</Badge>;
-      default:
-        return <Badge variant="secondary">Unknown</Badge>;
-    }
   };
 
   if (isLoading) {
@@ -198,82 +106,6 @@ export default function AdminSettings() {
           </p>
         </div>
 
-        {/* Status Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* API Credits */}
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-                <Coins className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Platform API Credits</p>
-                {isLoadingCredits ? (
-                  <Loader2 className="h-4 w-4 animate-spin mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold">
-                    {apiCredits !== null ? apiCredits.toLocaleString() : "—"}
-                  </p>
-                )}
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => settings.ai33_api_key && fetchApiCredits(settings.ai33_api_key)}
-                disabled={isLoadingCredits || !settings.ai33_api_key}
-              >
-                <RefreshCw className={`h-4 w-4 ${isLoadingCredits ? 'animate-spin' : ''}`} />
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* ElevenLabs Status */}
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
-                <Activity className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">ElevenLabs Service</p>
-                {isLoadingHealth ? (
-                  <Loader2 className="h-4 w-4 animate-spin mt-1" />
-                ) : healthStatus ? (
-                  <div className="mt-1">{getHealthBadge(healthStatus.elevenlabs)}</div>
-                ) : (
-                  <Badge variant="secondary" className="mt-1">Unknown</Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Minimax Status */}
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-500/10">
-                <Activity className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Minimax Service</p>
-                {isLoadingHealth ? (
-                  <Loader2 className="h-4 w-4 animate-spin mt-1" />
-                ) : healthStatus ? (
-                  <div className="mt-1">{getHealthBadge(healthStatus.minimax)}</div>
-                ) : (
-                  <Badge variant="secondary" className="mt-1">Unknown</Badge>
-                )}
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={fetchHealthStatus}
-                disabled={isLoadingHealth}
-              >
-                <RefreshCw className={`h-4 w-4 ${isLoadingHealth ? 'animate-spin' : ''}`} />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* API Key Settings */}
         <Card className="border-primary/50">
           <CardHeader>
@@ -289,7 +121,7 @@ export default function AdminSettings() {
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                This API key will be used for all voice generation requests. Users get <strong>100 free characters</strong> on signup, after which they need to purchase credits.
+                This API key will be used for all voice generation requests. Users get <strong>100 free words</strong> on signup, after which they need to purchase credits.
               </AlertDescription>
             </Alert>
             
@@ -449,7 +281,7 @@ export default function AdminSettings() {
                 onChange={(e) => updateSetting("free_credits_signup", e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Number of free characters new users get on signup
+                Number of free words new users get on signup
               </p>
             </div>
           </CardContent>

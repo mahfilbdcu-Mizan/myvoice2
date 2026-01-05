@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Key, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, Trash2, Activity, Coins } from "lucide-react";
+import { Key, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, Trash2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,11 +20,6 @@ interface UserApiKey {
   updated_at: string;
 }
 
-interface HealthStatus {
-  elevenlabs: string;
-  minimax: string;
-}
-
 export default function DashboardApiKey() {
   const { user, profile, isLoading: authLoading } = useAuth();
   const [apiKey, setApiKey] = useState("");
@@ -33,14 +28,10 @@ export default function DashboardApiKey() {
   const [isSaving, setIsSaving] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [apiCredits, setApiCredits] = useState<number | null>(null);
-  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
-  const [isLoadingHealth, setIsLoadingHealth] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchUserApiKey();
-      fetchHealthStatus();
     }
   }, [user]);
 
@@ -55,70 +46,10 @@ export default function DashboardApiKey() {
 
       if (error) throw error;
       setSavedKey(data);
-      
-      // Fetch credits if user has a saved key
-      if (data?.encrypted_key) {
-        fetchApiCredits(data.encrypted_key);
-      }
     } catch (error) {
       console.error("Error fetching API key:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchApiCredits = async (apiKeyValue: string) => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-credits`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ apiKey: apiKeyValue }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setApiCredits(data.credits);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching credits:", error);
-    }
-  };
-
-  const fetchHealthStatus = async () => {
-    setIsLoadingHealth(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-check`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({}),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setHealthStatus(data.data);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching health status:", error);
-    } finally {
-      setIsLoadingHealth(false);
     }
   };
 
@@ -147,7 +78,7 @@ export default function DashboardApiKey() {
       if (balanceResponse.ok) {
         const balanceData = await balanceResponse.json();
         remainingCredits = balanceData.character_count || balanceData.credits || null;
-        isValid = balanceData.valid !== false;
+        isValid = true;
       }
 
       // Save or update the API key
@@ -202,7 +133,7 @@ export default function DashboardApiKey() {
     setIsChecking(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-credits`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
         {
           method: "POST",
           headers: {
@@ -216,31 +147,29 @@ export default function DashboardApiKey() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
-          setApiCredits(data.credits);
-          
-          await supabase
-            .from("user_api_keys")
-            .update({
-              remaining_credits: data.credits,
-              is_valid: true,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", savedKey.id);
+        const credits = data.character_count || data.credits || 0;
+        
+        await supabase
+          .from("user_api_keys")
+          .update({
+            remaining_credits: credits,
+            is_valid: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", savedKey.id);
 
-          toast({
-            title: "Balance Updated",
-            description: `Your API balance: ${data.credits.toLocaleString()} credits`,
-          });
-          
-          fetchUserApiKey();
-        } else {
-          toast({
-            title: "Check Failed",
-            description: data.error || "Could not verify API key balance",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Balance Updated",
+          description: `Your API balance: ${credits.toLocaleString()} credits`,
+        });
+        
+        fetchUserApiKey();
+      } else {
+        toast({
+          title: "Check Failed",
+          description: "Could not verify API key balance",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error checking balance:", error);
@@ -271,7 +200,6 @@ export default function DashboardApiKey() {
       });
       
       setSavedKey(null);
-      setApiCredits(null);
     } catch (error) {
       console.error("Error deleting API key:", error);
       toast({
@@ -285,19 +213,6 @@ export default function DashboardApiKey() {
   const maskApiKey = (key: string) => {
     if (key.length <= 8) return "••••••••";
     return key.slice(0, 4) + "••••••••" + key.slice(-4);
-  };
-
-  const getHealthBadge = (status: string) => {
-    switch (status) {
-      case "good":
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Good</Badge>;
-      case "degraded":
-        return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Degraded</Badge>;
-      case "overloaded":
-        return <Badge variant="destructive">Overloaded</Badge>;
-      default:
-        return <Badge variant="secondary">Unknown</Badge>;
-    }
   };
 
   if (authLoading) {
@@ -323,61 +238,20 @@ export default function DashboardApiKey() {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* Free Credits */}
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Key className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Free Credits</p>
-                <p className="text-2xl font-bold">{profile?.credits?.toLocaleString() || 0}</p>
-                <p className="text-xs text-muted-foreground">characters</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* API Credits */}
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-                <Coins className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">API Credits</p>
-                <p className="text-2xl font-bold">
-                  {apiCredits !== null ? apiCredits.toLocaleString() : savedKey ? "—" : "N/A"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {savedKey ? "from your API key" : "add API key"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Service Status */}
-          <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
-                <Activity className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Service Status</p>
-                {isLoadingHealth ? (
-                  <Loader2 className="h-4 w-4 animate-spin mt-1" />
-                ) : healthStatus ? (
-                  <div className="flex gap-2 mt-1">
-                    {getHealthBadge(healthStatus.elevenlabs)}
-                  </div>
-                ) : (
-                  <Badge variant="secondary">Unknown</Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Free Credits Info */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Key className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">Free Credits: {profile?.credits?.toLocaleString() || 0} words</p>
+              <p className="text-sm text-muted-foreground">
+                100 free words for new users. Add your own API key for unlimited generation.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Current API Key */}
         {isLoading ? (
@@ -424,6 +298,16 @@ export default function DashboardApiKey() {
                   {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
+
+              {savedKey.remaining_credits !== null && (
+                <div className="rounded-lg bg-muted/50 p-4">
+                  <p className="text-sm text-muted-foreground">API Balance</p>
+                  <p className="text-2xl font-bold">{savedKey.remaining_credits.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Last checked: {new Date(savedKey.updated_at).toLocaleString()}
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button
@@ -488,7 +372,7 @@ export default function DashboardApiKey() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">1</span>
-                <span>New users get <strong>100 free characters</strong> using platform credits</span>
+                <span>New users get <strong>100 free words</strong> using platform credits</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">2</span>

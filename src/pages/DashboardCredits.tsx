@@ -51,7 +51,7 @@ export default function DashboardCredits() {
         <div>
           <h1 className="text-2xl font-bold">Buy Credits</h1>
           <p className="text-muted-foreground">
-            Purchase credits to generate more speech. 1 credit = 1 character.
+            Purchase credits to generate more speech. 1 credit = 1 word.
           </p>
         </div>
 

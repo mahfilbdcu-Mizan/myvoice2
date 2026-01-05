@@ -73,7 +73,7 @@ export default function Pricing() {
                   </div>
                   <div>
                     <p className="font-semibold">Free Starter</p>
-                    <p className="text-sm text-muted-foreground">100 characters on signup</p>
+                    <p className="text-sm text-muted-foreground">100 credits on signup</p>
                   </div>
                 </div>
                 <Link to="/login">
@@ -181,7 +181,7 @@ export default function Pricing() {
                 <div className="rounded-xl border border-border bg-card p-6">
                   <h3 className="font-semibold">How do credits work?</h3>
                   <p className="mt-2 text-muted-foreground">
-                    1 credit = 1 generated character. Credits are deducted only after successful audio generation.
+                    1 credit = 1 generated word. Credits are deducted only after successful audio generation.
                   </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6">

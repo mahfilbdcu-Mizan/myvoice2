@@ -276,7 +276,7 @@ export default function Login() {
             </div>
 
             <div className="rounded-lg bg-muted/50 p-4 text-center">
-              <p className="text-sm font-medium">New users get 100 free characters!</p>
+              <p className="text-sm font-medium">New users get 100 free credits!</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Start creating audio content right away
               </p>
