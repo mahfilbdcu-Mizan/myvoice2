@@ -20,7 +20,7 @@ serve(async (req) => {
       );
     }
 
-    // Check user info / subscription from ai33.pro API
+    // Check user info / subscription from Voice API
     const response = await fetch("https://api.ai33.pro/v1/user/subscription", {
       method: "GET",
       headers: {

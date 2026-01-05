@@ -53,7 +53,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("Fetching models from ai33.pro");
+    console.log("Fetching models from voice API");
 
     const response = await fetch("https://api.ai33.pro/v1/models", {
       method: "GET",

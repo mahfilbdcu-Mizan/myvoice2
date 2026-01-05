@@ -80,7 +80,7 @@ serve(async (req) => {
 
     const apiUrl = `https://api.ai33.pro/v1/shared-voices?${params.toString()}`;
 
-    console.log(`Fetching voices from: ${apiUrl}`);
+    console.log(`Fetching voices from voice API`);
 
     const response = await fetch(apiUrl, {
       method: "GET",
