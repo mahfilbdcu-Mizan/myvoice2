@@ -73,11 +73,13 @@ export interface TaskResult {
   error_message: string | null;
   credit_cost: number;
   metadata: {
-    audio_url?: string;
+    audio_url?: string | string[];
     srt_url?: string;
     json_url?: string;
+    cover_url?: string | string[];
   };
   type: string;
+  progress?: number;
 }
 
 export interface FetchVoicesOptions {

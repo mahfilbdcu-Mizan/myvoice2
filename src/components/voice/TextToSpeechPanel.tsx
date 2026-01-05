@@ -7,12 +7,14 @@ import {
   ChevronDown,
   Loader2,
   Upload,
-  FileText
+  Mic,
+  Music
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -29,16 +31,39 @@ import { cn } from "@/lib/utils";
 import { generateSpeech, waitForTask, fetchModelsFromAPI, type VoiceModel } from "@/lib/voice-api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TextToSpeechPanelProps {
   selectedVoice?: { id: string; name: string } | null;
   onOpenVoiceLibrary?: () => void;
 }
 
+type Provider = "elevenlabs" | "minimax";
+
 const defaultModels = [
   { id: "eleven_multilingual_v2", name: "Multilingual v2" },
   { id: "eleven_turbo_v2_5", name: "Turbo v2.5" },
   { id: "eleven_monolingual_v1", name: "English v1" },
+];
+
+const minimaxModels = [
+  { id: "speech-2.6-hd", name: "Speech 2.6 HD" },
+  { id: "speech-2.5-hd", name: "Speech 2.5 HD" },
+  { id: "speech-2.5-turbo", name: "Speech 2.5 Turbo (0.6x credits)" },
+];
+
+const languageOptions = [
+  { id: "Auto", name: "Auto Detect" },
+  { id: "English", name: "English" },
+  { id: "Chinese", name: "Chinese" },
+  { id: "Japanese", name: "Japanese" },
+  { id: "Korean", name: "Korean" },
+  { id: "Spanish", name: "Spanish" },
+  { id: "French", name: "French" },
+  { id: "German", name: "German" },
+  { id: "Arabic", name: "Arabic" },
+  { id: "Portuguese", name: "Portuguese" },
+  { id: "Russian", name: "Russian" },
 ];
 
 export function TextToSpeechPanel({ 
@@ -53,12 +78,22 @@ export function TextToSpeechPanel({
   const [showSettings, setShowSettings] = useState(false);
   const [models, setModels] = useState<Array<{ id: string; name: string }>>(defaultModels);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
+  const [provider, setProvider] = useState<Provider>("elevenlabs");
   
-  // Voice settings
+  // ElevenLabs settings
   const [model, setModel] = useState("eleven_multilingual_v2");
   const [stability, setStability] = useState([0.5]);
   const [similarity, setSimilarity] = useState([0.75]);
   const [style, setStyle] = useState([0.5]);
+
+  // Minimax settings
+  const [minimaxModel, setMinimaxModel] = useState("speech-2.6-hd");
+  const [minimaxVoiceId, setMinimaxVoiceId] = useState("209533299589184");
+  const [volume, setVolume] = useState([1]);
+  const [pitch, setPitch] = useState([0]);
+  const [speed, setSpeed] = useState([1]);
+  const [languageBoost, setLanguageBoost] = useState("Auto");
+  const [minimaxVoices, setMinimaxVoices] = useState<Array<{ voice_id: string; voice_name: string; tag_list: string[] }>>([]);
 
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +111,23 @@ export function TextToSpeechPanel({
       }
     }
     loadModels();
+  }, []);
+
+  // Fetch Minimax voices
+  useEffect(() => {
+    async function loadMinimaxVoices() {
+      try {
+        const { data, error } = await supabase.functions.invoke('minimax-voices', {
+          body: { page: 1, pageSize: 100 }
+        });
+        if (!error && data?.data?.voice_list) {
+          setMinimaxVoices(data.data.voice_list);
+        }
+      } catch (e) {
+        console.error("Failed to load Minimax voices:", e);
+      }
+    }
+    loadMinimaxVoices();
   }, []);
 
   useEffect(() => {
@@ -97,14 +149,12 @@ export function TextToSpeechPanel({
       const content = await file.text();
       
       if (extension === 'srt') {
-        // Parse SRT format - extract only text, not timestamps
         const lines = content.split('\n');
         const textLines: string[] = [];
         let isTextLine = false;
         
         for (const line of lines) {
           const trimmed = line.trim();
-          // Skip empty lines, numbers, and timestamps
           if (!trimmed) {
             isTextLine = false;
             continue;
@@ -129,87 +179,137 @@ export function TextToSpeechPanel({
         title: "File loaded",
         description: `Loaded ${file.name}`,
       });
-    } else if (extension === 'zip') {
-      toast({
-        title: "ZIP files",
-        description: "ZIP support coming soon. Please extract and upload TXT or SRT files.",
-      });
     } else {
       toast({
         title: "Unsupported format",
-        description: "Please upload .txt, .srt, or .zip files",
+        description: "Please upload .txt or .srt files",
         variant: "destructive",
       });
     }
     
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const handleGenerate = async () => {
-    if (!text.trim() || !selectedVoice) return;
+    if (!text.trim()) return;
     
-    const { data: userData } = await import("@/integrations/supabase/client").then(m => m.supabase.auth.getUser());
+    if (provider === "elevenlabs" && !selectedVoice) {
+      toast({
+        title: "No voice selected",
+        description: "Please select a voice from the library",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: userData } = await supabase.auth.getUser();
     
     setIsGenerating(true);
     setAudioUrl(null);
     setTaskStatus("Starting generation...");
     
     try {
-      const result = await generateSpeech({
-        text: text.trim(),
-        voiceId: selectedVoice.id,
-        voiceName: selectedVoice.name,
-        model,
-        stability: stability[0],
-        similarity: similarity[0],
-        style: style[0],
-        userId: userData?.user?.id,
-      });
+      if (provider === "elevenlabs") {
+        const result = await generateSpeech({
+          text: text.trim(),
+          voiceId: selectedVoice!.id,
+          voiceName: selectedVoice!.name,
+          model,
+          stability: stability[0],
+          similarity: similarity[0],
+          style: style[0],
+          userId: userData?.user?.id,
+        });
 
-      if (result.error) {
-        toast({
-          title: "Generation failed",
-          description: result.error,
-          variant: "destructive",
-        });
-        setTaskStatus(null);
-      } else if (result.audioUrl) {
-        // Direct audio response
-        setAudioUrl(result.audioUrl);
-        setTaskStatus(null);
-        toast({
-          title: "Speech generated!",
-          description: "Your audio is ready to play and download.",
-        });
-        refreshProfile();
-      } else if (result.taskId) {
-        // Task-based response - poll for completion
-        setTaskStatus("Processing...");
-        
-        const task = await waitForTask(result.taskId);
-        
-        if (task?.status === "done" && task.metadata?.audio_url) {
-          setAudioUrl(task.metadata.audio_url);
+        if (result.error) {
+          toast({
+            title: "Generation failed",
+            description: result.error,
+            variant: "destructive",
+          });
+          setTaskStatus(null);
+        } else if (result.audioUrl) {
+          setAudioUrl(result.audioUrl);
           setTaskStatus(null);
           toast({
             title: "Speech generated!",
             description: "Your audio is ready to play and download.",
           });
           refreshProfile();
-        } else if (task?.status === "failed") {
+          } else if (result.taskId) {
+            setTaskStatus("Processing...");
+            const task = await waitForTask(result.taskId);
+            
+            if (task?.status === "done" && task.metadata?.audio_url) {
+              const audioUrlValue = Array.isArray(task.metadata.audio_url) ? task.metadata.audio_url[0] : task.metadata.audio_url;
+              setAudioUrl(audioUrlValue);
+              setTaskStatus(null);
+              toast({
+                title: "Speech generated!",
+                description: "Your audio is ready to play and download.",
+              });
+              refreshProfile();
+            } else if (task?.status === "failed") {
+            toast({
+              title: "Generation failed",
+              description: task.error_message || "Task failed",
+              variant: "destructive",
+            });
+            setTaskStatus(null);
+          } else {
+            toast({
+              title: "Generation timeout",
+              description: "Task is taking too long. Check history for results.",
+              variant: "destructive",
+            });
+            setTaskStatus(null);
+          }
+        }
+      } else {
+        // Minimax TTS
+        const { data, error } = await supabase.functions.invoke('minimax-tts', {
+          body: {
+            text: text.trim(),
+            model: minimaxModel,
+            voiceId: minimaxVoiceId,
+            vol: volume[0],
+            pitch: pitch[0],
+            speed: speed[0],
+            languageBoost,
+          }
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data?.task_id) {
+          setTaskStatus("Processing...");
+          const task = await waitForTask(data.task_id);
+          
+          if (task?.status === "done" && task.metadata?.audio_url) {
+            const audioUrlValue = Array.isArray(task.metadata.audio_url) ? task.metadata.audio_url[0] : task.metadata.audio_url;
+            setAudioUrl(audioUrlValue);
+            setTaskStatus(null);
+            toast({
+              title: "Speech generated!",
+              description: "Your audio is ready to play and download.",
+            });
+            refreshProfile();
+          } else if (task?.status === "failed") {
+            toast({
+              title: "Generation failed",
+              description: task.error_message || "Task failed",
+              variant: "destructive",
+            });
+            setTaskStatus(null);
+          }
+        } else if (data?.error) {
           toast({
             title: "Generation failed",
-            description: task.error_message || "Task failed",
-            variant: "destructive",
-          });
-          setTaskStatus(null);
-        } else {
-          toast({
-            title: "Generation timeout",
-            description: "Task is taking too long. Please try again.",
+            description: data.error,
             variant: "destructive",
           });
           setTaskStatus(null);
@@ -218,7 +318,7 @@ export function TextToSpeechPanel({
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to generate speech. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate speech",
         variant: "destructive",
       });
       setTaskStatus(null);
@@ -239,11 +339,11 @@ export function TextToSpeechPanel({
   };
 
   const handleDownload = async (format: 'mp3' | 'txt' | 'srt') => {
-    if (!audioUrl) return;
+    if (!audioUrl && format === 'mp3') return;
 
     if (format === 'mp3') {
       const a = document.createElement("a");
-      a.href = audioUrl;
+      a.href = audioUrl!;
       a.download = `speech-${Date.now()}.mp3`;
       a.click();
     } else if (format === 'txt') {
@@ -255,13 +355,12 @@ export function TextToSpeechPanel({
       a.click();
       URL.revokeObjectURL(url);
     } else if (format === 'srt') {
-      // Generate basic SRT format
       const lines = text.split('\n').filter(l => l.trim());
       let srtContent = '';
       let time = 0;
       
       lines.forEach((line, index) => {
-        const duration = Math.ceil(line.length / 15); // Rough estimate
+        const duration = Math.ceil(line.length / 15);
         const startTime = formatSrtTime(time);
         const endTime = formatSrtTime(time + duration);
         srtContent += `${index + 1}\n${startTime} --> ${endTime}\n${line}\n\n`;
@@ -295,18 +394,42 @@ export function TextToSpeechPanel({
           <p className="text-muted-foreground">Convert your text into natural speech</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={model} onValueChange={setModel}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Provider Selection */}
+          <Tabs value={provider} onValueChange={(v) => setProvider(v as Provider)}>
+            <TabsList>
+              <TabsTrigger value="elevenlabs">ElevenLabs</TabsTrigger>
+              <TabsTrigger value="minimax">Minimax</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          {/* Model Selection */}
+          {provider === "elevenlabs" ? (
+            <Select value={model} onValueChange={setModel}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Select value={minimaxModel} onValueChange={setMinimaxModel}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {minimaxModels.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -331,7 +454,7 @@ export function TextToSpeechPanel({
             <Input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.srt,.zip"
+              accept=".txt,.srt"
               onChange={handleFileUpload}
               className="hidden"
             />
@@ -344,39 +467,57 @@ export function TextToSpeechPanel({
               Upload File
             </Button>
             <span className="text-sm text-muted-foreground">
-              Supports .txt, .srt, .zip formats
+              Supports .txt, .srt formats
             </span>
           </div>
 
           {/* Voice Selection */}
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <Play className="h-4 w-4 text-primary" />
+          {provider === "elevenlabs" ? (
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Mic className="h-4 w-4 text-primary" />
+                </div>
+                {selectedVoice ? (
+                  <div>
+                    <p className="font-medium">{selectedVoice.name}</p>
+                    <p className="text-sm text-muted-foreground">Selected voice</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-medium">No voice selected</p>
+                    <p className="text-sm text-muted-foreground">Choose a voice from the library</p>
+                  </div>
+                )}
               </div>
-              {selectedVoice ? (
-                <div>
-                  <p className="font-medium">{selectedVoice.name}</p>
-                  <p className="text-sm text-muted-foreground">Selected voice</p>
-                </div>
-              ) : (
-                <div>
-                  <p className="font-medium">No voice selected</p>
-                  <p className="text-sm text-muted-foreground">Choose a voice from the library</p>
-                </div>
-              )}
+              <Button variant="outline" onClick={onOpenVoiceLibrary}>
+                {selectedVoice ? "Change Voice" : "Select Voice"}
+              </Button>
             </div>
-            <Button variant="outline" onClick={onOpenVoiceLibrary}>
-              {selectedVoice ? "Change Voice" : "Select Voice"}
-            </Button>
-          </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-border bg-card p-4">
+              <label className="mb-2 block text-sm font-medium">Minimax Voice</label>
+              <Select value={minimaxVoiceId} onValueChange={setMinimaxVoiceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a voice" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {minimaxVoices.map((v) => (
+                    <SelectItem key={v.voice_id} value={v.voice_id}>
+                      {v.voice_name} ({v.tag_list?.slice(0, 2).join(", ")})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Generate Button */}
           <Button
             size="lg"
             className="mt-4 h-14 text-lg"
             onClick={handleGenerate}
-            disabled={!text.trim() || !selectedVoice || isGenerating}
+            disabled={!text.trim() || (provider === "elevenlabs" && !selectedVoice) || isGenerating}
           >
             {isGenerating ? (
               <>
@@ -412,56 +553,123 @@ export function TextToSpeechPanel({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-4 space-y-6 rounded-xl border border-border bg-card p-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Stability</label>
-                  <span className="text-sm text-muted-foreground">{stability[0].toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={stability}
-                  onValueChange={setStability}
-                  max={1}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Higher stability means more consistent voice
-                </p>
-              </div>
+              {provider === "elevenlabs" ? (
+                <>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Stability</label>
+                      <span className="text-sm text-muted-foreground">{stability[0].toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={stability}
+                      onValueChange={setStability}
+                      max={1}
+                      step={0.01}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Higher stability means more consistent voice
+                    </p>
+                  </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Similarity</label>
-                  <span className="text-sm text-muted-foreground">{similarity[0].toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={similarity}
-                  onValueChange={setSimilarity}
-                  max={1}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  How closely to match the original voice
-                </p>
-              </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Similarity</label>
+                      <span className="text-sm text-muted-foreground">{similarity[0].toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={similarity}
+                      onValueChange={setSimilarity}
+                      max={1}
+                      step={0.01}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      How closely to match the original voice
+                    </p>
+                  </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Style Exaggeration</label>
-                  <span className="text-sm text-muted-foreground">{style[0].toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={style}
-                  onValueChange={setStyle}
-                  max={1}
-                  step={0.01}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Amplify the style of the original speaker
-                </p>
-              </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Style Exaggeration</label>
+                      <span className="text-sm text-muted-foreground">{style[0].toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={style}
+                      onValueChange={setStyle}
+                      max={1}
+                      step={0.01}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Amplify the style of the original speaker
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium">Language Boost</label>
+                    <Select value={languageBoost} onValueChange={setLanguageBoost}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {languageOptions.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Volume</label>
+                      <span className="text-sm text-muted-foreground">{volume[0].toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={volume}
+                      onValueChange={setVolume}
+                      min={0.5}
+                      max={2}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Pitch</label>
+                      <span className="text-sm text-muted-foreground">{pitch[0]}</span>
+                    </div>
+                    <Slider
+                      value={pitch}
+                      onValueChange={setPitch}
+                      min={-12}
+                      max={12}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Speed</label>
+                      <span className="text-sm text-muted-foreground">{speed[0].toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={speed}
+                      onValueChange={setSpeed}
+                      min={0.5}
+                      max={2}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                </>
+              )}
             </CollapsibleContent>
           </Collapsible>
 
@@ -505,51 +713,47 @@ export function TextToSpeechPanel({
                 </div>
               </div>
 
+              {/* Hidden audio element */}
+              <audio ref={audioRef} src={audioUrl} />
+
               {/* Download Options */}
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 flex gap-2">
                 <Button
                   variant="outline"
-                  className="w-full"
+                  size="sm"
+                  className="flex-1 gap-2"
                   onClick={() => handleDownload('mp3')}
                 >
                   <Download className="h-4 w-4" />
-                  Download MP3
+                  MP3
                 </Button>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleDownload('txt')}
-                  >
-                    <FileText className="h-4 w-4" />
-                    .TXT
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleDownload('srt')}
-                  >
-                    <FileText className="h-4 w-4" />
-                    .SRT
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => handleDownload('txt')}
+                >
+                  <Download className="h-4 w-4" />
+                  TXT
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={() => handleDownload('srt')}
+                >
+                  <Download className="h-4 w-4" />
+                  SRT
+                </Button>
               </div>
-
-              <audio ref={audioRef} src={audioUrl} className="hidden" />
             </div>
           )}
 
-          {/* Usage Info */}
+          {/* Credits Info */}
           <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-2 font-semibold">Generation Info</h3>
-            <p className="text-sm text-muted-foreground">
-              Text length: <span className="font-semibold text-foreground">{charCount}</span> characters
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Word count: <span className="font-semibold text-foreground">{wordCount}</span> words
-            </p>
+            <h3 className="mb-2 font-semibold">Your Credits</h3>
+            <p className="text-2xl font-bold text-primary">{profile?.credits || 0}</p>
+            <p className="text-sm text-muted-foreground">words remaining</p>
           </div>
         </div>
       </div>
