@@ -289,7 +289,7 @@ export default function AdminSettings() {
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                This API key will be used for all voice generation requests. Users get <strong>100 free words</strong> on signup, after which they need to purchase credits.
+                This API key will be used for all voice generation requests. Users get <strong>100 free characters</strong> on signup, after which they need to purchase credits.
               </AlertDescription>
             </Alert>
             
@@ -449,7 +449,7 @@ export default function AdminSettings() {
                 onChange={(e) => updateSetting("free_credits_signup", e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Number of free words new users get on signup
+                Number of free characters new users get on signup
               </p>
             </div>
           </CardContent>

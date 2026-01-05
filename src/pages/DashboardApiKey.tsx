@@ -334,7 +334,7 @@ export default function DashboardApiKey() {
               <div>
                 <p className="text-sm text-muted-foreground">Free Credits</p>
                 <p className="text-2xl font-bold">{profile?.credits?.toLocaleString() || 0}</p>
-                <p className="text-xs text-muted-foreground">words</p>
+                <p className="text-xs text-muted-foreground">characters</p>
               </div>
             </CardContent>
           </Card>
@@ -488,7 +488,7 @@ export default function DashboardApiKey() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">1</span>
-                <span>New users get <strong>100 free words</strong> using platform credits</span>
+                <span>New users get <strong>100 free characters</strong> using platform credits</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">2</span>

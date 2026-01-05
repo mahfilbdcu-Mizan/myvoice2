@@ -94,6 +94,7 @@ export function TextToSpeechPanel({
   const [speed, setSpeed] = useState([1]);
   const [languageBoost, setLanguageBoost] = useState("Auto");
   const [minimaxVoices, setMinimaxVoices] = useState<Array<{ voice_id: string; voice_name: string; tag_list: string[] }>>([]);
+  const [apiCredits, setApiCredits] = useState<number | null>(null);
 
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +102,49 @@ export function TextToSpeechPanel({
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
+
+  // Fetch API credits
+  useEffect(() => {
+    async function loadApiCredits() {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) return;
+
+        // Check if user has an API key
+        const { data: userKey } = await supabase
+          .from("user_api_keys")
+          .select("encrypted_key")
+          .eq("user_id", userData.user.id)
+          .eq("provider", "ai33")
+          .maybeSingle();
+
+        if (userKey?.encrypted_key) {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-credits`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ apiKey: userKey.encrypted_key }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              setApiCredits(data.credits);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load API credits:", e);
+      }
+    }
+    loadApiCredits();
+  }, []);
 
   // Fetch models on mount
   useEffect(() => {
@@ -751,9 +795,20 @@ export function TextToSpeechPanel({
 
           {/* Credits Info */}
           <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="mb-2 font-semibold">Your Credits</h3>
-            <p className="text-2xl font-bold text-primary">{profile?.credits || 0}</p>
-            <p className="text-sm text-muted-foreground">words remaining</p>
+            <h3 className="mb-3 font-semibold">Your Credits</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Free Credits</span>
+                <span className="text-lg font-bold text-primary">{profile?.credits?.toLocaleString() || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">API Credits</span>
+                <span className="text-lg font-bold text-green-600">
+                  {apiCredits !== null ? apiCredits.toLocaleString() : "—"}
+                </span>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">characters remaining</p>
           </div>
         </div>
       </div>
