@@ -1,8 +1,10 @@
+import { Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Zap, CreditCard } from "lucide-react";
+import { Check, Zap, CreditCard, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const pricingPlans = [
   {
@@ -28,8 +30,22 @@ const pricingPlans = [
 ];
 
 export default function DashboardCredits() {
+  const { user, profile, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
-    <DashboardLayout credits={82340}>
+    <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
         <div>
@@ -48,7 +64,7 @@ export default function DashboardCredits() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Current Balance</p>
-                <p className="text-3xl font-bold">82,340</p>
+                <p className="text-3xl font-bold">{(profile?.credits ?? 0).toLocaleString()}</p>
               </div>
             </div>
             <Badge variant="secondary" className="text-sm">

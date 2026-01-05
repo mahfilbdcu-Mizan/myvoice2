@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   Mic, 
   Library, 
@@ -11,14 +11,16 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  User
+  User,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  credits?: number;
 }
 
 const navItems = [
@@ -30,9 +32,26 @@ const navItems = [
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
-export function DashboardLayout({ children, credits = 0 }: DashboardLayoutProps) {
+export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { profile, user, signOut, isLoading } = useAuth();
+
+  const credits = profile?.credits ?? 0;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-surface-subtle">
@@ -54,9 +73,9 @@ export function DashboardLayout({ children, credits = 0 }: DashboardLayoutProps)
             </Link>
           )}
           {isCollapsed && (
-            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg">
+            <Link to="/" className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg">
               <Zap className="h-5 w-5 text-primary-foreground" />
-            </div>
+            </Link>
           )}
         </div>
 
@@ -112,13 +131,20 @@ export function DashboardLayout({ children, credits = 0 }: DashboardLayoutProps)
             "flex items-center gap-3 rounded-lg p-2",
             isCollapsed && "justify-center"
           )}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
-              <User className="h-4 w-4 text-muted-foreground" />
-            </div>
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback>
+                <User className="h-4 w-4" />
+              </AvatarFallback>
+            </Avatar>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium">User</p>
-                <p className="truncate text-xs text-muted-foreground">user@example.com</p>
+                <p className="truncate text-sm font-medium">
+                  {profile?.full_name || "User"}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {user?.email || ""}
+                </p>
               </div>
             )}
           </div>
@@ -129,6 +155,7 @@ export function DashboardLayout({ children, credits = 0 }: DashboardLayoutProps)
               "mt-2 w-full justify-start text-muted-foreground",
               isCollapsed && "justify-center px-2"
             )}
+            onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span className="ml-2">Sign Out</span>}
