@@ -1,33 +1,24 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowRight, Zap } from "lucide-react";
+import { Check, ArrowRight, Zap, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-const pricingPlans = [
-  {
-    credits: 1000000,
-    price: 25,
-    popular: false,
-    perCredit: "0.000025",
-  },
-  {
-    credits: 5000000,
-    price: 110,
-    popular: true,
-    perCredit: "0.000022",
-    savings: "12%",
-  },
-  {
-    credits: 10000000,
-    price: 200,
-    popular: false,
-    perCredit: "0.00002",
-    savings: "20%",
-  },
-];
+interface Package {
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  real_price: number;
+  offer_price: number;
+  discount_percentage: number;
+  is_popular: boolean;
+  features: string[];
+}
 
 const features = [
   "100+ premium AI voices",
@@ -41,6 +32,25 @@ const features = [
 ];
 
 export default function Pricing() {
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPackages = async () => {
+      const { data } = await supabase
+        .from('packages')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+      
+      if (data) {
+        setPackages(data);
+      }
+      setIsLoading(false);
+    };
+    fetchPackages();
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -90,61 +100,80 @@ export default function Pricing() {
         {/* Pricing Cards */}
         <section className="py-12">
           <div className="container">
-            <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
-              {pricingPlans.map((plan) => (
-                <Card 
-                  key={plan.credits} 
-                  className={plan.popular ? "relative border-primary shadow-elevated" : ""}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="shadow-lg">Most Popular</Badge>
-                    </div>
-                  )}
-                  <CardHeader>
-                    <CardTitle className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold">{plan.price}</span>
-                      <span className="text-lg text-muted-foreground">USDT</span>
-                    </CardTitle>
-                    <CardDescription className="text-lg">
-                      {plan.credits.toLocaleString()} credits
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-success" />
-                        <span>${plan.perCredit} per credit</span>
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className={`mx-auto grid max-w-6xl gap-6 ${
+                packages.length === 3 ? 'md:grid-cols-3' : 
+                packages.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' :
+                packages.length >= 5 ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3'
+              }`}>
+                {packages.map((pkg) => (
+                  <Card 
+                    key={pkg.id} 
+                    className={pkg.is_popular ? "relative border-primary shadow-elevated" : ""}
+                  >
+                    {pkg.is_popular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className="shadow-lg">Most Popular</Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-success" />
-                        <span>Credits never expire</span>
+                    )}
+                    {pkg.discount_percentage > 0 && (
+                      <div className="absolute -top-3 right-4">
+                        <Badge variant="destructive" className="shadow-lg">
+                          {pkg.discount_percentage}% OFF
+                        </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-success" />
-                        <span>All features included</span>
-                      </div>
-                      {plan.savings && (
+                    )}
+                    <CardHeader className="pt-8">
+                      <CardDescription className="text-base font-medium">
+                        {pkg.name}
+                      </CardDescription>
+                      <CardTitle className="flex items-baseline gap-2">
+                        <span className="text-4xl font-bold">${pkg.offer_price}</span>
+                        {pkg.discount_percentage > 0 && (
+                          <span className="text-lg text-muted-foreground line-through">
+                            ${pkg.real_price}
+                          </span>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="text-lg">
+                        {pkg.credits.toLocaleString()} credits
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <p className="text-sm text-muted-foreground">
+                        {pkg.description}
+                      </p>
+                      <div className="space-y-3">
+                        {pkg.features?.map((feature, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm">
+                            <Check className="h-4 w-4 text-success shrink-0" />
+                            <span>{feature}</span>
+                          </div>
+                        ))}
                         <div className="flex items-center gap-2 text-sm">
                           <Check className="h-4 w-4 text-success" />
-                          <span className="font-medium text-success">Save {plan.savings}</span>
+                          <span>Credits never expire</span>
                         </div>
-                      )}
-                    </div>
-                    
-                    <Link to="/login">
-                      <Button 
-                        className="w-full" 
-                        variant={plan.popular ? "default" : "outline"}
-                        size="lg"
-                      >
-                        Get Started
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      </div>
+                      
+                      <Link to="/login">
+                        <Button 
+                          className="w-full" 
+                          variant={pkg.is_popular ? "default" : "outline"}
+                          size="lg"
+                        >
+                          Get Started
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

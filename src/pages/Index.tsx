@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { 
   Mic, 
   Zap, 
@@ -21,7 +23,8 @@ import {
   Star,
   CheckCircle2,
   Wand2,
-  MessageSquare
+  MessageSquare,
+  Check
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -33,6 +36,18 @@ interface Voice {
   age: string | null;
   category: string | null;
   preview_url: string | null;
+}
+
+interface Package {
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  real_price: number;
+  offer_price: number;
+  discount_percentage: number;
+  is_popular: boolean;
+  features: string[];
 }
 
 const features = [
@@ -132,22 +147,35 @@ const testimonials = [
 
 export default function Index() {
   const [voices, setVoices] = useState<Voice[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const fetchVoices = async () => {
-      const { data } = await supabase
+    const fetchData = async () => {
+      // Fetch voices
+      const { data: voicesData } = await supabase
         .from("voices")
         .select("*")
         .eq("is_active", true)
         .limit(8);
       
-      if (data) {
-        setVoices(data);
+      if (voicesData) {
+        setVoices(voicesData);
+      }
+
+      // Fetch packages
+      const { data: packagesData } = await supabase
+        .from("packages")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order");
+      
+      if (packagesData) {
+        setPackages(packagesData);
       }
     };
-    fetchVoices();
+    fetchData();
   }, []);
 
   const handlePlayVoice = (voice: Voice) => {
@@ -564,6 +592,96 @@ export default function Index() {
             </div>
           </div>
         </section>
+
+        {/* Pricing Section */}
+        {packages.length > 0 && (
+          <section className="border-t border-border py-24">
+            <div className="container">
+              <div className="mx-auto max-w-2xl text-center mb-16">
+                <Badge variant="secondary" className="mb-4">
+                  Simple Pricing
+                </Badge>
+                <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+                  Choose Your <span className="text-primary">Plan</span>
+                </h2>
+                <p className="mt-4 text-lg text-muted-foreground">
+                  No subscriptions, no hidden fees. Buy credits and use them anytime.
+                </p>
+              </div>
+
+              <div className={`mx-auto grid max-w-6xl gap-6 ${
+                packages.length === 3 ? 'md:grid-cols-3' : 
+                packages.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' :
+                packages.length >= 5 ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3'
+              }`}>
+                {packages.map((pkg) => (
+                  <Card 
+                    key={pkg.id} 
+                    className={`relative transition-all hover:shadow-lg ${pkg.is_popular ? "border-primary shadow-elevated" : ""}`}
+                  >
+                    {pkg.is_popular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className="shadow-lg">Most Popular</Badge>
+                      </div>
+                    )}
+                    {pkg.discount_percentage > 0 && (
+                      <div className="absolute -top-3 right-4">
+                        <Badge variant="destructive" className="shadow-lg">
+                          {pkg.discount_percentage}% OFF
+                        </Badge>
+                      </div>
+                    )}
+                    <CardHeader className="pt-8">
+                      <CardDescription className="text-base font-medium">
+                        {pkg.name}
+                      </CardDescription>
+                      <CardTitle className="flex items-baseline gap-2">
+                        <span className="text-4xl font-bold">${pkg.offer_price}</span>
+                        {pkg.discount_percentage > 0 && (
+                          <span className="text-lg text-muted-foreground line-through">
+                            ${pkg.real_price}
+                          </span>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="text-lg">
+                        {pkg.credits.toLocaleString()} credits
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-3">
+                        {pkg.features?.slice(0, 4).map((feature, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm">
+                            <Check className="h-4 w-4 text-success shrink-0" />
+                            <span>{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <Link to="/login">
+                        <Button 
+                          className="w-full" 
+                          variant={pkg.is_popular ? "default" : "outline"}
+                          size="lg"
+                        >
+                          Get Started
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="mt-12 text-center">
+                <Link to="/pricing">
+                  <Button variant="outline" size="lg" className="group">
+                    View All Pricing Details
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Final CTA Section */}
         <section className="relative overflow-hidden border-t border-border py-24">
