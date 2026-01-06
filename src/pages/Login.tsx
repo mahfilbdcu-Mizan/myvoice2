@@ -27,7 +27,7 @@ export default function Login() {
   }, [user, isLoading, navigate, redirectTo]);
 
   const handleGoogleSignIn = async () => {
-    const { error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle(redirectTo);
     if (error) {
       toast({
         title: "Sign in failed",
