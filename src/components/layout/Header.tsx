@@ -29,9 +29,6 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
               Pricing
             </Link>
-            <Link to="/docs" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-              Documentation
-            </Link>
           </nav>
         </div>
 
@@ -84,13 +81,6 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Pricing
-            </Link>
-            <Link 
-              to="/docs" 
-              className="rounded-lg px-4 py-3 text-sm font-medium hover:bg-accent"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Documentation
             </Link>
           </nav>
         </div>
