@@ -151,6 +151,83 @@ export default function DashboardHistory() {
     }
   };
 
+  const handleRetry = async (task: GenerationTask) => {
+    try {
+      toast({
+        title: "Retrying...",
+        description: "Regenerating speech with the same settings",
+      });
+      
+      // Delete the failed task
+      await supabase
+        .from("generation_tasks")
+        .delete()
+        .eq("id", task.id);
+      
+      // Re-generate
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-speech`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            text: task.input_text,
+            voiceId: task.voice_id,
+            voiceName: task.voice_name,
+            model: task.model,
+            userId: user?.id,
+          }),
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to retry");
+      }
+      
+      toast({
+        title: "Retry started",
+        description: "Your speech is being generated again",
+      });
+      
+      // Refresh list
+      fetchTasks();
+    } catch (error) {
+      console.error("Retry error:", error);
+      toast({
+        title: "Retry failed",
+        description: error instanceof Error ? error.message : "Could not retry generation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (taskId: string) => {
+    try {
+      const { error } = await supabase
+        .from("generation_tasks")
+        .delete()
+        .eq("id", taskId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Deleted",
+        description: "Task removed from history",
+      });
+    } catch (error) {
+      toast({
+        title: "Delete failed",
+        description: "Could not delete the task",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (task: GenerationTask) => {
     switch (task.status) {
       case "done":
@@ -294,17 +371,41 @@ export default function DashboardHistory() {
                       )}
                     </div>
 
-                    {/* Download Button */}
-                    {task.status === "done" && task.audio_url && !isExpired(task.expires_at) && (
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {task.status === "done" && task.audio_url && !isExpired(task.expires_at) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(task)}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                      )}
+                      
+                      {/* Retry Button for failed/expired tasks */}
+                      {(task.status === "failed" || (task.status === "done" && task.expires_at && isExpired(task.expires_at))) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRetry(task)}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Retry
+                        </Button>
+                      )}
+                      
+                      {/* Delete Button */}
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(task)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDelete(task.id)}
                       >
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
