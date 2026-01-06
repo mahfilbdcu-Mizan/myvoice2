@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 10; // 10 requests per minute
+
 // Validate JWT and get user ID
 async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
   const authHeader = req.headers.get("Authorization");
@@ -34,6 +38,60 @@ async function validateAuth(req: Request): Promise<{ userId: string | null; erro
   }
 
   return { userId: data.user.id, error: null };
+}
+
+// Check rate limit for user
+async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number }> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  
+  if (!supabaseUrl || !supabaseKey) {
+    // If we can't check, allow but log
+    console.warn("Cannot check rate limit - missing Supabase config");
+    return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  // Calculate current window start (rounded to minute)
+  const windowStart = new Date(Math.floor(Date.now() / RATE_LIMIT_WINDOW_MS) * RATE_LIMIT_WINDOW_MS);
+  
+  // Clean up old rate limit entries first
+  await supabase.rpc('cleanup_old_rate_limits');
+  
+  // Count requests in current window
+  const { count, error: countError } = await supabase
+    .from("rate_limits")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("endpoint", "generate-speech")
+    .gte("window_start", windowStart.toISOString());
+  
+  if (countError) {
+    console.error("Error checking rate limit:", countError);
+    return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW };
+  }
+  
+  const currentCount = count || 0;
+  
+  if (currentCount >= MAX_REQUESTS_PER_WINDOW) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  // Record this request
+  const { error: insertError } = await supabase
+    .from("rate_limits")
+    .insert({
+      user_id: userId,
+      endpoint: "generate-speech",
+      window_start: windowStart.toISOString(),
+    });
+  
+  if (insertError) {
+    console.error("Error recording rate limit:", insertError);
+  }
+  
+  return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - currentCount - 1 };
 }
 
 // Get user's API key or fallback to platform key (environment variable only - more secure)
@@ -193,6 +251,25 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Check rate limit to prevent abuse
+    const { allowed, remaining } = await checkRateLimit(userId);
+    if (!allowed) {
+      console.warn("Rate limit exceeded for user:", userId);
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Please wait a minute before trying again." }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": "0",
+            "Retry-After": "60"
+          } 
+        }
+      );
+    }
+    console.log("Rate limit check passed. Remaining requests:", remaining);
 
     const body = await req.json();
     console.log("Received request from user:", userId);

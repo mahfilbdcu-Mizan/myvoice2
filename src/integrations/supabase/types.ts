@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_user_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_user_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       credit_orders: {
         Row: {
           admin_notes: string | null
@@ -227,6 +254,30 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          endpoint: string
+          id: string
+          request_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          endpoint: string
+          id?: string
+          request_count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          endpoint?: string
+          id?: string
+          request_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           created_at: string
@@ -331,6 +382,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       deduct_credits_atomic: {
         Args: { _amount: number; _user_id: string }
         Returns: boolean
