@@ -10,7 +10,8 @@ import {
   ChevronRight,
   LogOut,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Package
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Overview", href: "/admin" },
   { icon: Users, label: "Users", href: "/admin/users" },
   { icon: CreditCard, label: "Orders", href: "/admin/orders" },
+  { icon: Package, label: "Packages", href: "/admin/packages" },
   { icon: Settings, label: "Settings", href: "/admin/settings" },
 ];
 

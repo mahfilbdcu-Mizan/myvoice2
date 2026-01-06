@@ -119,6 +119,54 @@ export type Database = {
         }
         Relationships: []
       }
+      packages: {
+        Row: {
+          created_at: string | null
+          credits: number
+          description: string | null
+          discount_percentage: number | null
+          features: string[] | null
+          id: string
+          is_active: boolean | null
+          is_popular: boolean | null
+          name: string
+          offer_price: number
+          real_price: number
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          credits: number
+          description?: string | null
+          discount_percentage?: number | null
+          features?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          is_popular?: boolean | null
+          name: string
+          offer_price: number
+          real_price: number
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          credits?: number
+          description?: string | null
+          discount_percentage?: number | null
+          features?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          is_popular?: boolean | null
+          name?: string
+          offer_price?: number
+          real_price?: number
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       platform_settings: {
         Row: {
           created_at: string | null
