@@ -11,6 +11,9 @@ import DashboardVoices from "./pages/DashboardVoices";
 import DashboardCredits from "./pages/DashboardCredits";
 import DashboardApiKey from "./pages/DashboardApiKey";
 import DashboardHistory from "./pages/DashboardHistory";
+import DashboardSTT from "./pages/DashboardSTT";
+import DashboardDubbing from "./pages/DashboardDubbing";
+import DashboardSettings from "./pages/DashboardSettings";
 import Pricing from "./pages/Pricing";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -36,6 +39,9 @@ const App = () => (
             <Route path="/dashboard/credits" element={<DashboardCredits />} />
             <Route path="/dashboard/api-key" element={<DashboardApiKey />} />
             <Route path="/dashboard/history" element={<DashboardHistory />} />
+            <Route path="/dashboard/stt" element={<DashboardSTT />} />
+            <Route path="/dashboard/dubbing" element={<DashboardDubbing />} />
+            <Route path="/dashboard/settings" element={<DashboardSettings />} />
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />
