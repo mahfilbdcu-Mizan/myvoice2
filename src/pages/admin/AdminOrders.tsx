@@ -44,9 +44,9 @@ export default function AdminOrders() {
 
   const handleApprove = async (order: CreditOrder) => {
     setProcessingId(order.id);
-    const success = await approveOrder(order.id, order.user_id, order.credits);
+    const result = await approveOrder(order.id, order.user_id, order.credits);
     
-    if (success) {
+    if (result.success) {
       toast({
         title: "Order approved",
         description: `Added ${order.credits.toLocaleString()} credits to user`,
@@ -55,7 +55,7 @@ export default function AdminOrders() {
     } else {
       toast({
         title: "Approval failed",
-        description: "Could not approve order",
+        description: result.error || "Could not approve order",
         variant: "destructive",
       });
     }

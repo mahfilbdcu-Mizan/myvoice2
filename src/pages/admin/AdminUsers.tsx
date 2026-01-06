@@ -20,9 +20,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Edit, Loader2 } from "lucide-react";
+import { Search, Edit, Loader2, AlertTriangle } from "lucide-react";
 import { getAllUsers, updateUserCredits, type UserProfile } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+// Credit validation constants
+const MAX_CREDITS = 100_000_000; // 100 million max
+const WARN_THRESHOLD = 10_000_000; // 10 million - show warning
+const LARGE_CHANGE_THRESHOLD = 1_000_000; // 1 million - require confirmation
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -31,6 +37,7 @@ export default function AdminUsers() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [newCredits, setNewCredits] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -66,17 +73,59 @@ export default function AdminUsers() {
     if (!editingUser) return;
 
     const credits = parseInt(newCredits, 10);
-    if (isNaN(credits) || credits < 0) {
+    
+    // Validate: must be a valid number
+    if (isNaN(credits)) {
       toast({
         title: "Invalid credits",
-        description: "Please enter a valid positive number",
+        description: "Please enter a valid number",
         variant: "destructive",
       });
       return;
     }
+    
+    // Validate: must be non-negative
+    if (credits < 0) {
+      toast({
+        title: "Invalid credits",
+        description: "Credits cannot be negative",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate: must not exceed max
+    if (credits > MAX_CREDITS) {
+      toast({
+        title: "Credits too high",
+        description: `Maximum allowed credits: ${MAX_CREDITS.toLocaleString()}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Warn for very large values
+    if (credits > WARN_THRESHOLD) {
+      const confirmed = window.confirm(
+        `You are setting credits to ${credits.toLocaleString()}. This is a very large amount. Are you sure?`
+      );
+      if (!confirmed) return;
+    }
+    
+    // Confirm large changes
+    const difference = Math.abs(credits - editingUser.credits);
+    if (difference > LARGE_CHANGE_THRESHOLD) {
+      const confirmed = window.confirm(
+        `This will change credits by ${difference.toLocaleString()}. Continue?`
+      );
+      if (!confirmed) return;
+    }
 
-    const success = await updateUserCredits(editingUser.id, credits);
-    if (success) {
+    setIsSaving(true);
+    const result = await updateUserCredits(editingUser.id, credits);
+    setIsSaving(false);
+    
+    if (result.success) {
       toast({
         title: "Credits updated",
         description: `${editingUser.email} now has ${credits.toLocaleString()} credits`,
@@ -86,11 +135,14 @@ export default function AdminUsers() {
     } else {
       toast({
         title: "Update failed",
-        description: "Could not update user credits",
+        description: result.error || "Could not update user credits",
         variant: "destructive",
       });
     }
   };
+
+  const creditsValue = parseInt(newCredits, 10);
+  const showWarning = !isNaN(creditsValue) && creditsValue > WARN_THRESHOLD;
 
   return (
     <AdminLayout>
@@ -192,15 +244,37 @@ export default function AdminUsers() {
                 type="number"
                 value={newCredits}
                 onChange={(e) => setNewCredits(e.target.value)}
-                className="mt-2"
+                className={cn(
+                  "mt-2",
+                  showWarning && "border-yellow-500 focus-visible:ring-yellow-500"
+                )}
                 min="0"
+                max={MAX_CREDITS.toString()}
               />
+              {showWarning && (
+                <div className="flex items-center gap-1 mt-2 text-sm text-yellow-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Warning: This is a very large credit amount</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Maximum: {MAX_CREDITS.toLocaleString()} credits
+              </p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditingUser(null)}>
+              <Button variant="outline" onClick={() => setEditingUser(null)} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveCredits}>Save Changes</Button>
+              <Button onClick={handleSaveCredits} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
