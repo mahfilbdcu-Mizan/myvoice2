@@ -22,7 +22,13 @@ export default function Login() {
 
   useEffect(() => {
     if (user && !isLoading) {
-      navigate(redirectTo);
+      // Check if admin path, verify admin role first
+      if (redirectTo.startsWith('/admin')) {
+        // Let AdminLayout handle the redirect after role verification
+        navigate(redirectTo, { replace: true });
+      } else {
+        navigate(redirectTo, { replace: true });
+      }
     }
   }, [user, isLoading, navigate, redirectTo]);
 
@@ -60,7 +66,7 @@ export default function Login() {
         variant: "destructive",
       });
     } else {
-      navigate(redirectTo);
+      // Don't navigate here - let the useEffect handle it when user state updates
     }
   };
 
