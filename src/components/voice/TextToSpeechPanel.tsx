@@ -286,17 +286,25 @@ export function TextToSpeechPanel({
             description: "Your audio is ready to play and download.",
           });
           refreshProfile();
-        } else if (task?.status === "failed") {
+        } else if (task?.status === "error" || task?.status === "failed") {
           toast({
             title: "Generation failed",
             description: task.error_message || "Task failed",
             variant: "destructive",
           });
           setTaskStatus(null);
-        } else {
+        } else if (!task) {
           toast({
             title: "Generation timeout",
             description: "Task is taking too long. Please try again.",
+            variant: "destructive",
+          });
+          setTaskStatus(null);
+        } else {
+          // Task returned but no audio - might be still processing or unknown state
+          toast({
+            title: "Generation incomplete",
+            description: `Task status: ${task.status}. Please try again.`,
             variant: "destructive",
           });
           setTaskStatus(null);

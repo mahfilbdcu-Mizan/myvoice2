@@ -69,9 +69,10 @@ export interface VoiceModel {
 export interface TaskResult {
   id: string;
   created_at: string;
-  status: "pending" | "processing" | "done" | "failed";
+  status: "pending" | "processing" | "doing" | "done" | "error" | "failed";
   error_message: string | null;
   credit_cost: number;
+  progress?: number;
   metadata: {
     audio_url?: string;
     srt_url?: string;
@@ -247,8 +248,12 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
     } else {
       // Task-based response
       const taskData = await response.json();
-      if (taskData.success && taskData.task_id) {
-        return { taskId: taskData.task_id, localTaskId: taskData.localTaskId };
+      console.log("Task response:", taskData);
+      
+      // API returns 'id' not 'task_id'
+      const taskId = taskData.id || taskData.task_id;
+      if (taskId) {
+        return { taskId, localTaskId: taskData.localTaskId };
       }
       if (taskData.localTaskId) {
         return { localTaskId: taskData.localTaskId };
@@ -294,16 +299,20 @@ export async function waitForTask(taskId: string, maxAttempts = 60, intervalMs =
   for (let i = 0; i < maxAttempts; i++) {
     const task = await getTaskStatus(taskId);
     
+    console.log(`Task poll ${i + 1}:`, task);
+    
     if (!task) return null;
     
+    // API returns "done" for success and "error" for failure
     if (task.status === "done") {
       return task;
     }
     
-    if (task.status === "failed") {
+    if (task.status === "error" || task.status === "failed") {
       return task;
     }
     
+    // Task still processing ("doing", "pending", "processing")
     // Wait before next poll
     await new Promise(resolve => setTimeout(resolve, intervalMs));
   }
