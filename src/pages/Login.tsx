@@ -20,17 +20,12 @@ export default function Login() {
   
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
+  // Only auto-redirect if there's a redirect parameter (meaning user came from protected page)
   useEffect(() => {
-    if (user && !isLoading) {
-      // Check if admin path, verify admin role first
-      if (redirectTo.startsWith('/admin')) {
-        // Let AdminLayout handle the redirect after role verification
-        navigate(redirectTo, { replace: true });
-      } else {
-        navigate(redirectTo, { replace: true });
-      }
+    if (user && !isLoading && searchParams.get("redirect")) {
+      navigate(redirectTo, { replace: true });
     }
-  }, [user, isLoading, navigate, redirectTo]);
+  }, [user, isLoading, navigate, redirectTo, searchParams]);
 
   const handleGoogleSignIn = async () => {
     const { error } = await signInWithGoogle(redirectTo);
