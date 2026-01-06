@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,15 +13,18 @@ import { supabase } from "@/integrations/supabase/client";
 export default function Login() {
   const { user, isLoading, signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
 
   useEffect(() => {
     if (user && !isLoading) {
-      navigate("/dashboard");
+      navigate(redirectTo);
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, redirectTo]);
 
   const handleGoogleSignIn = async () => {
     const { error } = await signInWithGoogle();
@@ -57,7 +60,7 @@ export default function Login() {
         variant: "destructive",
       });
     } else {
-      navigate("/dashboard");
+      navigate(redirectTo);
     }
   };
 
