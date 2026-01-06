@@ -59,7 +59,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     navigate("/");
   };
 
-  if (isLoading || isAdmin === null) {
+  // Show loading while auth is being determined
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -67,8 +68,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
+  // Only redirect to login if user is definitely not logged in (not loading and no user)
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+
+  // Show loading while checking admin status
+  if (isAdmin === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   if (!isAdmin) {
