@@ -250,14 +250,15 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
       const taskData = await response.json();
       console.log("Task response:", taskData);
       
-      // Check if it directly has an audio URL (some APIs return this)
+      // Check if it directly has an audio URL
       if (taskData.audioUrl) {
         return { audioUrl: taskData.audioUrl };
       }
       
-      // API returns 'id' not 'task_id'
-      const taskId = taskData.id || taskData.task_id || taskData.taskId;
+      // API returns 'taskId' from our edge function (which gets 'task_id' from AI33)
+      const taskId = taskData.taskId || taskData.task_id || taskData.id;
       if (taskId) {
+        console.log("Got task ID for polling:", taskId);
         return { taskId, localTaskId: taskData.localTaskId };
       }
       if (taskData.localTaskId) {
