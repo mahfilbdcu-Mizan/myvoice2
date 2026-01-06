@@ -236,15 +236,29 @@ export function TextToSpeechPanel({
   };
 
   const handleGenerate = async () => {
-    if (!text.trim() || !selectedVoice) return;
+    console.log("Generate clicked - text:", text.trim().length, "voice:", selectedVoice);
     
-    const { data: userData } = await import("@/integrations/supabase/client").then(m => m.supabase.auth.getUser());
+    if (!text.trim() || !selectedVoice) {
+      console.log("Missing required fields - text:", !!text.trim(), "voice:", !!selectedVoice);
+      toast({
+        title: "Missing information",
+        description: !text.trim() ? "Please enter some text" : "Please select a voice",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data: userData } = await supabase.auth.getUser();
+    
+    console.log("User ID:", userData?.user?.id);
     
     setIsGenerating(true);
     setAudioUrl(null);
     setTaskStatus("Starting generation...");
     
     try {
+      console.log("Calling generateSpeech API...");
       const result = await generateSpeech({
         text: text.trim(),
         voiceId: selectedVoice.id,
@@ -255,6 +269,8 @@ export function TextToSpeechPanel({
         style: style[0],
         userId: userData?.user?.id,
       });
+      
+      console.log("Generate result:", result);
 
       if (result.error) {
         toast({
@@ -751,32 +767,41 @@ export function TextToSpeechPanel({
 
           {/* Credits Info */}
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
-            {/* Platform Credits */}
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{profile?.credits?.toLocaleString() || 0}</p>
-                <p className="text-sm text-muted-foreground">Platform Credits</p>
-              </div>
-            </div>
-            
-            {/* User API Key Balance */}
-            {hasUserApiKey && (
+            {/* Show which API will be used */}
+            {hasUserApiKey ? (
               <>
-                <div className="border-t border-primary/10 pt-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
-                      <Zap className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-green-600">
-                        {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">API Key Balance</p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
+                    <Zap className="h-5 w-5 text-green-500" />
                   </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">
+                      {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Your API Balance</p>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-green-500/10 p-2">
+                  <p className="text-xs text-green-700 font-medium text-center">
+                    ✓ Using your API key — Unlimited generation
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Zap className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{profile?.credits?.toLocaleString() || 0}</p>
+                    <p className="text-sm text-muted-foreground">Platform Credits</p>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-yellow-500/10 p-2">
+                  <p className="text-xs text-yellow-700 font-medium text-center">
+                    Add your own API key for unlimited generation
+                  </p>
                 </div>
               </>
             )}
