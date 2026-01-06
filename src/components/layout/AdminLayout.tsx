@@ -68,7 +68,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
   if (!isAdmin) {
