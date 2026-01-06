@@ -18,18 +18,10 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
-  const hasRedirectParam = searchParams.get("redirect") !== null;
-
-  // Auto-redirect logged-in users only if they came from a protected page (have redirect param)
-  useEffect(() => {
-    if (user && !isLoading && hasRedirectParam) {
-      navigate(redirectTo, { replace: true });
-    }
-  }, [user, isLoading, navigate, redirectTo, hasRedirectParam]);
+  // No auto-redirect - user stays on login page
 
   const handleGoogleSignIn = async () => {
-    const { error } = await signInWithGoogle(redirectTo);
+    const { error } = await signInWithGoogle();
     if (error) {
       toast({
         title: "Sign in failed",
@@ -62,8 +54,10 @@ export default function Login() {
         variant: "destructive",
       });
     } else {
-      // Navigate after successful login
-      navigate(redirectTo, { replace: true });
+      toast({
+        title: "Login successful",
+        description: "You are now logged in",
+      });
     }
   };
 
