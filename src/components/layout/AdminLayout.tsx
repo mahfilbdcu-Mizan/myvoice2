@@ -49,7 +49,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       }
     }
     
-    if (!isLoading && user) {
+    if (!isLoading) {
       checkAdmin();
     }
   }, [user, isLoading]);
