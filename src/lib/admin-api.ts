@@ -1,19 +1,34 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Constants for credit validation
+const MAX_CREDITS = 100_000_000; // 100 million max
+const MAX_SINGLE_CHANGE = 50_000_000; // 50 million max single change
+
+// Server-side admin verification via edge function
 export async function checkIsAdmin(userId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  
-  if (error) {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      console.error("No active session for admin check");
+      return false;
+    }
+
+    const { data, error } = await supabase.functions.invoke('verify-admin', {
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`
+      }
+    });
+
+    if (error) {
+      console.error("Error verifying admin status:", error);
+      return false;
+    }
+
+    return data?.isAdmin === true;
+  } catch (error) {
     console.error("Error checking admin status:", error);
     return false;
   }
-  
-  return data !== null;
 }
 
 export interface UserProfile {
@@ -39,7 +54,49 @@ export async function getAllUsers(): Promise<UserProfile[]> {
   return data || [];
 }
 
-export async function updateUserCredits(userId: string, credits: number): Promise<boolean> {
+export interface UpdateCreditsResult {
+  success: boolean;
+  error?: string;
+}
+
+export async function updateUserCredits(userId: string, credits: number): Promise<UpdateCreditsResult> {
+  // Validate credits is an integer
+  if (!Number.isInteger(credits)) {
+    return { success: false, error: 'Credits must be an integer' };
+  }
+  
+  // Validate lower bound
+  if (credits < 0) {
+    return { success: false, error: 'Credits cannot be negative' };
+  }
+  
+  // Validate upper bound
+  if (credits > MAX_CREDITS) {
+    return { success: false, error: `Credits cannot exceed ${MAX_CREDITS.toLocaleString()}` };
+  }
+  
+  // Get current credits to validate change amount
+  const { data: profile, error: fetchError } = await supabase
+    .from("profiles")
+    .select("credits")
+    .eq("id", userId)
+    .single();
+  
+  if (fetchError) {
+    console.error("Error fetching profile:", fetchError);
+    return { success: false, error: 'Failed to fetch user profile' };
+  }
+  
+  if (profile) {
+    const difference = Math.abs(credits - (profile.credits || 0));
+    if (difference > MAX_SINGLE_CHANGE) {
+      return { 
+        success: false, 
+        error: `Single change cannot exceed ${MAX_SINGLE_CHANGE.toLocaleString()} credits` 
+      };
+    }
+  }
+  
   const { error } = await supabase
     .from("profiles")
     .update({ credits })
@@ -47,10 +104,10 @@ export async function updateUserCredits(userId: string, credits: number): Promis
   
   if (error) {
     console.error("Error updating credits:", error);
-    return false;
+    return { success: false, error: 'Database error updating credits' };
   }
   
-  return true;
+  return { success: true };
 }
 
 export interface CreditOrder {
@@ -101,8 +158,39 @@ export async function getAllOrders(): Promise<CreditOrder[]> {
   return ordersWithProfiles;
 }
 
-export async function approveOrder(orderId: string, userId: string, credits: number): Promise<boolean> {
-  // First update the order status
+export interface ApproveOrderResult {
+  success: boolean;
+  error?: string;
+}
+
+export async function approveOrder(orderId: string, userId: string, credits: number): Promise<ApproveOrderResult> {
+  // Validate credits from order
+  if (credits < 0 || credits > MAX_CREDITS) {
+    return { success: false, error: 'Invalid credit amount in order' };
+  }
+  
+  // Get current profile to check for overflow
+  const { data: profile, error: fetchError } = await supabase
+    .from("profiles")
+    .select("credits")
+    .eq("id", userId)
+    .single();
+  
+  if (fetchError || !profile) {
+    console.error("Error fetching profile:", fetchError);
+    return { success: false, error: 'User profile not found' };
+  }
+  
+  // Check for overflow
+  const newCredits = (profile.credits || 0) + credits;
+  if (newCredits > MAX_CREDITS) {
+    return { 
+      success: false, 
+      error: `Adding ${credits.toLocaleString()} credits would exceed maximum balance of ${MAX_CREDITS.toLocaleString()}` 
+    };
+  }
+  
+  // Update order status
   const { error: orderError } = await supabase
     .from("credit_orders")
     .update({ 
@@ -113,23 +201,10 @@ export async function approveOrder(orderId: string, userId: string, credits: num
   
   if (orderError) {
     console.error("Error approving order:", orderError);
-    return false;
+    return { success: false, error: 'Failed to update order status' };
   }
   
-  // Then add credits to user
-  const { data: profile, error: fetchError } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", userId)
-    .single();
-  
-  if (fetchError || !profile) {
-    console.error("Error fetching profile:", fetchError);
-    return false;
-  }
-  
-  const newCredits = (profile.credits || 0) + credits;
-  
+  // Update credits
   const { error: updateError } = await supabase
     .from("profiles")
     .update({ credits: newCredits })
@@ -137,10 +212,10 @@ export async function approveOrder(orderId: string, userId: string, credits: num
   
   if (updateError) {
     console.error("Error updating credits:", updateError);
-    return false;
+    return { success: false, error: 'Failed to update user credits' };
   }
   
-  return true;
+  return { success: true };
 }
 
 export async function rejectOrder(orderId: string, notes?: string): Promise<boolean> {
