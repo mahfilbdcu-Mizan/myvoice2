@@ -159,9 +159,13 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId, voiceName, model, stability, similarity, style, userId } = await req.json();
+    const body = await req.json();
+    console.log("Received request body:", JSON.stringify(body));
+    
+    const { text, voiceId, voiceName, model, stability, similarity, style, userId } = body;
 
     if (!text || !voiceId) {
+      console.error("Missing required fields - text:", !!text, "voiceId:", !!voiceId);
       return new Response(
         JSON.stringify({ error: "Text and voiceId are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -169,17 +173,20 @@ serve(async (req) => {
     }
 
     const wordCount = text.trim().split(/\s+/).length;
+    console.log("Word count:", wordCount, "Voice ID:", voiceId);
 
     // Get API key (user's own or platform's)
     const { apiKey, isUserKey } = await getApiKeyForUser(userId);
     
     if (!apiKey) {
-      console.error("API key is not configured");
+      console.error("API key is not configured - checked user key and platform settings");
       return new Response(
         JSON.stringify({ error: "API key not configured. Please contact admin." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    console.log("Using API key type:", isUserKey ? "user" : "platform", "Key length:", apiKey.length);
 
     // If using platform key, check and deduct credits
     if (!isUserKey && userId) {
@@ -224,17 +231,20 @@ serve(async (req) => {
     }
 
     // Call Voice API
-    const response = await fetch(
-      `https://api.ai33.pro/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
+    console.log("Calling AI33 API with voice:", voiceId, "model:", model || "eleven_multilingual_v2");
+    const apiUrl = `https://api.ai33.pro/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+    console.log("API URL:", apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+    
+    console.log("API Response status:", response.status, "Content-Type:", response.headers.get("content-type"));
 
     if (!response.ok) {
       const errorText = await response.text();
