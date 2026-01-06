@@ -57,57 +57,61 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 export interface UpdateCreditsResult {
   success: boolean;
   error?: string;
+  oldCredits?: number;
+  newCredits?: number;
 }
 
+// Server-side validated admin operation for updating user credits
 export async function updateUserCredits(userId: string, credits: number): Promise<UpdateCreditsResult> {
-  // Validate credits is an integer
-  if (!Number.isInteger(credits)) {
-    return { success: false, error: 'Credits must be an integer' };
-  }
-  
-  // Validate lower bound
-  if (credits < 0) {
-    return { success: false, error: 'Credits cannot be negative' };
-  }
-  
-  // Validate upper bound
-  if (credits > MAX_CREDITS) {
-    return { success: false, error: `Credits cannot exceed ${MAX_CREDITS.toLocaleString()}` };
-  }
-  
-  // Get current credits to validate change amount
-  const { data: profile, error: fetchError } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", userId)
-    .single();
-  
-  if (fetchError) {
-    console.error("Error fetching profile:", fetchError);
-    return { success: false, error: 'Failed to fetch user profile' };
-  }
-  
-  if (profile) {
-    const difference = Math.abs(credits - (profile.credits || 0));
-    if (difference > MAX_SINGLE_CHANGE) {
-      return { 
-        success: false, 
-        error: `Single change cannot exceed ${MAX_SINGLE_CHANGE.toLocaleString()} credits` 
-      };
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      return { success: false, error: 'Not authenticated' };
     }
-  }
-  
-  const { error } = await supabase
-    .from("profiles")
-    .update({ credits })
-    .eq("id", userId);
-  
-  if (error) {
+
+    // Client-side validation for fast feedback
+    if (!Number.isInteger(credits)) {
+      return { success: false, error: 'Credits must be an integer' };
+    }
+    
+    if (credits < 0) {
+      return { success: false, error: 'Credits cannot be negative' };
+    }
+    
+    if (credits > MAX_CREDITS) {
+      return { success: false, error: `Credits cannot exceed ${MAX_CREDITS.toLocaleString()}` };
+    }
+
+    // Call server-side admin operation (includes admin verification)
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`
+      },
+      body: {
+        action: 'update_credits',
+        targetUserId: userId,
+        credits
+      }
+    });
+
+    if (error) {
+      console.error("Error updating credits:", error);
+      return { success: false, error: error.message || 'Failed to update credits' };
+    }
+
+    if (data?.error) {
+      return { success: false, error: data.error };
+    }
+
+    return { 
+      success: true, 
+      oldCredits: data?.oldCredits,
+      newCredits: data?.newCredits
+    };
+  } catch (error) {
     console.error("Error updating credits:", error);
-    return { success: false, error: 'Database error updating credits' };
+    return { success: false, error: 'Unexpected error occurred' };
   }
-  
-  return { success: true };
 }
 
 export interface CreditOrder {
@@ -163,77 +167,84 @@ export interface ApproveOrderResult {
   error?: string;
 }
 
+// Server-side validated admin operation for approving orders
 export async function approveOrder(orderId: string, userId: string, credits: number): Promise<ApproveOrderResult> {
-  // Validate credits from order
-  if (credits < 0 || credits > MAX_CREDITS) {
-    return { success: false, error: 'Invalid credit amount in order' };
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Client-side validation for fast feedback
+    if (credits < 0 || credits > MAX_CREDITS) {
+      return { success: false, error: 'Invalid credit amount in order' };
+    }
+
+    // Call server-side admin operation (includes admin verification)
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`
+      },
+      body: {
+        action: 'approve_order',
+        orderId,
+        targetUserId: userId,
+        credits
+      }
+    });
+
+    if (error) {
+      console.error("Error approving order:", error);
+      return { success: false, error: error.message || 'Failed to approve order' };
+    }
+
+    if (data?.error) {
+      return { success: false, error: data.error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error approving order:", error);
+    return { success: false, error: 'Unexpected error occurred' };
   }
-  
-  // Get current profile to check for overflow
-  const { data: profile, error: fetchError } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", userId)
-    .single();
-  
-  if (fetchError || !profile) {
-    console.error("Error fetching profile:", fetchError);
-    return { success: false, error: 'User profile not found' };
-  }
-  
-  // Check for overflow
-  const newCredits = (profile.credits || 0) + credits;
-  if (newCredits > MAX_CREDITS) {
-    return { 
-      success: false, 
-      error: `Adding ${credits.toLocaleString()} credits would exceed maximum balance of ${MAX_CREDITS.toLocaleString()}` 
-    };
-  }
-  
-  // Update order status
-  const { error: orderError } = await supabase
-    .from("credit_orders")
-    .update({ 
-      status: "approved",
-      processed_at: new Date().toISOString()
-    })
-    .eq("id", orderId);
-  
-  if (orderError) {
-    console.error("Error approving order:", orderError);
-    return { success: false, error: 'Failed to update order status' };
-  }
-  
-  // Update credits
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({ credits: newCredits })
-    .eq("id", userId);
-  
-  if (updateError) {
-    console.error("Error updating credits:", updateError);
-    return { success: false, error: 'Failed to update user credits' };
-  }
-  
-  return { success: true };
 }
 
+// Server-side validated admin operation for rejecting orders
 export async function rejectOrder(orderId: string, notes?: string): Promise<boolean> {
-  const { error } = await supabase
-    .from("credit_orders")
-    .update({ 
-      status: "rejected",
-      admin_notes: notes || null,
-      processed_at: new Date().toISOString()
-    })
-    .eq("id", orderId);
-  
-  if (error) {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      console.error("Not authenticated");
+      return false;
+    }
+
+    // Call server-side admin operation (includes admin verification)
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`
+      },
+      body: {
+        action: 'reject_order',
+        orderId,
+        notes
+      }
+    });
+
+    if (error) {
+      console.error("Error rejecting order:", error);
+      return false;
+    }
+
+    if (data?.error) {
+      console.error("Error rejecting order:", data.error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
     console.error("Error rejecting order:", error);
     return false;
   }
-  
-  return true;
 }
 
 export interface AdminStats {

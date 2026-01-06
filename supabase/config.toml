@@ -1,8 +1,5 @@
 project_id = "vxvzqqgnytanmsxnemft"
 
-[functions.text-to-speech]
-verify_jwt = false
-
 [functions.fetch-voices]
 verify_jwt = false
 
@@ -19,4 +16,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.verify-admin]
+verify_jwt = false
+
+[functions.admin-operations]
 verify_jwt = false
