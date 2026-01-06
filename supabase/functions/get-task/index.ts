@@ -36,7 +36,7 @@ async function validateAuth(req: Request): Promise<{ userId: string | null; erro
   return { userId: data.user.id, error: null };
 }
 
-// Get API key - try user's key first, then platform key
+// Get API key - try user's key first, then environment variable (secure - not stored in database)
 async function getApiKey(userId?: string): Promise<string | null> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -65,19 +65,14 @@ async function getApiKey(userId?: string): Promise<string | null> {
       }
     }
     
-    // Fallback to platform key
-    const { data, error } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "ai33_api_key")
-      .single();
-
-    if (error || !data?.value) {
-      console.log("API key not found in database, using env variable");
-      return Deno.env.get("AI33_API_KEY") || null;
+    // Use environment variable only for platform API key (secure - not stored in database)
+    const envApiKey = Deno.env.get("AI33_API_KEY");
+    if (envApiKey) {
+      return envApiKey;
     }
 
-    return data.value;
+    console.error("AI33_API_KEY environment variable not configured");
+    return null;
   } catch (e) {
     console.error("Error fetching API key:", e);
     return Deno.env.get("AI33_API_KEY") || null;

@@ -6,35 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Get API key from database or fallback to env
-async function getApiKey(): Promise<string | null> {
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.log("Supabase credentials not found, using env API key");
-      return Deno.env.get("AI33_API_KEY") || null;
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    const { data, error } = await supabase
-      .from("platform_settings")
-      .select("value")
-      .eq("key", "ai33_api_key")
-      .single();
-
-    if (error || !data?.value) {
-      console.log("API key not found in database, using env variable");
-      return Deno.env.get("AI33_API_KEY") || null;
-    }
-
-    return data.value;
-  } catch (e) {
-    console.error("Error fetching API key:", e);
-    return Deno.env.get("AI33_API_KEY") || null;
+// Get API key from environment variable only (secure - not stored in database)
+function getApiKey(): string | null {
+  const apiKey = Deno.env.get("AI33_API_KEY");
+  if (!apiKey) {
+    console.error("AI33_API_KEY environment variable not configured");
+    return null;
   }
+  return apiKey;
 }
 
 serve(async (req) => {
@@ -43,7 +22,7 @@ serve(async (req) => {
   }
 
   try {
-    const API_KEY = await getApiKey();
+    const API_KEY = getApiKey();
     
     if (!API_KEY) {
       console.error("API key is not configured");
