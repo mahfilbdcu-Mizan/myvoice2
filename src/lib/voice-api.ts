@@ -267,7 +267,7 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
 }
 
 // Poll task status
-export async function getTaskStatus(taskId: string): Promise<TaskResult | null> {
+export async function getTaskStatus(taskId: string, userId?: string): Promise<TaskResult | null> {
   try {
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-task`,
@@ -278,12 +278,12 @@ export async function getTaskStatus(taskId: string): Promise<TaskResult | null> 
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ taskId }),
+        body: JSON.stringify({ taskId, userId }),
       }
     );
 
     if (!response.ok) {
-      console.error("Error getting task status");
+      console.error("Error getting task status:", response.status);
       return null;
     }
 
@@ -295,9 +295,9 @@ export async function getTaskStatus(taskId: string): Promise<TaskResult | null> 
 }
 
 // Poll until task is complete
-export async function waitForTask(taskId: string, maxAttempts = 60, intervalMs = 2000): Promise<TaskResult | null> {
+export async function waitForTask(taskId: string, userId?: string, maxAttempts = 60, intervalMs = 2000): Promise<TaskResult | null> {
   for (let i = 0; i < maxAttempts; i++) {
-    const task = await getTaskStatus(taskId);
+    const task = await getTaskStatus(taskId, userId);
     
     console.log(`Task poll ${i + 1}:`, task);
     

@@ -135,7 +135,14 @@ async function createTask(
 // Update task status
 async function updateTask(
   taskId: string,
-  updates: { status?: string; audio_url?: string; error_message?: string; completed_at?: string }
+  updates: { 
+    status?: string; 
+    audio_url?: string; 
+    error_message?: string; 
+    completed_at?: string;
+    external_task_id?: string;
+    progress?: number;
+  }
 ) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -257,11 +264,15 @@ serve(async (req) => {
     if (contentType.includes("application/json")) {
       // Task-based response - return task info
       const taskData = await response.json();
-      console.log("Task created:", taskData);
+      console.log("Task created:", JSON.stringify(taskData));
       
-      if (taskId) {
+      // Extract the external task ID from response
+      const externalTaskId = taskData.id || taskData.task_id;
+      
+      if (taskId && externalTaskId) {
         await updateTask(taskId, { 
           status: "processing",
+          external_task_id: externalTaskId,
         });
       }
 
@@ -270,7 +281,12 @@ serve(async (req) => {
         await deductUserCredits(userId, wordCount);
       }
 
-      return new Response(JSON.stringify({ ...taskData, localTaskId: taskId }), {
+      // Return the external task ID for polling
+      return new Response(JSON.stringify({ 
+        id: externalTaskId,
+        localTaskId: taskId,
+        status: taskData.status || "processing",
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

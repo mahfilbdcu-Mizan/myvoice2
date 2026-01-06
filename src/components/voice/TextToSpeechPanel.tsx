@@ -276,7 +276,7 @@ export function TextToSpeechPanel({
         // Task-based response - poll for completion
         setTaskStatus("Processing...");
         
-        const task = await waitForTask(result.taskId);
+        const task = await waitForTask(result.taskId, userData?.user?.id);
         
         if (task?.status === "done" && task.metadata?.audio_url) {
           setAudioUrl(task.metadata.audio_url);
