@@ -41,18 +41,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     async function checkAdmin() {
-      if (session?.access_token) {
-        const adminStatus = await checkIsAdmin(session.access_token);
+      if (user) {
+        const adminStatus = await checkIsAdmin();
         setIsAdmin(adminStatus);
       } else {
         setIsAdmin(false);
       }
     }
     
-    if (!isLoading && session) {
+    if (!isLoading && user) {
       checkAdmin();
     }
-  }, [session, isLoading]);
+  }, [user, isLoading]);
 
   const handleSignOut = async () => {
     await signOut();
