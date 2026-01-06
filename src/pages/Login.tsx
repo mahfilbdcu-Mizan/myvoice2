@@ -19,13 +19,14 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const hasRedirectParam = searchParams.get("redirect") !== null;
 
-  // Only auto-redirect if there's a redirect parameter (meaning user came from protected page)
+  // Auto-redirect logged-in users only if they came from a protected page (have redirect param)
   useEffect(() => {
-    if (user && !isLoading && searchParams.get("redirect")) {
+    if (user && !isLoading && hasRedirectParam) {
       navigate(redirectTo, { replace: true });
     }
-  }, [user, isLoading, navigate, redirectTo, searchParams]);
+  }, [user, isLoading, navigate, redirectTo, hasRedirectParam]);
 
   const handleGoogleSignIn = async () => {
     const { error } = await signInWithGoogle(redirectTo);
@@ -61,7 +62,8 @@ export default function Login() {
         variant: "destructive",
       });
     } else {
-      // Don't navigate here - let the useEffect handle it when user state updates
+      // Navigate after successful login
+      navigate(redirectTo, { replace: true });
     }
   };
 
