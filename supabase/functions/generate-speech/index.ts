@@ -266,11 +266,11 @@ serve(async (req) => {
       const taskData = await response.json();
       console.log("Task created:", JSON.stringify(taskData));
       
-      // Extract the external task ID - handle various response formats
-      const externalTaskId = taskData.id || taskData.task_id || taskData.taskId || taskData.request_id;
+      // API returns task_id per documentation
+      const externalTaskId = taskData.task_id || taskData.id || taskData.taskId;
       
-      // Check if it immediately has audio URL (some APIs return this)
-      const audioUrl = taskData.audio_url || taskData.audioUrl || taskData.url || taskData.metadata?.audio_url;
+      // Check if it immediately has audio URL (metadata.audio_url per API docs)
+      const audioUrl = taskData.metadata?.audio_url || taskData.audio_url || taskData.audioUrl;
       
       if (audioUrl) {
         console.log("Direct audio URL returned:", audioUrl);
@@ -297,7 +297,19 @@ serve(async (req) => {
         });
       }
       
-      if (taskId && externalTaskId) {
+      if (!externalTaskId) {
+        console.error("No task ID in response:", taskData);
+        if (taskId) {
+          await updateTask(taskId, { status: "failed", error_message: "No task ID returned from API" });
+        }
+        return new Response(JSON.stringify({ error: "No task ID returned from API" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      console.log("Task ID received:", externalTaskId);
+      
+      if (taskId) {
         await updateTask(taskId, { 
           status: "processing",
           external_task_id: externalTaskId,
@@ -311,9 +323,9 @@ serve(async (req) => {
 
       // Return the external task ID for polling
       return new Response(JSON.stringify({ 
-        id: externalTaskId,
+        taskId: externalTaskId,
         localTaskId: taskId,
-        status: taskData.status || "processing",
+        status: "processing",
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
