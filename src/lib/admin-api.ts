@@ -7,17 +7,25 @@ const MAX_SINGLE_CHANGE = 50_000_000; // 50 million max single change
 // Server-side admin verification via edge function
 export async function checkIsAdmin(): Promise<boolean> {
   try {
-    // Force refresh session to ensure we have a valid token
-    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    // First try to get existing session
+    const { data: sessionData } = await supabase.auth.getSession();
     
-    if (refreshError || !refreshData.session?.access_token) {
-      console.log("No valid session for admin check");
-      return false;
+    let accessToken = sessionData.session?.access_token;
+    
+    // If no session, try refresh
+    if (!accessToken) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError || !refreshData.session?.access_token) {
+        console.log("No valid session for admin check");
+        return false;
+      }
+      accessToken = refreshData.session.access_token;
     }
 
     const { data, error } = await supabase.functions.invoke('verify-admin', {
       headers: {
-        Authorization: `Bearer ${refreshData.session.access_token}`
+        Authorization: `Bearer ${accessToken}`
       }
     });
 
