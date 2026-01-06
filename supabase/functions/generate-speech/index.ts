@@ -266,8 +266,36 @@ serve(async (req) => {
       const taskData = await response.json();
       console.log("Task created:", JSON.stringify(taskData));
       
-      // Extract the external task ID from response
-      const externalTaskId = taskData.id || taskData.task_id;
+      // Extract the external task ID - handle various response formats
+      const externalTaskId = taskData.id || taskData.task_id || taskData.taskId || taskData.request_id;
+      
+      // Check if it immediately has audio URL (some APIs return this)
+      const audioUrl = taskData.audio_url || taskData.audioUrl || taskData.url || taskData.metadata?.audio_url;
+      
+      if (audioUrl) {
+        console.log("Direct audio URL returned:", audioUrl);
+        
+        // Deduct credits if using platform key
+        if (!isUserKey && userId) {
+          await deductUserCredits(userId, wordCount);
+        }
+        
+        if (taskId) {
+          await updateTask(taskId, { 
+            status: "done",
+            audio_url: audioUrl,
+            completed_at: new Date().toISOString(),
+          });
+        }
+        
+        return new Response(JSON.stringify({ 
+          audioUrl,
+          localTaskId: taskId,
+          status: "done",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       
       if (taskId && externalTaskId) {
         await updateTask(taskId, { 

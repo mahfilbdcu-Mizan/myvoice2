@@ -250,8 +250,13 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
       const taskData = await response.json();
       console.log("Task response:", taskData);
       
+      // Check if it directly has an audio URL (some APIs return this)
+      if (taskData.audioUrl) {
+        return { audioUrl: taskData.audioUrl };
+      }
+      
       // API returns 'id' not 'task_id'
-      const taskId = taskData.id || taskData.task_id;
+      const taskId = taskData.id || taskData.task_id || taskData.taskId;
       if (taskId) {
         return { taskId, localTaskId: taskData.localTaskId };
       }
