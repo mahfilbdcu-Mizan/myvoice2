@@ -1,5 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Helper to get authenticated headers for edge function calls
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  
+  return {
+    "Content-Type": "application/json",
+    apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+  };
+}
+
 export interface Voice {
   voice_id: string;
   public_owner_id?: string;
@@ -211,15 +223,12 @@ export interface GenerateResult {
 // Generate speech using Voice API
 export async function generateSpeech(options: GenerateOptions): Promise<GenerateResult> {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-speech`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
+        headers,
         body: JSON.stringify({
           text: options.text,
           voiceId: options.voiceId,
@@ -228,7 +237,6 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
           stability: options.stability,
           similarity: options.similarity,
           style: options.style,
-          userId: options.userId,
         }),
       }
     );
@@ -275,16 +283,13 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
 // Poll task status
 export async function getTaskStatus(taskId: string, userId?: string): Promise<TaskResult | null> {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-task`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ taskId, userId }),
+        headers,
+        body: JSON.stringify({ taskId }),
       }
     );
 

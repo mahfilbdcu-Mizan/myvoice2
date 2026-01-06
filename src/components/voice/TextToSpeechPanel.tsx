@@ -127,6 +127,10 @@ export function TextToSpeechPanel({
           
           // Optionally refresh balance from API
           if (apiKeyData.encrypted_key) {
+            // Get current session for auth
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            
             const response = await fetch(
               `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
               {
@@ -134,7 +138,7 @@ export function TextToSpeechPanel({
                 headers: {
                   "Content-Type": "application/json",
                   apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                  Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
                 },
                 body: JSON.stringify({ apiKey: apiKeyData.encrypted_key }),
               }

@@ -6,6 +6,36 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Validate JWT and get user ID
+async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
+  const authHeader = req.headers.get("Authorization");
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, error: "Missing or invalid authorization header" };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { userId: null, error: "Server configuration error" };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data?.user) {
+    console.error("Auth validation error:", error?.message);
+    return { userId: null, error: "Invalid or expired token" };
+  }
+
+  return { userId: data.user.id, error: null };
+}
+
 // Get user's API key or fallback to platform key
 async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string | null; isUserKey: boolean }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -159,10 +189,21 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    console.log("Received request body:", JSON.stringify(body));
+    // Validate authentication
+    const { userId, error: authError } = await validateAuth(req);
     
-    const { text, voiceId, voiceName, model, stability, similarity, style, userId } = body;
+    if (authError || !userId) {
+      console.error("Authentication failed:", authError);
+      return new Response(
+        JSON.stringify({ error: authError || "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const body = await req.json();
+    console.log("Received request from user:", userId);
+    
+    const { text, voiceId, voiceName, model, stability, similarity, style } = body;
 
     if (!text || !voiceId) {
       console.error("Missing required fields - text:", !!text, "voiceId:", !!voiceId);
@@ -189,7 +230,7 @@ serve(async (req) => {
     console.log("Using API key type:", isUserKey ? "user" : "platform", "Key length:", apiKey.length);
 
     // If using platform key, check and deduct credits
-    if (!isUserKey && userId) {
+    if (!isUserKey) {
       const userCredits = await getUserCredits(userId);
       if (userCredits < wordCount) {
         return new Response(
@@ -204,14 +245,14 @@ serve(async (req) => {
     console.log(`Generating speech for voice ${voiceId}, text length: ${text.length}, using ${isUserKey ? 'user' : 'platform'} key`);
 
     // Create task for tracking
-    const taskId = userId ? await createTask(
+    const taskId = await createTask(
       userId,
       voiceId,
       voiceName || null,
       text,
       model || "eleven_multilingual_v2",
       { stability, similarity, style }
-    ) : null;
+    );
 
     // Build voice settings
     const voiceSettings: Record<string, number | boolean> = {};
@@ -286,7 +327,7 @@ serve(async (req) => {
         console.log("Direct audio URL returned:", audioUrl);
         
         // Deduct credits if using platform key
-        if (!isUserKey && userId) {
+        if (!isUserKey) {
           await deductUserCredits(userId, wordCount);
         }
         
@@ -327,7 +368,7 @@ serve(async (req) => {
       }
 
       // Deduct credits if using platform key
-      if (!isUserKey && userId) {
+      if (!isUserKey) {
         await deductUserCredits(userId, wordCount);
       }
 
@@ -346,7 +387,7 @@ serve(async (req) => {
     console.log(`Generated audio: ${audioBuffer.byteLength} bytes`);
 
     // Deduct credits if using platform key
-    if (!isUserKey && userId) {
+    if (!isUserKey) {
       await deductUserCredits(userId, wordCount);
     }
 

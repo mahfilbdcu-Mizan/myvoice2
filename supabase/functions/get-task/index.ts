@@ -6,6 +6,36 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Validate JWT and get user ID
+async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
+  const authHeader = req.headers.get("Authorization");
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, error: "Missing or invalid authorization header" };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { userId: null, error: "Server configuration error" };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data?.user) {
+    console.error("Auth validation error:", error?.message);
+    return { userId: null, error: "Invalid or expired token" };
+  }
+
+  return { userId: data.user.id, error: null };
+}
+
 // Get API key - try user's key first, then platform key
 async function getApiKey(userId?: string): Promise<string | null> {
   try {
@@ -85,7 +115,18 @@ serve(async (req) => {
   }
 
   try {
-    const { taskId, userId } = await req.json();
+    // Validate authentication
+    const { userId, error: authError } = await validateAuth(req);
+    
+    if (authError || !userId) {
+      console.error("Authentication failed:", authError);
+      return new Response(
+        JSON.stringify({ error: authError || "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { taskId } = await req.json();
 
     if (!taskId) {
       return new Response(
@@ -104,7 +145,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Fetching task status: ${taskId}`);
+    console.log(`Fetching task status: ${taskId} for user: ${userId}`);
 
     const response = await fetch(`https://api.ai33.pro/v1/task/${taskId}`, {
       method: "GET",

@@ -164,6 +164,10 @@ export default function DashboardHistory() {
         .delete()
         .eq("id", task.id);
       
+      // Get current session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
       // Re-generate
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-speech`,
@@ -172,14 +176,13 @@ export default function DashboardHistory() {
           headers: {
             "Content-Type": "application/json",
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
             text: task.input_text,
             voiceId: task.voice_id,
             voiceName: task.voice_name,
             model: task.model,
-            userId: user?.id,
           }),
         }
       );

@@ -58,6 +58,10 @@ export default function DashboardApiKey() {
 
     setIsSaving(true);
     try {
+      // Get current session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
       // Check API key balance first
       const balanceResponse = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
@@ -66,7 +70,7 @@ export default function DashboardApiKey() {
           headers: {
             "Content-Type": "application/json",
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({ apiKey: apiKey.trim() }),
         }
@@ -148,6 +152,10 @@ export default function DashboardApiKey() {
 
     setIsChecking(true);
     try {
+      // Get current session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
         {
@@ -155,7 +163,7 @@ export default function DashboardApiKey() {
           headers: {
             "Content-Type": "application/json",
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({ apiKey: savedKey.encrypted_key }),
         }
