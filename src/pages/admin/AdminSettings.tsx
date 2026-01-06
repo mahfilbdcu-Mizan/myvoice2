@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Save, Loader2, AlertCircle, CheckCircle, Shield } from "lucide-react";
+import { Save, Loader2, AlertCircle, CheckCircle, Shield, Key, Eye, EyeOff, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,6 +22,14 @@ export default function AdminSettings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // API Key states
+  const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isApiKeySaving, setIsApiKeySaving] = useState(false);
+  const [isApiKeyChecking, setIsApiKeyChecking] = useState(false);
+  const [apiKeyStatus, setApiKeyStatus] = useState<"unknown" | "valid" | "invalid">("unknown");
+  const [currentApiKey, setCurrentApiKey] = useState<string | null>(null);
 
   // Fetch settings on mount
   useEffect(() => {
@@ -39,8 +47,13 @@ export default function AdminSettings() {
 
       const settingsMap: Record<string, string> = {};
       (data as PlatformSetting[])?.forEach((setting) => {
-        // Skip the API key - it should not be exposed to client
-        if (setting.key !== "ai33_api_key") {
+        if (setting.key === "ai33_api_key") {
+          // Store masked version of API key if exists
+          if (setting.value) {
+            setCurrentApiKey(setting.value);
+            setApiKeyStatus("valid");
+          }
+        } else {
           settingsMap[setting.key] = setting.value || "";
         }
       });
@@ -88,6 +101,118 @@ export default function AdminSettings() {
     setIsSaving(false);
   };
 
+  const maskApiKey = (key: string) => {
+    if (!key || key.length < 8) return "••••••••";
+    return key.substring(0, 4) + "••••••••" + key.substring(key.length - 4);
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!apiKey.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an API key",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsApiKeySaving(true);
+    try {
+      // Save to platform_settings table
+      const { error } = await supabase
+        .from("platform_settings")
+        .update({ value: apiKey })
+        .eq("key", "ai33_api_key");
+
+      if (error) throw error;
+
+      setCurrentApiKey(apiKey);
+      setApiKey("");
+      setApiKeyStatus("valid");
+      
+      toast({
+        title: "API Key saved",
+        description: "Your API key has been saved successfully. Note: For production use, also update the Cloud secret.",
+      });
+    } catch (error) {
+      console.error("Error saving API key:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save API key",
+        variant: "destructive",
+      });
+    }
+    setIsApiKeySaving(false);
+  };
+
+  const handleCheckApiKey = async () => {
+    if (!currentApiKey) return;
+    
+    setIsApiKeyChecking(true);
+    try {
+      // Call check-api-balance function to verify key
+      const { data, error } = await supabase.functions.invoke("check-api-balance", {
+        body: { apiKey: currentApiKey },
+      });
+
+      if (error) throw error;
+
+      if (data?.balance !== undefined) {
+        setApiKeyStatus("valid");
+        toast({
+          title: "API Key Valid",
+          description: `Balance: ${data.balance?.toLocaleString() || 0} credits`,
+        });
+      } else {
+        setApiKeyStatus("invalid");
+        toast({
+          title: "API Key Invalid",
+          description: "The API key could not be verified",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error checking API key:", error);
+      setApiKeyStatus("invalid");
+      toast({
+        title: "Error",
+        description: "Failed to verify API key",
+        variant: "destructive",
+      });
+    }
+    setIsApiKeyChecking(false);
+  };
+
+  const handleDeleteApiKey = async () => {
+    if (!confirm("Are you sure you want to delete the API key?")) return;
+
+    setIsApiKeySaving(true);
+    try {
+      const { error } = await supabase
+        .from("platform_settings")
+        .update({ value: null })
+        .eq("key", "ai33_api_key");
+
+      if (error) throw error;
+
+      setCurrentApiKey(null);
+      setApiKeyStatus("unknown");
+      
+      toast({
+        title: "API Key deleted",
+        description: "The API key has been removed",
+      });
+    } catch (error) {
+      console.error("Error deleting API key:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete API key",
+        variant: "destructive",
+      });
+    }
+    setIsApiKeySaving(false);
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -108,35 +233,120 @@ export default function AdminSettings() {
           </p>
         </div>
 
-        {/* API Key Security Notice */}
-        <Card className="border-green-500/50 bg-green-50/50 dark:bg-green-950/20">
+        {/* API Key Configuration */}
+        <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-green-600" />
-              <CardTitle className="text-green-700 dark:text-green-400">Voice API Key Security</CardTitle>
+              <Key className="h-5 w-5 text-primary" />
+              <CardTitle>API Key Configuration</CardTitle>
             </div>
-            <CardDescription className="text-green-600 dark:text-green-500">
-              The Voice API key is securely stored as an environment variable
+            <CardDescription>
+              Manage your AI33 Voice API key for voice generation
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-lg border border-green-300 bg-green-100 dark:bg-green-900/30 p-4 space-y-2">
-              <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                <CheckCircle className="h-5 w-5" />
-                <span className="font-medium">API Key Configured via Environment Variable</span>
+            {/* Current API Key Status */}
+            {currentApiKey ? (
+              <div className="rounded-lg border p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {apiKeyStatus === "valid" ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : apiKeyStatus === "invalid" ? (
+                      <AlertCircle className="h-5 w-5 text-red-500" />
+                    ) : (
+                      <Shield className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span className="font-medium">
+                      {apiKeyStatus === "valid" ? "Active" : apiKeyStatus === "invalid" ? "Invalid" : "Unknown"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCheckApiKey}
+                      disabled={isApiKeyChecking}
+                    >
+                      {isApiKeyChecking ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      <span className="ml-2">Check</span>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteApiKey}
+                      disabled={isApiKeySaving}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="ml-2">Delete</span>
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded bg-muted px-3 py-2 font-mono text-sm">
+                    {showApiKey ? currentApiKey : maskApiKey(currentApiKey)}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
-              <p className="text-sm text-green-600 dark:text-green-500">
-                The AI33_API_KEY is stored securely in the backend environment and is not exposed to the client-side. 
-                This follows security best practices for secret management.
+            ) : (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  No API key configured. Add your AI33 API key below.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Add/Update API Key */}
+            <div className="space-y-2">
+              <Label>{currentApiKey ? "Update API Key" : "Add API Key"}</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your AI33 API key"
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSaveApiKey}
+                  disabled={isApiKeySaving || !apiKey.trim()}
+                >
+                  {isApiKeySaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {currentApiKey ? "Update" : "Save"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Get your API key from AI33.pro dashboard
               </p>
             </div>
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                To update the API key, please use the Lovable Cloud secrets management. 
-                The key will be used for all voice generation requests.
-              </AlertDescription>
-            </Alert>
+
+            {/* Cloud Secret Notice */}
+            <div className="rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-4">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                <Shield className="h-5 w-5" />
+                <span className="font-medium">Cloud Secret</span>
+              </div>
+              <p className="mt-2 text-sm text-blue-600 dark:text-blue-500">
+                For production, the AI33_API_KEY is also stored in Cloud secrets for secure backend usage.
+                This database setting is used as a fallback.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
