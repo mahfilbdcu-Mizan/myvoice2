@@ -337,17 +337,59 @@ export function TextToSpeechPanel({
     if (!audioUrl) return;
 
     if (format === 'mp3') {
-      const a = document.createElement("a");
-      a.href = audioUrl;
-      a.download = `speech-${Date.now()}.mp3`;
-      a.click();
+      try {
+        // Check if it's a blob URL (local) or external URL
+        if (audioUrl.startsWith('blob:')) {
+          // Local blob URL - direct download
+          const a = document.createElement("a");
+          a.href = audioUrl;
+          a.download = `speech-${Date.now()}.mp3`;
+          a.click();
+        } else {
+          // External URL - fetch and create blob to avoid CORS issues
+          toast({
+            title: "Downloading...",
+            description: "Please wait while we prepare your file.",
+          });
+          
+          const response = await fetch(audioUrl);
+          if (!response.ok) {
+            throw new Error('Failed to download audio');
+          }
+          
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = `speech-${Date.now()}.mp3`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+          
+          toast({
+            title: "Downloaded!",
+            description: "Your audio file has been downloaded.",
+          });
+        }
+      } catch (error) {
+        console.error("Download error:", error);
+        // Fallback: open in new tab
+        window.open(audioUrl, '_blank');
+        toast({
+          title: "Download issue",
+          description: "Opening audio in new tab. Right-click to save.",
+        });
+      }
     } else if (format === 'txt') {
       const blob = new Blob([text], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `text-${Date.now()}.txt`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } else if (format === 'srt') {
       // Generate basic SRT format
@@ -368,7 +410,9 @@ export function TextToSpeechPanel({
       const a = document.createElement("a");
       a.href = url;
       a.download = `subtitle-${Date.now()}.srt`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
   };
