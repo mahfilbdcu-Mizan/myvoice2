@@ -5,17 +5,16 @@ const MAX_CREDITS = 100_000_000; // 100 million max
 const MAX_SINGLE_CHANGE = 50_000_000; // 50 million max single change
 
 // Server-side admin verification via edge function
-export async function checkIsAdmin(userId: string): Promise<boolean> {
+export async function checkIsAdmin(accessToken: string): Promise<boolean> {
   try {
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.access_token) {
-      console.error("No active session for admin check");
+    if (!accessToken) {
+      console.error("No access token provided for admin check");
       return false;
     }
 
     const { data, error } = await supabase.functions.invoke('verify-admin', {
       headers: {
-        Authorization: `Bearer ${session.session.access_token}`
+        Authorization: `Bearer ${accessToken}`
       }
     });
 
