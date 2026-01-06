@@ -1,9 +1,40 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Validate JWT and get user ID
+async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
+  const authHeader = req.headers.get("Authorization");
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, error: "Missing or invalid authorization header" };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { userId: null, error: "Server configuration error" };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data?.user) {
+    console.error("Auth validation error:", error?.message);
+    return { userId: null, error: "Invalid or expired token" };
+  }
+
+  return { userId: data.user.id, error: null };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -11,6 +42,17 @@ serve(async (req) => {
   }
 
   try {
+    // Validate authentication
+    const { userId, error: authError } = await validateAuth(req);
+    
+    if (authError || !userId) {
+      console.error("Authentication failed:", authError);
+      return new Response(
+        JSON.stringify({ error: authError || "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { apiKey } = await req.json();
 
     if (!apiKey) {
@@ -21,7 +63,7 @@ serve(async (req) => {
     }
 
     // Use the /v1/credits endpoint to get user credits
-    console.log("Fetching credits from /v1/credits");
+    console.log(`Fetching credits from /v1/credits for user: ${userId}`);
     const response = await fetch("https://api.ai33.pro/v1/credits", {
       method: "GET",
       headers: {
