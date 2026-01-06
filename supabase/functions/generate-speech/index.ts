@@ -36,7 +36,7 @@ async function validateAuth(req: Request): Promise<{ userId: string | null; erro
   return { userId: data.user.id, error: null };
 }
 
-// Get user's API key or fallback to platform key
+// Get user's API key or fallback to platform key (environment variable only - more secure)
 async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string | null; isUserKey: boolean }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -64,19 +64,14 @@ async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string
     }
   }
 
-  // Fallback to platform API key
-  const { data, error } = await supabase
-    .from("platform_settings")
-    .select("value")
-    .eq("key", "ai33_api_key")
-    .single();
-
-  if (error || !data?.value) {
-    console.log("API key not found in database, using env variable");
-    return { apiKey: Deno.env.get("AI33_API_KEY") || null, isUserKey: false };
+  // Use environment variable only for platform API key (secure - not stored in database)
+  const envApiKey = Deno.env.get("AI33_API_KEY");
+  if (envApiKey) {
+    return { apiKey: envApiKey, isUserKey: false };
   }
 
-  return { apiKey: data.value, isUserKey: false };
+  console.error("AI33_API_KEY environment variable not configured");
+  return { apiKey: null, isUserKey: false };
 }
 
 // Get user profile credits
@@ -96,8 +91,8 @@ async function getUserCredits(userId: string): Promise<number> {
   return data?.credits || 0;
 }
 
-// Deduct credits from user profile
-async function deductUserCredits(userId: string, amount: number): Promise<boolean> {
+// Atomic credit deduction using database function to prevent race conditions
+async function deductUserCreditsAtomic(userId: string, amount: number): Promise<boolean> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   
@@ -105,20 +100,19 @@ async function deductUserCredits(userId: string, amount: number): Promise<boolea
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", userId)
-    .single();
+  // Use atomic deduction function to prevent race conditions
+  const { data, error } = await supabase
+    .rpc('deduct_credits_atomic', {
+      _user_id: userId,
+      _amount: amount
+    });
 
-  if (!profile || profile.credits < amount) return false;
+  if (error) {
+    console.error("Error deducting credits:", error);
+    return false;
+  }
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({ credits: profile.credits - amount })
-    .eq("id", userId);
-
-  return !error;
+  return data === true;
 }
 
 // Create a generation task
@@ -326,9 +320,9 @@ serve(async (req) => {
       if (audioUrl) {
         console.log("Direct audio URL returned:", audioUrl);
         
-        // Deduct credits if using platform key
+        // Deduct credits atomically if using platform key
         if (!isUserKey) {
-          await deductUserCredits(userId, wordCount);
+          await deductUserCreditsAtomic(userId, wordCount);
         }
         
         if (taskId) {
@@ -367,9 +361,9 @@ serve(async (req) => {
         });
       }
 
-      // Deduct credits if using platform key
+      // Deduct credits atomically if using platform key
       if (!isUserKey) {
-        await deductUserCredits(userId, wordCount);
+        await deductUserCreditsAtomic(userId, wordCount);
       }
 
       // Return the external task ID for polling
@@ -386,9 +380,9 @@ serve(async (req) => {
     const audioBuffer = await response.arrayBuffer();
     console.log(`Generated audio: ${audioBuffer.byteLength} bytes`);
 
-    // Deduct credits if using platform key
+    // Deduct credits atomically if using platform key
     if (!isUserKey) {
-      await deductUserCredits(userId, wordCount);
+      await deductUserCreditsAtomic(userId, wordCount);
     }
 
     // Update task with audio (we'd need to upload to storage for persistence, but for now just mark done)

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Save, Loader2, Eye, EyeOff, Key, AlertCircle, Trash2, CheckCircle } from "lucide-react";
+import { Save, Loader2, AlertCircle, CheckCircle, Shield } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,10 +22,6 @@ export default function AdminSettings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [newApiKey, setNewApiKey] = useState("");
-  const [isRemovingKey, setIsRemovingKey] = useState(false);
-  const [isSavingKey, setIsSavingKey] = useState(false);
 
   // Fetch settings on mount
   useEffect(() => {
@@ -43,7 +39,10 @@ export default function AdminSettings() {
 
       const settingsMap: Record<string, string> = {};
       (data as PlatformSetting[])?.forEach((setting) => {
-        settingsMap[setting.key] = setting.value || "";
+        // Skip the API key - it should not be exposed to client
+        if (setting.key !== "ai33_api_key") {
+          settingsMap[setting.key] = setting.value || "";
+        }
       });
       setSettings(settingsMap);
     } catch (error) {
@@ -61,99 +60,11 @@ export default function AdminSettings() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSaveApiKey = async () => {
-    if (!newApiKey.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter an API key",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSavingKey(true);
-    try {
-      // Check if the setting already exists
-      const { data: existing } = await supabase
-        .from("platform_settings")
-        .select("id")
-        .eq("key", "ai33_api_key")
-        .maybeSingle();
-
-      if (existing) {
-        // Update existing
-        const { error } = await supabase
-          .from("platform_settings")
-          .update({ value: newApiKey.trim(), updated_at: new Date().toISOString() })
-          .eq("key", "ai33_api_key");
-
-        if (error) throw error;
-      } else {
-        // Insert new
-        const { error } = await supabase
-          .from("platform_settings")
-          .insert({
-            key: "ai33_api_key",
-            value: newApiKey.trim(),
-            description: "AI33 Voice API Key",
-            is_secret: true,
-          });
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: "API Key Saved",
-        description: "Voice API key has been configured successfully",
-      });
-
-      setNewApiKey("");
-      fetchSettings();
-    } catch (error) {
-      console.error("Error saving API key:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save API key",
-        variant: "destructive",
-      });
-    }
-    setIsSavingKey(false);
-  };
-
-  const handleRemoveApiKey = async () => {
-    setIsRemovingKey(true);
-    try {
-      const { error } = await supabase
-        .from("platform_settings")
-        .update({ value: null, updated_at: new Date().toISOString() })
-        .eq("key", "ai33_api_key");
-
-      if (error) throw error;
-
-      toast({
-        title: "API Key Removed",
-        description: "Voice API key has been removed",
-      });
-
-      fetchSettings();
-    } catch (error) {
-      console.error("Error removing API key:", error);
-      toast({
-        title: "Error",
-        description: "Failed to remove API key",
-        variant: "destructive",
-      });
-    }
-    setIsRemovingKey(false);
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Update each setting (excluding api key which is handled separately)
+      // Update each setting (excluding api key)
       for (const [key, value] of Object.entries(settings)) {
-        if (key === "ai33_api_key") continue; // Skip API key
-        
         const { error } = await supabase
           .from("platform_settings")
           .update({ value })
@@ -177,11 +88,6 @@ export default function AdminSettings() {
     setIsSaving(false);
   };
 
-  const maskApiKey = (key: string) => {
-    if (!key || key.length <= 8) return "••••••••";
-    return key.slice(0, 4) + "••••••••••••" + key.slice(-4);
-  };
-
   if (isLoading) {
     return (
       <AdminLayout>
@@ -198,98 +104,39 @@ export default function AdminSettings() {
         <div>
           <h1 className="text-3xl font-bold">Platform Settings</h1>
           <p className="text-muted-foreground">
-            Configure your platform settings, API keys, and pricing
+            Configure your platform settings and pricing
           </p>
         </div>
 
-        {/* API Key Settings */}
-        <Card className="border-primary/50">
+        {/* API Key Security Notice */}
+        <Card className="border-green-500/50 bg-green-50/50 dark:bg-green-950/20">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-primary" />
-              <CardTitle>Voice Generation API Key</CardTitle>
+              <Shield className="h-5 w-5 text-green-600" />
+              <CardTitle className="text-green-700 dark:text-green-400">Voice API Key Security</CardTitle>
             </div>
-            <CardDescription>
-              Configure the API key used for all voice generation. This key is shared by all users.
+            <CardDescription className="text-green-600 dark:text-green-500">
+              The Voice API key is securely stored as an environment variable
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-lg border border-green-300 bg-green-100 dark:bg-green-900/30 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">API Key Configured via Environment Variable</span>
+              </div>
+              <p className="text-sm text-green-600 dark:text-green-500">
+                The AI33_API_KEY is stored securely in the backend environment and is not exposed to the client-side. 
+                This follows security best practices for secret management.
+              </p>
+            </div>
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                This API key will be used for all voice generation requests. Users get <strong>100 free words</strong> on signup, after which they need to purchase credits.
+                To update the API key, please use the Lovable Cloud secrets management. 
+                The key will be used for all voice generation requests.
               </AlertDescription>
             </Alert>
-
-            {/* Current API Key Status */}
-            {settings.ai33_api_key ? (
-              <div className="rounded-lg border bg-green-50 dark:bg-green-950/20 p-4 space-y-3">
-                <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="font-medium">API Key Configured</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 rounded-md border bg-background px-4 py-2 font-mono text-sm">
-                    {showApiKey ? settings.ai33_api_key : maskApiKey(settings.ai33_api_key)}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleRemoveApiKey}
-                    disabled={isRemovingKey}
-                  >
-                    {isRemovingKey ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 p-4">
-                <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
-                  <AlertCircle className="h-5 w-5" />
-                  <span className="font-medium">No API Key Configured</span>
-                </div>
-                <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">
-                  Voice generation will not work until an API key is added
-                </p>
-              </div>
-            )}
-            
-            {/* Add/Update API Key */}
-            <div className="space-y-2">
-              <Label>{settings.ai33_api_key ? "Update API Key" : "Add API Key"}</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="password"
-                  value={newApiKey}
-                  onChange={(e) => setNewApiKey(e.target.value)}
-                  placeholder="Enter your Voice API key"
-                  className="flex-1"
-                />
-                <Button onClick={handleSaveApiKey} disabled={isSavingKey || !newApiKey.trim()}>
-                  {isSavingKey ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  {settings.ai33_api_key ? "Update" : "Save"} Key
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Get your API key from the voice generation service provider
-              </p>
-            </div>
           </CardContent>
         </Card>
 
