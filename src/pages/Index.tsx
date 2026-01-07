@@ -208,61 +208,62 @@ export default function Index() {
       
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative overflow-hidden border-b border-border pb-24 pt-20">
-          {/* Animated Background */}
+        <section className="relative overflow-hidden border-b border-border/50 pb-28 pt-24">
+          {/* Animated Background with multiple colorful orbs */}
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -right-1/4 -top-1/4 h-[800px] w-[800px] rounded-full bg-gradient-to-br from-primary/20 via-primary/10 to-transparent blur-3xl animate-pulse" />
-            <div className="absolute -bottom-1/4 -left-1/4 h-[800px] w-[800px] rounded-full bg-gradient-to-tr from-primary/15 via-primary/5 to-transparent blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-primary/5 blur-3xl" />
+            <div className="absolute -right-1/4 -top-1/4 h-[900px] w-[900px] rounded-full bg-gradient-to-br from-primary/30 via-accent/20 to-transparent blur-3xl animate-pulse" />
+            <div className="absolute -bottom-1/4 -left-1/4 h-[900px] w-[900px] rounded-full bg-gradient-to-tr from-accent/25 via-primary/15 to-transparent blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+            <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 h-[700px] w-[700px] rounded-full bg-gradient-to-b from-primary/15 via-accent/10 to-transparent blur-3xl" />
+            <div className="absolute right-1/4 bottom-1/4 h-[400px] w-[400px] rounded-full bg-gradient-to-tl from-success/20 to-transparent blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
           </div>
           
-          {/* Grid pattern overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.5)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.5)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+          {/* Grid pattern overlay with gradient fade */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--primary)/0.08)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary)/0.08)_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_90%_60%_at_50%_0%,#000_60%,transparent_100%)]" />
 
           <div className="container relative">
             <div className="mx-auto max-w-5xl text-center">
-              <div className="animate-fade-in mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-5 py-2.5 text-sm font-medium backdrop-blur-sm">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">Powered by Next-Gen AI Technology</span>
+              <div className="animate-fade-in mb-10 inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 px-6 py-3 text-sm font-semibold backdrop-blur-md shadow-lg shadow-primary/10">
+                <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+                <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">Powered by BD YT Automation</span>
               </div>
               
-              <h1 className="animate-slide-up text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
-                Transform Text Into
-                <span className="block mt-2 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent"> Natural Speech</span>
+              <h1 className="animate-slide-up text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
+                <span className="bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent">Transform Text Into</span>
+                <span className="block mt-3 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent drop-shadow-sm"> Natural Speech</span>
               </h1>
               
-              <p className="animate-slide-up delay-100 mx-auto mt-8 max-w-3xl text-xl text-muted-foreground leading-relaxed">
+              <p className="animate-slide-up delay-100 mx-auto mt-10 max-w-3xl text-xl text-muted-foreground leading-relaxed">
                 Create lifelike voiceovers, podcasts, and audio content with our 
-                state-of-the-art AI voice generation platform. <span className="text-foreground font-medium">100+ premium voices</span> in <span className="text-foreground font-medium">29 languages</span>.
+                state-of-the-art AI voice generation platform. <span className="text-foreground font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">100+ premium voices</span> in <span className="text-foreground font-semibold bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">29 languages</span>.
               </p>
               
-              <div className="animate-slide-up delay-200 mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <div className="animate-slide-up delay-200 mt-14 flex flex-col items-center justify-center gap-5 sm:flex-row">
                 <Link to="/login">
-                  <Button variant="hero" size="xl" className="group">
+                  <Button variant="hero" size="xl" className="group shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40 transition-all duration-300">
                     Get Started Free
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
                 <Link to="/voices">
-                  <Button variant="heroOutline" size="xl" className="group">
+                  <Button variant="heroOutline" size="xl" className="group border-2 hover:bg-primary/5 transition-all duration-300">
                     <Play className="h-5 w-5 transition-transform group-hover:scale-110" />
                     Explore Voices
                   </Button>
                 </Link>
               </div>
 
-              <div className="animate-fade-in delay-300 mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  <span>100 free credits</span>
+              <div className="animate-fade-in delay-300 mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 bg-success/10 rounded-full px-4 py-2">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <span className="font-medium">100 free credits</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  <span>No credit card required</span>
+                <div className="flex items-center gap-2 bg-primary/10 rounded-full px-4 py-2">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  <span className="font-medium">No credit card required</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  <span>Cancel anytime</span>
+                <div className="flex items-center gap-2 bg-accent/10 rounded-full px-4 py-2">
+                  <CheckCircle2 className="h-5 w-5 text-accent" />
+                  <span className="font-medium">Cancel anytime</span>
                 </div>
               </div>
             </div>
@@ -319,18 +320,18 @@ export default function Index() {
         </section>
 
         {/* Stats Section */}
-        <section className="border-b border-border bg-muted/30 py-16">
+        <section className="border-b border-border/50 bg-gradient-to-b from-primary/5 via-accent/5 to-transparent py-20">
           <div className="container">
             <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
               {stats.map((stat, index) => (
-                <div key={index} className="group text-center">
-                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-                    <stat.icon className="h-6 w-6 text-primary" />
+                <div key={index} className="group text-center p-6 rounded-2xl transition-all hover:bg-card/50 hover:shadow-xl hover:shadow-primary/10">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 transition-all group-hover:from-primary/30 group-hover:to-accent/30 group-hover:scale-110">
+                    <stat.icon className="h-8 w-8 text-primary" />
                   </div>
-                  <div className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  <div className="text-5xl font-extrabold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                     {stat.value}
                   </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
+                  <div className="mt-2 text-sm font-medium text-muted-foreground">
                     {stat.label}
                   </div>
                 </div>
@@ -421,13 +422,17 @@ export default function Index() {
         )}
 
         {/* Features Section */}
-        <section className="border-y border-border bg-muted/20 py-24">
+        <section className="border-y border-border/50 bg-gradient-to-b from-muted/30 via-primary/5 to-muted/30 py-28">
           <div className="container">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-                Everything You Need for <span className="text-primary">Audio Content</span>
+            <div className="mx-auto max-w-2xl text-center mb-20">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold mb-6">
+                <Zap className="h-4 w-4 text-primary" />
+                <span className="text-primary">Powerful Features</span>
+              </div>
+              <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
+                Everything You Need for <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Audio Content</span>
               </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
+              <p className="mt-5 text-lg text-muted-foreground">
                 Powerful AI tools to create, translate, and transcribe audio at scale
               </p>
             </div>
@@ -436,15 +441,18 @@ export default function Index() {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="group relative rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
+                  className="group relative rounded-3xl border border-border/50 bg-card/80 backdrop-blur-sm p-8 transition-all duration-300 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2"
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 transition-all group-hover:from-primary/30 group-hover:to-primary/20">
-                    <feature.icon className="h-7 w-7 text-primary" />
+                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
+                      <feature.icon className="h-8 w-8 text-primary-foreground" />
+                    </div>
+                    <h3 className="mt-6 text-xl font-bold">{feature.title}</h3>
+                    <p className="mt-3 text-muted-foreground leading-relaxed">
+                      {feature.description}
+                    </p>
                   </div>
-                  <h3 className="mt-5 text-xl font-semibold">{feature.title}</h3>
-                  <p className="mt-2 text-muted-foreground leading-relaxed">
-                    {feature.description}
-                  </p>
                 </div>
               ))}
             </div>
@@ -452,25 +460,30 @@ export default function Index() {
         </section>
 
         {/* Use Cases Section */}
-        <section className="py-24">
-          <div className="container">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-                Built for <span className="text-primary">Every Use Case</span>
+        <section className="py-28 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5" />
+          <div className="container relative">
+            <div className="mx-auto max-w-2xl text-center mb-20">
+              <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-sm font-semibold mb-6">
+                <Users className="h-4 w-4 text-accent" />
+                <span className="text-accent">Use Cases</span>
+              </div>
+              <h2 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
+                Built for <span className="bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">Every Use Case</span>
               </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
+              <p className="mt-5 text-lg text-muted-foreground">
                 From content creators to enterprises, VoiceStudio powers audio at any scale
               </p>
             </div>
 
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               {useCases.map((useCase, index) => (
-                <div key={index} className="text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/20">
-                    <useCase.icon className="h-8 w-8 text-primary-foreground" />
+                <div key={index} className="text-center group p-8 rounded-3xl transition-all duration-300 hover:bg-card/80 hover:shadow-2xl hover:shadow-accent/10">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary via-accent to-primary shadow-xl shadow-primary/30 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                    <useCase.icon className="h-10 w-10 text-primary-foreground" />
                   </div>
-                  <h3 className="mt-5 text-xl font-semibold">{useCase.title}</h3>
-                  <p className="mt-2 text-muted-foreground">
+                  <h3 className="mt-6 text-xl font-bold">{useCase.title}</h3>
+                  <p className="mt-3 text-muted-foreground leading-relaxed">
                     {useCase.description}
                   </p>
                 </div>
