@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Zap } from "lucide-react";
+import logo from "@/assets/logo.jpeg";
 
 export function Footer() {
   return (
@@ -8,10 +8,8 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-4">
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg">
-                <Zap className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold tracking-tight">VoiceStudio</span>
+              <img src={logo} alt="BD YT Automation" className="h-9 w-9 rounded-xl object-cover shadow-lg" />
+              <span className="text-xl font-bold tracking-tight">BD YT Automation</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Transform text into natural, expressive speech with cutting-edge AI technology.
@@ -63,7 +61,7 @@ export function Footer() {
 
         <div className="mt-12 border-t border-border pt-8 text-center">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} VoiceStudio. All rights reserved.
+            © {new Date().getFullYear()} BD YT Automation. All rights reserved.
           </p>
         </div>
       </div>

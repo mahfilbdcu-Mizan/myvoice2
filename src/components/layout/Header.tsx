@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Zap } from "lucide-react";
+import logo from "@/assets/logo.jpeg";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -16,10 +17,8 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg">
-              <Zap className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">VoiceStudio</span>
+            <img src={logo} alt="BD YT Automation" className="h-9 w-9 rounded-xl object-cover shadow-lg" />
+            <span className="text-xl font-bold tracking-tight">BD YT Automation</span>
           </Link>
           
           <nav className="hidden items-center gap-6 md:flex">
@@ -28,6 +27,9 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
             </Link>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
               Pricing
+            </Link>
+            <Link to="/contact" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+              Contact
             </Link>
           </nav>
         </div>
@@ -81,6 +83,13 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Pricing
+            </Link>
+            <Link 
+              to="/contact" 
+              className="rounded-lg px-4 py-3 text-sm font-medium hover:bg-accent"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Contact
             </Link>
           </nav>
         </div>
