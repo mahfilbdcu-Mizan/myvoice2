@@ -3,36 +3,99 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Zap, CreditCard, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Check, Zap, CreditCard, Loader2, Copy, CheckCircle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
-const pricingPlans = [
-  {
-    credits: 1000000,
-    price: 25,
-    popular: false,
-    perCredit: "0.000025",
-  },
-  {
-    credits: 5000000,
-    price: 110,
-    popular: true,
-    perCredit: "0.000022",
-    savings: "12%",
-  },
-  {
-    credits: 10000000,
-    price: 200,
-    popular: false,
-    perCredit: "0.00002",
-    savings: "20%",
-  },
-];
+interface Package {
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  real_price: number;
+  offer_price: number;
+  discount_percentage: number | null;
+  is_popular: boolean | null;
+  features: string[] | null;
+}
+
+// Binance wallet info - can be moved to platform_settings later
+const BINANCE_ADDRESS = "TRx1234567890ABCDEFGHIJKLMNOPQRSTuvwxyz";
+const PAYMENT_NETWORK = "TRC20 (USDT)";
 
 export default function DashboardCredits() {
   const { user, profile, isLoading } = useAuth();
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [paymentStep, setPaymentStep] = useState<"select" | "payment" | "submit" | "success">("select");
+  const [txid, setTxid] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    const fetchPackages = async () => {
+      const { data, error } = await supabase
+        .from("packages")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order");
+      
+      if (data) setPackages(data);
+      setLoadingPackages(false);
+    };
+    fetchPackages();
+  }, []);
+
+  const handleCopyAddress = async () => {
+    await navigator.clipboard.writeText(BINANCE_ADDRESS);
+    setCopied(true);
+    toast({ title: "Address copied!" });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!txid.trim()) {
+      toast({
+        title: "TXID required",
+        description: "Please enter your payment transaction ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user || !selectedPackage) return;
+
+    setIsSubmitting(true);
+    
+    const { error } = await supabase.from("credit_orders").insert({
+      user_id: user.id,
+      credits: selectedPackage.credits,
+      amount_usdt: selectedPackage.offer_price,
+      txid: txid.trim(),
+      network: PAYMENT_NETWORK,
+      wallet_address: BINANCE_ADDRESS,
+      status: "pending",
+    });
+
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit order. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      setPaymentStep("success");
+    }
+  };
+
+  if (isLoading || loadingPackages) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -44,6 +107,140 @@ export default function DashboardCredits() {
     return <Navigate to="/login" replace />;
   }
 
+  // Success view
+  if (paymentStep === "success") {
+    return (
+      <DashboardLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Card className="max-w-md text-center">
+            <CardContent className="py-12">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
+                <CheckCircle className="h-10 w-10 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Payment Submitted!</h2>
+              <p className="text-muted-foreground mb-6">
+                Your payment is being verified by admin. Credits will be added to your account after verification.
+              </p>
+              <Button onClick={() => {
+                setPaymentStep("select");
+                setSelectedPackage(null);
+                setTxid("");
+              }}>
+                Back to Packages
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Payment view
+  if (paymentStep === "payment" && selectedPackage) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <button
+            onClick={() => setPaymentStep("select")}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to packages
+          </button>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Order Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Package</span>
+                  <span className="font-medium">{selectedPackage.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Credits</span>
+                  <span className="font-medium">{selectedPackage.credits.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Price</span>
+                  <span className="font-bold text-lg">${selectedPackage.offer_price} USDT</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Payment Instructions */}
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle>Payment Instructions</CardTitle>
+                <CardDescription>Send USDT to the following address</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Network</Label>
+                  <div className="rounded-lg bg-muted p-3 font-mono text-sm">
+                    {PAYMENT_NETWORK}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Wallet Address</Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 rounded-lg bg-muted p-3 font-mono text-xs break-all">
+                      {BINANCE_ADDRESS}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopyAddress}
+                    >
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4">
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                    ⚠️ Please send exactly <strong>${selectedPackage.offer_price} USDT</strong> to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="txid">Transaction ID (TXID)</Label>
+                  <Input
+                    id="txid"
+                    placeholder="Enter your payment TXID"
+                    value={txid}
+                    onChange={(e) => setTxid(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    After payment, copy your transaction ID and paste it here.
+                  </p>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleSubmitPayment}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="mr-2 h-4 w-4" />
+                  )}
+                  Submit Payment
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Package selection view
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -74,51 +271,62 @@ export default function DashboardCredits() {
         </Card>
 
         {/* Pricing Cards */}
-        <div className="grid gap-6 md:grid-cols-3">
-          {pricingPlans.map((plan) => (
+        <div className={`grid gap-6 ${
+          packages.length === 3 ? 'md:grid-cols-3' : 
+          packages.length === 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' :
+          packages.length >= 5 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3'
+        }`}>
+          {packages.map((pkg) => (
             <Card 
-              key={plan.credits} 
-              className={plan.popular ? "relative border-primary shadow-elevated" : ""}
+              key={pkg.id} 
+              className={`relative transition-all hover:shadow-lg cursor-pointer ${
+                pkg.is_popular ? "border-primary shadow-lg shadow-primary/10" : ""
+              }`}
+              onClick={() => {
+                setSelectedPackage(pkg);
+                setPaymentStep("payment");
+              }}
             >
-              {plan.popular && (
+              {pkg.is_popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <Badge className="shadow-lg">Most Popular</Badge>
                 </div>
               )}
-              <CardHeader>
-                <CardTitle className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-lg text-muted-foreground">USDT</span>
+              {(pkg.discount_percentage ?? 0) > 0 && (
+                <div className="absolute -top-3 right-4">
+                  <Badge variant="destructive" className="shadow-lg">
+                    {pkg.discount_percentage}% OFF
+                  </Badge>
+                </div>
+              )}
+              <CardHeader className="pt-8">
+                <CardDescription className="font-medium">{pkg.name}</CardDescription>
+                <CardTitle className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">${pkg.offer_price}</span>
+                  {(pkg.discount_percentage ?? 0) > 0 && (
+                    <span className="text-lg text-muted-foreground line-through">
+                      ${pkg.real_price}
+                    </span>
+                  )}
+                  <span className="text-sm text-muted-foreground">USDT</span>
                 </CardTitle>
-                <CardDescription>
-                  {plan.credits.toLocaleString()} credits
+                <CardDescription className="text-lg">
+                  {pkg.credits.toLocaleString()} credits
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success" />
-                    <span>${plan.perCredit} per credit</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success" />
-                    <span>Credits never expire</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success" />
-                    <span>All voices included</span>
-                  </div>
-                  {plan.savings && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Check className="h-4 w-4 text-success" />
-                      <span className="font-medium text-success">Save {plan.savings}</span>
+                  {pkg.features?.slice(0, 4).map((feature, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 shrink-0" />
+                      <span>{feature}</span>
                     </div>
-                  )}
+                  ))}
                 </div>
                 
                 <Button 
                   className="w-full" 
-                  variant={plan.popular ? "default" : "outline"}
+                  variant={pkg.is_popular ? "default" : "outline"}
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
                   Purchase
