@@ -63,13 +63,13 @@ export default function Contact() {
           <div className="container relative px-4 sm:px-6">
             <div className="mx-auto max-w-3xl text-center">
               <Badge variant="secondary" className="mb-4">
-                যোগাযোগ
+                Contact
               </Badge>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight">
-                আমাদের সাথে <span className="text-primary">যোগাযোগ করুন</span>
+                Get in <span className="text-primary">Touch With Us</span>
               </h1>
               <p className="mt-4 sm:mt-6 text-base sm:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto">
-                যেকোনো প্রশ্ন বা সাহায্যের জন্য নিচের যেকোনো মাধ্যমে আমাদের সাথে যোগাযোগ করতে পারেন।
+                For any questions or assistance, feel free to contact us through any of the channels below.
               </p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function Contact() {
                     🎯 BD YT Automation
                   </h3>
                   <p className="text-muted-foreground max-w-2xl mx-auto">
-                    আমরা সবসময় আপনাদের সাহায্য করতে প্রস্তুত। যেকোনো সমস্যা বা জিজ্ঞাসার জন্য উপরের যেকোনো মাধ্যমে যোগাযোগ করুন। আমরা দ্রুত সাড়া দেওয়ার চেষ্টা করি।
+                    We are always ready to help you. For any issues or inquiries, please contact us through any of the channels above. We strive to respond as quickly as possible.
                   </p>
                 </CardContent>
               </Card>
