@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { generateSpeech, waitForTask, fetchModelsFromAPI, type VoiceModel } from "@/lib/voice-api";
-import { generateMinimaxSpeech, fetchMinimaxVoices, type MinimaxVoice } from "@/lib/minimax-api";
+import { generateMinimaxSpeech, fetchMinimaxVoices, type MinimaxVoice, type VoiceClone } from "@/lib/minimax-api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { MinimaxVoiceLibrary } from "./MinimaxVoiceLibrary";
@@ -113,7 +113,7 @@ export function TextToSpeechPanel({
 
   // Minimax voices
   const [minimaxVoices, setMinimaxVoices] = useState<MinimaxVoice[]>([]);
-  const [selectedMinimaxVoice, setSelectedMinimaxVoice] = useState<MinimaxVoice | null>(null);
+  const [selectedMinimaxVoice, setSelectedMinimaxVoice] = useState<MinimaxVoice | VoiceClone | null>(null);
   const [loadingMinimaxVoices, setLoadingMinimaxVoices] = useState(false);
   const [showMinimaxVoiceLibrary, setShowMinimaxVoiceLibrary] = useState(false);
 
