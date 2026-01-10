@@ -8,6 +8,8 @@ interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   credits: number;
+  is_blocked: boolean;
+  has_received_free_credits: boolean;
 }
 
 interface AuthContextType {

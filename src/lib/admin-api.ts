@@ -48,6 +48,8 @@ export interface UserProfile {
   avatar_url: string | null;
   credits: number;
   created_at: string;
+  is_blocked: boolean;
+  has_received_free_credits: boolean;
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
@@ -297,4 +299,40 @@ export async function getAdminStats(): Promise<AdminStats> {
     pendingOrders: pendingCount || 0,
     totalRevenue
   };
+}
+
+// Toggle user block status
+export async function toggleUserBlock(userId: string, isBlocked: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase.rpc("admin_toggle_user_block", {
+      _target_user_id: userId,
+      _is_blocked: isBlocked
+    });
+    
+    if (error) {
+      console.error("Error toggling user block:", error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error toggling user block:", error);
+    return { success: false, error: "Unexpected error occurred" };
+  }
+}
+
+// Get user profile for admin to view
+export async function getUserProfileForAdmin(userId: string): Promise<UserProfile | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching user profile:", error);
+    return null;
+  }
+  
+  return data;
 }

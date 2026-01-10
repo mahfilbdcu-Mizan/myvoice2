@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { BlockedUserGuard } from "@/components/BlockedUserGuard";
+import { FreeCreditsOnlyGuard } from "@/components/FreeCreditsOnlyGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -198,7 +200,9 @@ export default function DashboardDubbing() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <BlockedUserGuard featureName="Audio Dubbing">
+        <FreeCreditsOnlyGuard featureName="Audio Dubbing">
+          <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Audio Dubbing</h1>
           <p className="text-muted-foreground">Dub audio files into different languages</p>
@@ -364,7 +368,9 @@ export default function DashboardDubbing() {
             </CardContent>
           </Card>
         )}
-      </div>
+          </div>
+        </FreeCreditsOnlyGuard>
+      </BlockedUserGuard>
     </DashboardLayout>
   );
 }

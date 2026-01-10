@@ -3,6 +3,7 @@ import { useLocation, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TextToSpeechPanel } from "@/components/voice/TextToSpeechPanel";
 import { VoiceLibrary } from "@/components/voice/VoiceLibrary";
+import { BlockedUserGuard } from "@/components/BlockedUserGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -43,18 +44,20 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <TextToSpeechPanel 
-        selectedVoice={selectedVoice}
-        onOpenVoiceLibrary={() => setShowVoiceLibrary(true)}
-      />
-      
-      {showVoiceLibrary && (
-        <VoiceLibrary 
-          isModal 
-          onClose={() => setShowVoiceLibrary(false)}
-          onSelectVoice={handleSelectVoice}
+      <BlockedUserGuard featureName="Text-to-Speech">
+        <TextToSpeechPanel 
+          selectedVoice={selectedVoice}
+          onOpenVoiceLibrary={() => setShowVoiceLibrary(true)}
         />
-      )}
+        
+        {showVoiceLibrary && (
+          <VoiceLibrary 
+            isModal 
+            onClose={() => setShowVoiceLibrary(false)}
+            onSelectVoice={handleSelectVoice}
+          />
+        )}
+      </BlockedUserGuard>
     </DashboardLayout>
   );
 }

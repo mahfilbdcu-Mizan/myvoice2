@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Edit, Loader2, AlertTriangle } from "lucide-react";
-import { getAllUsers, updateUserCredits, type UserProfile } from "@/lib/admin-api";
+import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle } from "lucide-react";
+import { getAllUsers, updateUserCredits, toggleUserBlock, type UserProfile } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ const WARN_THRESHOLD = 10_000_000; // 10 million - show warning
 const LARGE_CHANGE_THRESHOLD = 1_000_000; // 1 million - require confirmation
 
 export default function AdminUsers() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +40,7 @@ export default function AdminUsers() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [newCredits, setNewCredits] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [togglingBlock, setTogglingBlock] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -141,6 +144,40 @@ export default function AdminUsers() {
     }
   };
 
+  const handleToggleBlock = async (user: UserProfile) => {
+    const newBlockedState = !user.is_blocked;
+    const actionText = newBlockedState ? "block" : "unblock";
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to ${actionText} ${user.email}?${newBlockedState ? " They will not be able to use any features." : ""}`
+    );
+    
+    if (!confirmed) return;
+    
+    setTogglingBlock(user.id);
+    const result = await toggleUserBlock(user.id, newBlockedState);
+    setTogglingBlock(null);
+    
+    if (result.success) {
+      toast({
+        title: newBlockedState ? "User blocked" : "User unblocked",
+        description: `${user.email} has been ${newBlockedState ? "blocked" : "unblocked"}`,
+      });
+      fetchUsers();
+    } else {
+      toast({
+        title: "Action failed",
+        description: result.error || `Could not ${actionText} user`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewDashboard = (user: UserProfile) => {
+    // Navigate to admin view of user's dashboard
+    navigate(`/admin/user-dashboard/${user.id}`);
+  };
+
   const creditsValue = parseInt(newCredits, 10);
   const showWarning = !isNaN(creditsValue) && creditsValue > WARN_THRESHOLD;
 
@@ -181,13 +218,14 @@ export default function AdminUsers() {
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Credits</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} className={user.is_blocked ? "bg-destructive/5" : ""}>
                       <TableCell>
                         <div className="font-medium">
                           {user.full_name || "No name"}
@@ -204,16 +242,50 @@ export default function AdminUsers() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        {user.is_blocked ? (
+                          <Badge variant="destructive">Blocked</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-green-600 border-green-600">Active</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {new Date(user.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditCredits(user)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDashboard(user)}
+                            title="View user dashboard"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditCredits(user)}
+                            title="Edit credits"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleBlock(user)}
+                            disabled={togglingBlock === user.id}
+                            title={user.is_blocked ? "Unblock user" : "Block user"}
+                            className={user.is_blocked ? "text-green-600 hover:text-green-700" : "text-destructive hover:text-destructive"}
+                          >
+                            {togglingBlock === user.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : user.is_blocked ? (
+                              <CheckCircle className="h-4 w-4" />
+                            ) : (
+                              <Ban className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

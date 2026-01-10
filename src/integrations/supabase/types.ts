@@ -231,7 +231,9 @@ export type Database = {
           credits: number
           email: string | null
           full_name: string | null
+          has_received_free_credits: boolean
           id: string
+          is_blocked: boolean
           updated_at: string
         }
         Insert: {
@@ -240,7 +242,9 @@ export type Database = {
           credits?: number
           email?: string | null
           full_name?: string | null
+          has_received_free_credits?: boolean
           id: string
+          is_blocked?: boolean
           updated_at?: string
         }
         Update: {
@@ -249,7 +253,9 @@ export type Database = {
           credits?: number
           email?: string | null
           full_name?: string | null
+          has_received_free_credits?: boolean
           id?: string
+          is_blocked?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -382,6 +388,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_toggle_user_block: {
+        Args: { _is_blocked: boolean; _target_user_id: string }
+        Returns: boolean
+      }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       decrypt_api_key: { Args: { encrypted_key: string }; Returns: string }
       deduct_credits_atomic: {
@@ -416,6 +426,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_user_blocked: { Args: { _user_id: string }; Returns: boolean }
       save_user_api_key_secure: {
         Args: {
           p_api_key: string
