@@ -383,14 +383,53 @@ export type Database = {
     }
     Functions: {
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      decrypt_api_key: { Args: { encrypted_key: string }; Returns: string }
       deduct_credits_atomic: {
         Args: { _amount: number; _user_id: string }
         Returns: boolean
+      }
+      delete_user_api_key_secure: {
+        Args: { p_provider: string }
+        Returns: boolean
+      }
+      encrypt_api_key: { Args: { plain_key: string }; Returns: string }
+      get_decrypted_api_key: {
+        Args: { p_provider: string; p_user_id: string }
+        Returns: string
+      }
+      get_user_api_key_info: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          is_valid: boolean
+          key_preview: string
+          provider: string
+          remaining_credits: number
+          updated_at: string
+        }[]
       }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      save_user_api_key_secure: {
+        Args: {
+          p_api_key: string
+          p_is_valid?: boolean
+          p_provider: string
+          p_remaining_credits?: number
+        }
+        Returns: string
+      }
+      update_api_key_balance: {
+        Args: {
+          p_is_valid: boolean
+          p_provider: string
+          p_remaining_credits?: number
         }
         Returns: boolean
       }

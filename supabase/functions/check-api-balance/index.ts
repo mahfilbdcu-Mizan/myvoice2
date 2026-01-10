@@ -53,16 +53,39 @@ serve(async (req) => {
       );
     }
 
-    const { apiKey } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const provider = body.provider || "ai33";
 
-    if (!apiKey) {
+    console.log(`Checking API balance for user: ${userId}, provider: ${provider}`);
+
+    // Get the decrypted API key from server-side (using service role)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(
-        JSON.stringify({ error: "API key is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Use the /v1/credits endpoint to get user credits
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get decrypted API key using the secure function
+    const { data: apiKey, error: keyError } = await supabase.rpc("get_decrypted_api_key", {
+      p_user_id: userId,
+      p_provider: provider,
+    });
+
+    if (keyError || !apiKey) {
+      console.log("No valid API key found for user");
+      return new Response(
+        JSON.stringify({ error: "No valid API key found", hasKey: false }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check the API key balance with external provider
     console.log(`Fetching credits from /v1/credits for user: ${userId}`);
     const response = await fetch("https://api.ai33.pro/v1/credits", {
       method: "GET",
@@ -75,7 +98,6 @@ serve(async (req) => {
     if (!response.ok) {
       console.error("API error:", response.status);
       
-      // Try to get more info about the error
       let errorMessage = "Invalid API key or could not fetch balance";
       try {
         const errorData = await response.json();
@@ -84,6 +106,13 @@ serve(async (req) => {
         // Ignore parse errors
       }
       
+      // Mark the key as invalid
+      await supabase
+        .from("user_api_keys")
+        .update({ is_valid: false, updated_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("provider", provider);
+
       return new Response(
         JSON.stringify({ error: errorMessage, valid: false }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -93,12 +122,24 @@ serve(async (req) => {
     const data = await response.json();
     console.log("Credits data:", JSON.stringify(data));
 
+    // Update the stored balance
+    const credits = data.credits || 0;
+    await supabase
+      .from("user_api_keys")
+      .update({ 
+        is_valid: true, 
+        remaining_credits: credits,
+        updated_at: new Date().toISOString() 
+      })
+      .eq("user_id", userId)
+      .eq("provider", provider);
+
     // Response format: { "success": true, "credits": 123 }
-    if (data.success) {
+    if (data.success !== false) {
       return new Response(
         JSON.stringify({
-          credits: data.credits || 0,
-          character_count: data.credits || 0,
+          credits: credits,
+          character_count: credits,
           valid: true,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
