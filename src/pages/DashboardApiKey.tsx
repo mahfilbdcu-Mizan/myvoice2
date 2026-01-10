@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Key, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, ExternalLink, Trash2 } from "lucide-react";
+import { Key, Loader2, CheckCircle, AlertCircle, Trash2, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 
-interface UserApiKey {
+interface UserApiKeyInfo {
   id: string;
   provider: string;
-  encrypted_key: string;
   is_valid: boolean | null;
   remaining_credits: number | null;
+  key_preview: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -23,11 +23,11 @@ interface UserApiKey {
 export default function DashboardApiKey() {
   const { user, profile, isLoading: authLoading } = useAuth();
   const [apiKey, setApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [savedKey, setSavedKey] = useState<UserApiKey | null>(null);
+  const [savedKey, setSavedKey] = useState<UserApiKeyInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -37,17 +37,19 @@ export default function DashboardApiKey() {
 
   const fetchUserApiKey = async () => {
     try {
-      const { data, error } = await supabase
-        .from("user_api_keys")
-        .select("*")
-        .eq("user_id", user?.id)
-        .eq("provider", "ai33")
-        .maybeSingle();
+      // Use the secure RPC function to get key metadata (no actual key exposed)
+      const { data, error } = await supabase.rpc("get_user_api_key_info");
 
       if (error) throw error;
-      setSavedKey(data);
+      
+      // Find the ai33 provider key
+      const ai33Key = Array.isArray(data) 
+        ? data.find((k: UserApiKeyInfo) => k.provider === "ai33") 
+        : null;
+      
+      setSavedKey(ai33Key || null);
     } catch (error) {
-      console.error("Error fetching API key:", error);
+      console.error("Error fetching API key info:", error);
     } finally {
       setIsLoading(false);
     }
@@ -56,81 +58,60 @@ export default function DashboardApiKey() {
   const handleSaveApiKey = async () => {
     if (!apiKey.trim() || !user) return;
 
+    // Client-side validation
+    const trimmedKey = apiKey.trim();
+    if (trimmedKey.length < 10) {
+      toast({
+        title: "Invalid API Key",
+        description: "API key must be at least 10 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_\-]+$/.test(trimmedKey)) {
+      toast({
+        title: "Invalid API Key Format",
+        description: "API key contains invalid characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       // Get current session for auth
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       
-      // Check API key balance first
-      const balanceResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ apiKey: apiKey.trim() }),
-        }
-      );
-
-      let remainingCredits: number | null = null;
-      let isValid = false;
-
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json();
-        isValid = balanceData.valid !== false; // Key is valid if response succeeded
-        remainingCredits = balanceData.character_count || balanceData.credits || null;
-      } else {
-        // Check if it's an invalid key error
-        try {
-          const errorData = await balanceResponse.json();
-          if (errorData.valid === false) {
-            toast({
-              title: "Invalid API Key",
-              description: "The API key you entered is not valid.",
-              variant: "destructive",
-            });
-            setIsSaving(false);
-            return;
-          }
-        } catch {
-          // Ignore parse errors
-        }
+      if (!token) {
+        throw new Error("Not authenticated");
       }
 
-      // Save or update the API key
-      if (savedKey) {
-        const { error } = await supabase
-          .from("user_api_keys")
-          .update({
-            encrypted_key: apiKey.trim(),
-            is_valid: isValid,
-            remaining_credits: remainingCredits,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", savedKey.id);
+      // Call the secure edge function to save the encrypted key
+      const response = await supabase.functions.invoke("save-api-key", {
+        body: { apiKey: trimmedKey, provider: "ai33" },
+      });
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("user_api_keys").insert({
-          user_id: user.id,
-          provider: "ai33",
-          encrypted_key: apiKey.trim(),
-          is_valid: isValid,
-          remaining_credits: remainingCredits,
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to save API key");
+      }
+
+      const result = response.data;
+
+      if (!result.success) {
+        toast({
+          title: "Save Failed",
+          description: result.error || "Could not save API key.",
+          variant: "destructive",
         });
-
-        if (error) throw error;
+        setIsSaving(false);
+        return;
       }
 
       toast({
-        title: "API Key Saved",
-        description: isValid 
-          ? `Your API key has been saved. Balance: ${remainingCredits?.toLocaleString() || 'Unknown'} credits`
-          : "API key saved but could not verify balance",
+        title: "API Key Saved Securely",
+        description: result.message || "Your API key has been encrypted and saved.",
       });
 
       setApiKey("");
@@ -139,7 +120,7 @@ export default function DashboardApiKey() {
       console.error("Error saving API key:", error);
       toast({
         title: "Error",
-        description: "Failed to save API key. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save API key. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -152,75 +133,38 @@ export default function DashboardApiKey() {
 
     setIsChecking(true);
     try {
-      // Get current session for auth
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Call the secure edge function - no API key sent from client!
+      const response = await supabase.functions.invoke("check-api-balance", {
+        body: { provider: "ai33" },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to check balance");
+      }
+
+      const data = response.data;
       
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ apiKey: savedKey.encrypted_key }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.valid === false) {
-          toast({
-            title: "Invalid API Key",
-            description: "Your API key is no longer valid.",
-            variant: "destructive",
-          });
-          
-          await supabase
-            .from("user_api_keys")
-            .update({
-              is_valid: false,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", savedKey.id);
-          
-          fetchUserApiKey();
-          return;
-        }
-        
-        const credits = data.character_count || data.credits;
-        const hasBalanceInfo = credits !== null && credits !== undefined;
-        
-        await supabase
-          .from("user_api_keys")
-          .update({
-            remaining_credits: hasBalanceInfo ? credits : null,
-            is_valid: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", savedKey.id);
-
+      if (data.valid === false) {
         toast({
-          title: data.message ? "API Key Valid" : "Balance Updated",
-          description: data.message || `Your API balance: ${credits?.toLocaleString() || 'N/A'} credits`,
-        });
-        
-        fetchUserApiKey();
-      } else {
-        toast({
-          title: "Check Failed",
-          description: "Could not verify API key",
+          title: "Invalid API Key",
+          description: data.error || "Your API key is no longer valid.",
           variant: "destructive",
         });
+        fetchUserApiKey();
+        return;
       }
+      
+      toast({
+        title: "Balance Updated",
+        description: `Your API balance: ${data.credits?.toLocaleString() || 'N/A'} credits`,
+      });
+      
+      fetchUserApiKey();
     } catch (error) {
       console.error("Error checking balance:", error);
       toast({
-        title: "Error",
-        description: "Failed to check balance",
+        title: "Check Failed",
+        description: error instanceof Error ? error.message : "Could not verify API key",
         variant: "destructive",
       });
     } finally {
@@ -231,17 +175,18 @@ export default function DashboardApiKey() {
   const handleDeleteApiKey = async () => {
     if (!savedKey) return;
 
+    setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from("user_api_keys")
-        .delete()
-        .eq("id", savedKey.id);
+      // Use the secure RPC function to delete
+      const { error } = await supabase.rpc("delete_user_api_key_secure", {
+        p_provider: "ai33",
+      });
 
       if (error) throw error;
 
       toast({
         title: "API Key Deleted",
-        description: "Your API key has been removed",
+        description: "Your API key has been removed securely",
       });
       
       setSavedKey(null);
@@ -252,12 +197,9 @@ export default function DashboardApiKey() {
         description: "Failed to delete API key",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
     }
-  };
-
-  const maskApiKey = (key: string) => {
-    if (key.length <= 8) return "••••••••";
-    return key.slice(0, 4) + "••••••••" + key.slice(-4);
   };
 
   if (authLoading) {
@@ -282,6 +224,21 @@ export default function DashboardApiKey() {
             Add your own API key for unlimited text generation
           </p>
         </div>
+
+        {/* Security Notice */}
+        <Card className="border-green-500/20 bg-green-500/5">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-green-700 dark:text-green-400">🔒 Secure Storage</p>
+              <p className="text-sm text-muted-foreground">
+                Your API key is encrypted before storage. We never transmit or display your full key.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Free Credits Info */}
         <Card className="border-primary/20 bg-primary/5">
@@ -333,15 +290,8 @@ export default function DashboardApiKey() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="flex-1 rounded-lg border bg-muted/50 px-4 py-3 font-mono text-sm">
-                  {showApiKey ? savedKey.encrypted_key : maskApiKey(savedKey.encrypted_key)}
+                  {savedKey.key_preview || "••••••••••••••••"}
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
               </div>
 
               {savedKey.remaining_credits !== null && (
@@ -362,15 +312,22 @@ export default function DashboardApiKey() {
                 >
                   {isChecking ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
                   Check Balance
                 </Button>
                 <Button
                   variant="outline"
                   className="text-destructive hover:text-destructive"
                   onClick={handleDeleteApiKey}
+                  disabled={isDeleting}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
+                  {isDeleting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
                   Remove Key
                 </Button>
               </div>
@@ -394,6 +351,7 @@ export default function DashboardApiKey() {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="flex-1"
+                autoComplete="off"
               />
               <Button onClick={handleSaveApiKey} disabled={!apiKey.trim() || isSaving}>
                 {isSaving ? (
@@ -403,7 +361,7 @@ export default function DashboardApiKey() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Your API key is stored securely. With your own key, there's no text length limit.
+              🔐 Your API key is encrypted with AES-256 before storage. We never see or store your plaintext key.
             </p>
           </CardContent>
         </Card>

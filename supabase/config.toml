@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.delete-voice-clone]
 verify_jwt = false
+
+[functions.save-api-key]
+verify_jwt = false

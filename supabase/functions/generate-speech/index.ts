@@ -94,7 +94,7 @@ async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remai
   return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - currentCount - 1 };
 }
 
-// Get user's API key or fallback to platform key (environment variable only - more secure)
+// Get user's API key or fallback to platform key (using secure decryption)
 async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string | null; isUserKey: boolean }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -106,19 +106,16 @@ async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Try user's own API key first
+  // Try user's own API key first - using secure decryption function
   if (userId) {
-    const { data: userKey, error: userKeyError } = await supabase
-      .from("user_api_keys")
-      .select("encrypted_key, is_valid")
-      .eq("user_id", userId)
-      .eq("provider", "ai33")
-      .eq("is_valid", true)
-      .maybeSingle();
+    const { data: decryptedKey, error: keyError } = await supabase.rpc("get_decrypted_api_key", {
+      p_user_id: userId,
+      p_provider: "ai33",
+    });
 
-    if (!userKeyError && userKey?.encrypted_key) {
-      console.log("Using user's own API key");
-      return { apiKey: userKey.encrypted_key, isUserKey: true };
+    if (!keyError && decryptedKey) {
+      console.log("Using user's own API key (decrypted from secure storage)");
+      return { apiKey: decryptedKey, isUserKey: true };
     }
   }
 
