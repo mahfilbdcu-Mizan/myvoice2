@@ -598,9 +598,25 @@ export function TextToSpeechPanel({
           {/* Voice Selection */}
           <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <Play className="h-4 w-4 text-primary" />
-              </div>
+              {/* Play Preview Button */}
+              {provider === "minimax" && selectedMinimaxVoice?.sample_audio ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const audio = new Audio(selectedMinimaxVoice.sample_audio);
+                    audio.play().catch(err => console.error("Preview play error:", err));
+                  }}
+                >
+                  <Play className="h-4 w-4 text-primary" />
+                </Button>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Play className="h-4 w-4 text-primary" />
+                </div>
+              )}
               {provider === "elevenlabs" ? (
                 selectedVoice ? (
                   <div>
@@ -617,7 +633,9 @@ export function TextToSpeechPanel({
                 selectedMinimaxVoice ? (
                   <div>
                     <p className="font-medium">{selectedMinimaxVoice.voice_name}</p>
-                    <p className="text-sm text-muted-foreground">Minimax voice</p>
+                    <p className="text-sm text-muted-foreground">
+                      Minimax voice • {selectedMinimaxVoice.tag_list?.slice(0, 2).join(", ")}
+                    </p>
                   </div>
                 ) : (
                   <div>
@@ -633,24 +651,31 @@ export function TextToSpeechPanel({
                 {selectedVoice ? "Change Voice" : "Select Voice"}
               </Button>
             ) : (
-              <Select 
-                value={selectedMinimaxVoice?.voice_id || ""} 
-                onValueChange={(id) => {
-                  const voice = minimaxVoices.find(v => v.voice_id === id);
-                  if (voice) setSelectedMinimaxVoice(voice);
-                }}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder={loadingMinimaxVoices ? "Loading..." : "Select voice"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {minimaxVoices.map((voice) => (
-                    <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                      {voice.voice_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select 
+                  value={selectedMinimaxVoice?.voice_id || ""} 
+                  onValueChange={(id) => {
+                    const voice = minimaxVoices.find(v => v.voice_id === id);
+                    if (voice) setSelectedMinimaxVoice(voice);
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder={loadingMinimaxVoices ? "Loading..." : "Select voice"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {minimaxVoices.map((voice) => (
+                      <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                        <div className="flex items-center gap-2">
+                          {voice.cover_url && (
+                            <img src={voice.cover_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+                          )}
+                          <span>{voice.voice_name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
 

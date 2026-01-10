@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Upload, Play, Pause, Trash2, Loader2, HelpCircle, Share2 } from "lucide-react";
+import { Upload, Play, Pause, Trash2, Loader2, HelpCircle, Share2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,9 +201,60 @@ export function VoiceClonePanel({ onSelectClonedVoice }: VoiceClonePanelProps) {
     } else {
       if (audioRef.current) {
         audioRef.current.src = voice.sample_audio;
-        audioRef.current.play();
+        audioRef.current.play().catch(err => {
+          console.error("Audio play error:", err);
+          toast({
+            title: "Playback failed",
+            description: "Could not play the audio preview",
+            variant: "destructive",
+          });
+        });
         setPlayingId(voice.voice_id);
       }
+    }
+  };
+
+  const handleDownload = async (voice: VoiceClone) => {
+    if (!voice.sample_audio) {
+      toast({
+        title: "No audio available",
+        description: "This voice clone doesn't have a sample audio",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Downloading...",
+        description: "Please wait while we prepare your file.",
+      });
+
+      const response = await fetch(voice.sample_audio);
+      if (!response.ok) throw new Error("Failed to download");
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${voice.voice_name.replace(/\s+/g, "_")}_clone.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Downloaded!",
+        description: `${voice.voice_name} has been downloaded.`,
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      // Fallback: open in new tab
+      window.open(voice.sample_audio, "_blank");
+      toast({
+        title: "Download issue",
+        description: "Opening audio in new tab. Right-click to save.",
+      });
     }
   };
 
@@ -471,25 +522,38 @@ export function VoiceClonePanel({ onSelectClonedVoice }: VoiceClonePanelProps) {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Badge variant="outline" className="text-xs gap-1">
                         <Share2 className="h-3 w-3" />
                         Shared
                       </Badge>
                       
                       {clone.sample_audio && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handlePlay(clone)}
-                        >
-                          {playingId === clone.voice_id ? (
-                            <Pause className="h-4 w-4" />
-                          ) : (
-                            <Play className="h-4 w-4" />
-                          )}
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handlePlay(clone)}
+                            title="Play preview"
+                          >
+                            {playingId === clone.voice_id ? (
+                              <Pause className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleDownload(clone)}
+                            title="Download audio"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                       
                       <Button
@@ -497,6 +561,7 @@ export function VoiceClonePanel({ onSelectClonedVoice }: VoiceClonePanelProps) {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => handleDelete(clone.voice_id, clone.voice_name)}
+                        title="Delete voice"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
