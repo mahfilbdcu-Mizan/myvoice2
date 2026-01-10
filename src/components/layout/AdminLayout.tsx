@@ -11,7 +11,9 @@ import {
   LogOut,
   ArrowLeft,
   Loader2,
-  Package
+  Package,
+  Menu,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { checkIsAdmin } from "@/lib/admin-api";
 import { Badge } from "@/components/ui/badge";
+import defaultLogo from "@/assets/logo.jpeg";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -34,7 +38,9 @@ const navItems = [
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user, session, signOut, isLoading } = useAuth();
@@ -42,7 +48,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     async function checkAdmin() {
       if (user && session) {
-        // Add small delay to ensure session is fully established
         await new Promise(resolve => setTimeout(resolve, 100));
         const adminStatus = await checkIsAdmin();
         setIsAdmin(adminStatus);
@@ -55,6 +60,27 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       checkAdmin();
     }
   }, [user, session, isLoading]);
+
+  // Fetch logo
+  useEffect(() => {
+    async function fetchLogo() {
+      const { data } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "site_logo_url")
+        .maybeSingle();
+      
+      if (data?.value) {
+        setLogoUrl(data.value);
+      }
+    }
+    fetchLogo();
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -70,7 +96,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  // Only redirect to login if user is definitely not logged in (not loading and no user)
+  // Only redirect to login if user is definitely not logged in
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
@@ -86,9 +112,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <h1 className="text-2xl font-bold">Access Denied</h1>
-        <p className="text-muted-foreground">You don't have permission to access the admin panel.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-xl sm:text-2xl font-bold">Access Denied</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">You don't have permission to access the admin panel.</p>
         <Button onClick={() => navigate("/dashboard")}>
           Go to Dashboard
         </Button>
@@ -98,10 +124,38 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-surface-subtle">
-      {/* Sidebar */}
+      {/* Mobile Header */}
+      <div className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 md:hidden">
+        <div className="flex items-center gap-2">
+          <img 
+            src={logoUrl || defaultLogo} 
+            alt="Logo" 
+            className="h-8 w-8 rounded-lg object-cover"
+          />
+          <span className="text-lg font-bold tracking-tight">Admin</span>
+          <Badge variant="destructive" className="text-xs">Panel</Badge>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-accent"
+        >
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Desktop */}
       <aside 
         className={cn(
           "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-background transition-all duration-300",
+          "hidden md:flex",
           isCollapsed ? "w-20" : "w-64"
         )}
       >
@@ -215,14 +269,88 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </button>
       </aside>
 
+      {/* Mobile Sidebar */}
+      <aside 
+        className={cn(
+          "fixed left-0 top-14 z-40 flex h-[calc(100vh-3.5rem)] w-72 flex-col border-r border-border bg-background transition-transform duration-300 md:hidden",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {/* Back to Dashboard */}
+        <div className="border-b border-border p-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            onClick={() => navigate("/dashboard")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="ml-2">Back to App</span>
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <li key={item.href}>
+                  <Link
+                    to={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                      isActive 
+                        ? "bg-destructive text-destructive-foreground shadow-sm" 
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* User Section */}
+        <div className="border-t border-border p-3">
+          <div className="flex items-center gap-3 rounded-lg p-2">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="bg-destructive text-destructive-foreground">
+                A
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-sm font-medium">Admin</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {user?.email || ""}
+              </p>
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mt-2 w-full justify-start text-muted-foreground"
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="ml-2">Sign Out</span>
+          </Button>
+        </div>
+      </aside>
+
       {/* Main Content */}
       <main 
         className={cn(
           "flex-1 transition-all duration-300",
-          isCollapsed ? "ml-20" : "ml-64"
+          "mt-14 md:mt-0",
+          isCollapsed ? "md:ml-20" : "md:ml-64"
         )}
       >
-        <div className="min-h-screen p-6">
+        <div className="min-h-screen p-4 md:p-6">
           {children}
         </div>
       </main>

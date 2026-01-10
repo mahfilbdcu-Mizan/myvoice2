@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Save, Loader2, AlertCircle, CheckCircle, Shield, Key, Eye, EyeOff, Trash2, RefreshCw, MessageCircle, Send, Phone, Facebook, Youtube } from "lucide-react";
+import { Save, Loader2, AlertCircle, CheckCircle, Shield, Key, Eye, EyeOff, Trash2, RefreshCw, MessageCircle, Send, Phone, Facebook, Youtube, Image } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -587,6 +587,77 @@ export default function AdminSettings() {
                   </p>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Site Logo Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Image className="h-5 w-5 text-primary" />
+              <CardTitle>Site Logo</CardTitle>
+            </div>
+            <CardDescription>
+              Configure the logo that appears across the website and dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {settings.site_logo_url && (
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Current Logo</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      if (!confirm("Are you sure you want to remove the custom logo?")) return;
+                      updateSetting("site_logo_url", "");
+                      const { error } = await supabase
+                        .from("platform_settings")
+                        .update({ value: "" })
+                        .eq("key", "site_logo_url");
+                      if (error) {
+                        toast({
+                          title: "Error",
+                          description: "Failed to remove logo",
+                          variant: "destructive",
+                        });
+                      } else {
+                        toast({
+                          title: "Logo removed",
+                          description: "The custom logo has been removed",
+                        });
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove
+                  </Button>
+                </div>
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={settings.site_logo_url} 
+                    alt="Current Logo" 
+                    className="h-16 w-16 rounded-lg object-cover border"
+                  />
+                  <p className="text-sm text-muted-foreground break-all">
+                    {settings.site_logo_url}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label>{settings.site_logo_url ? "Update Logo URL" : "Logo URL"}</Label>
+              <Input
+                value={settings.site_logo_url || ""}
+                onChange={(e) => updateSetting("site_logo_url", e.target.value)}
+                placeholder="https://example.com/logo.png"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the URL of your logo image. Recommended size: 200x200px or similar square ratio.
+              </p>
             </div>
           </CardContent>
         </Card>
