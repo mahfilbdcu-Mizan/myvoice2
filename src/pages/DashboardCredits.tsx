@@ -23,8 +23,6 @@ interface Package {
   features: string[] | null;
 }
 
-// Binance wallet info - can be moved to platform_settings later
-const BINANCE_ADDRESS = "TRx1234567890ABCDEFGHIJKLMNOPQRSTuvwxyz";
 const PAYMENT_NETWORK = "TRC20 (USDT)";
 
 export default function DashboardCredits() {
@@ -36,23 +34,37 @@ export default function DashboardCredits() {
   const [txid, setTxid] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string>("");
 
   useEffect(() => {
-    const fetchPackages = async () => {
-      const { data, error } = await supabase
+    const fetchData = async () => {
+      // Fetch packages
+      const { data: pkgData } = await supabase
         .from("packages")
         .select("*")
         .eq("is_active", true)
         .order("sort_order");
       
-      if (data) setPackages(data);
+      if (pkgData) setPackages(pkgData);
+
+      // Fetch wallet address from platform_settings
+      const { data: settingsData } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "usdt_wallet_trc20")
+        .single();
+      
+      if (settingsData?.value) {
+        setWalletAddress(settingsData.value);
+      }
+
       setLoadingPackages(false);
     };
-    fetchPackages();
+    fetchData();
   }, []);
 
   const handleCopyAddress = async () => {
-    await navigator.clipboard.writeText(BINANCE_ADDRESS);
+    await navigator.clipboard.writeText(walletAddress);
     setCopied(true);
     toast({ title: "Address copied!" });
     setTimeout(() => setCopied(false), 2000);
@@ -78,7 +90,7 @@ export default function DashboardCredits() {
       amount_usdt: selectedPackage.offer_price,
       txid: txid.trim(),
       network: PAYMENT_NETWORK,
-      wallet_address: BINANCE_ADDRESS,
+      wallet_address: walletAddress,
       status: "pending",
     });
 
@@ -188,7 +200,7 @@ export default function DashboardCredits() {
                   <Label>Wallet Address</Label>
                   <div className="flex gap-2">
                     <div className="flex-1 rounded-lg bg-muted p-3 font-mono text-xs break-all">
-                      {BINANCE_ADDRESS}
+                      {walletAddress || "Wallet address not configured"}
                     </div>
                     <Button
                       variant="outline"

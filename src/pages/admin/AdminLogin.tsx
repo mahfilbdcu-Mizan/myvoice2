@@ -1,11 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Mail, KeyRound, ArrowLeft } from "lucide-react";
+import { Loader2, Mail, KeyRound, ArrowLeft, Lock, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.jpeg";
@@ -13,14 +13,24 @@ import logo from "@/assets/logo.jpeg";
 export default function AdminLogin() {
   const { isLoading, signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [resetStep, setResetStep] = useState<"email" | "code" | "password">("email");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetStep, setResetStep] = useState<"email" | "sent" | "newPassword" | "success">("email");
+
+  // Check if user came from password reset email link
+  useEffect(() => {
+    const isReset = searchParams.get("reset") === "true";
+    if (isReset) {
+      setShowForgotPassword(true);
+      setResetStep("newPassword");
+    }
+  }, [searchParams]);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +76,7 @@ export default function AdminLogin() {
     }
   };
 
-  const handleSendResetCode = async () => {
+  const handleSendResetEmail = async () => {
     if (!resetEmail) {
       toast({
         title: "Email required",
@@ -91,17 +101,26 @@ export default function AdminLogin() {
     } else {
       toast({
         title: "Reset email sent",
-        description: "Check your email for the password reset link",
+        description: "Check your Gmail for the password reset link",
       });
-      setResetStep("code");
+      setResetStep("sent");
     }
   };
 
-  const handleUpdatePassword = async () => {
+  const handleSetNewPassword = async () => {
     if (!newPassword || newPassword.length < 6) {
       toast({
         title: "Password too short",
         description: "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure both passwords are the same",
         variant: "destructive",
       });
       return;
@@ -118,12 +137,13 @@ export default function AdminLogin() {
         variant: "destructive",
       });
     } else {
+      setResetStep("success");
+      // Sign out so they can login with new password
+      await supabase.auth.signOut();
       toast({
-        title: "Password updated",
+        title: "Password updated!",
         description: "You can now sign in with your new password",
       });
-      setShowForgotPassword(false);
-      setResetStep("email");
     }
   };
 
@@ -160,19 +180,30 @@ export default function AdminLogin() {
           <CardContent className="space-y-6">
             {showForgotPassword ? (
               <div className="space-y-4">
-                <button
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setResetStep("email");
-                  }}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to login
-                </button>
+                {resetStep !== "success" && resetStep !== "newPassword" && (
+                  <button
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setResetStep("email");
+                    }}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to login
+                  </button>
+                )}
 
+                {/* Step 1: Enter Email */}
                 {resetStep === "email" && (
                   <>
+                    <div className="text-center mb-4">
+                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                        <Mail className="h-6 w-6 text-primary" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Enter your email address and we'll send you a password reset link
+                      </p>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="reset-email">Email Address</Label>
                       <Input
@@ -185,7 +216,7 @@ export default function AdminLogin() {
                       />
                     </div>
                     <Button
-                      onClick={handleSendResetCode}
+                      onClick={handleSendResetEmail}
                       className="w-full"
                       disabled={isSubmitting}
                     >
@@ -194,27 +225,119 @@ export default function AdminLogin() {
                       ) : (
                         <Mail className="mr-2 h-4 w-4" />
                       )}
-                      Send Reset Link
+                      Send Reset Link to Gmail
                     </Button>
                   </>
                 )}
 
-                {resetStep === "code" && (
+                {/* Step 2: Email Sent */}
+                {resetStep === "sent" && (
                   <>
-                    <div className="rounded-lg bg-muted/50 p-4 text-center">
-                      <p className="text-sm">
-                        A password reset link has been sent to your email. Click the link to reset your password.
+                    <div className="text-center">
+                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+                        <Mail className="h-6 w-6 text-green-500" />
+                      </div>
+                      <h3 className="font-semibold mb-2">Check your Gmail!</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        We've sent a password reset link to <strong>{resetEmail}</strong>. 
+                        Click the link in the email to set a new password.
                       </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-2">
+                      <p>• Check your inbox and spam folder</p>
+                      <p>• Click the reset link in the email</p>
+                      <p>• You'll be redirected here to set new password</p>
                     </div>
                     <Button
                       variant="outline"
                       onClick={() => {
                         setShowForgotPassword(false);
                         setResetStep("email");
+                        setResetEmail("");
                       }}
                       className="w-full"
                     >
                       Back to Login
+                    </Button>
+                  </>
+                )}
+
+                {/* Step 3: Set New Password */}
+                {resetStep === "newPassword" && (
+                  <>
+                    <div className="text-center mb-4">
+                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                        <Lock className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="font-semibold">Set New Password</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Enter your new password below
+                      </p>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <Input
+                          id="new-password"
+                          type="password"
+                          placeholder="Enter new password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirm Password</Label>
+                        <Input
+                          id="confirm-password"
+                          type="password"
+                          placeholder="Confirm new password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleSetNewPassword}
+                      className="w-full"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Lock className="mr-2 h-4 w-4" />
+                      )}
+                      Set New Password
+                    </Button>
+                  </>
+                )}
+
+                {/* Step 4: Success */}
+                {resetStep === "success" && (
+                  <>
+                    <div className="text-center">
+                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+                        <CheckCircle className="h-6 w-6 text-green-500" />
+                      </div>
+                      <h3 className="font-semibold mb-2">Password Updated!</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Your password has been successfully changed. 
+                        You can now login with your new password.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setResetStep("email");
+                        setNewPassword("");
+                        setConfirmPassword("");
+                        navigate("/admin/login", { replace: true });
+                      }}
+                      className="w-full"
+                    >
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Login with New Password
                     </Button>
                   </>
                 )}
