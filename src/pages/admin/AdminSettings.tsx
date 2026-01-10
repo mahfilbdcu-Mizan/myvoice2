@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { Save, Loader2, AlertCircle, CheckCircle, Shield, Key, Eye, EyeOff, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -359,18 +360,72 @@ export default function AdminSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>USDT Wallet Address (TRC20)</Label>
-                <Input
-                  value={settings.usdt_wallet_trc20 || ""}
-                  onChange={(e) => updateSetting("usdt_wallet_trc20", e.target.value)}
-                  placeholder="Enter your TRC20 wallet address"
-                />
+            {/* Current Wallet Display */}
+            {settings.usdt_wallet_trc20 && (
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="font-medium">Active Wallet</span>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      if (!confirm("Are you sure you want to delete this wallet address?")) return;
+                      updateSetting("usdt_wallet_trc20", "");
+                      const { error } = await supabase
+                        .from("platform_settings")
+                        .update({ value: "" })
+                        .eq("key", "usdt_wallet_trc20");
+                      if (error) {
+                        toast({
+                          title: "Error",
+                          description: "Failed to delete wallet",
+                          variant: "destructive",
+                        });
+                      } else {
+                        toast({
+                          title: "Wallet deleted",
+                          description: "USDT wallet has been removed",
+                        });
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
+                <div className="rounded bg-muted px-3 py-2 font-mono text-sm break-all">
+                  {settings.usdt_wallet_trc20}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Network:</span>
+                  <Badge variant="outline">TRC20</Badge>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Network</Label>
-                <Input value="TRC20" disabled />
+            )}
+            
+            {/* Add/Update Wallet */}
+            <div className="space-y-3">
+              <Label>{settings.usdt_wallet_trc20 ? "Update Wallet Address" : "Add Wallet Address"}</Label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Input
+                    value={settings.usdt_wallet_trc20 || ""}
+                    onChange={(e) => updateSetting("usdt_wallet_trc20", e.target.value)}
+                    placeholder="Enter your TRC20 wallet address"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This address will be shown to users for USDT payments
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Input value="TRC20" disabled />
+                  <p className="text-xs text-muted-foreground">
+                    Only TRC20 network is supported
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>
