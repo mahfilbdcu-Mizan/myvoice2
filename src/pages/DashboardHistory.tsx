@@ -5,6 +5,7 @@ import { BlockedUserGuard } from "@/components/BlockedUserGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -366,6 +367,22 @@ export default function DashboardHistory() {
                         {task.input_text.slice(0, 200)}
                         {task.input_text.length > 200 ? "..." : ""}
                       </p>
+                      
+                      {/* Progress Bar for Processing Tasks */}
+                      {(task.status === "processing" || task.status === "pending") && (
+                        <div className="mb-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-muted-foreground">
+                              {task.status === "pending" ? "Waiting..." : "Generating..."}
+                            </span>
+                            <span className="text-xs font-medium text-primary">
+                              {task.progress || 0}%
+                            </span>
+                          </div>
+                          <Progress value={task.progress || 0} className="h-2" />
+                        </div>
+                      )}
+                      
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span>{task.words_count} words</span>
                         <span>{task.model || "Default model"}</span>

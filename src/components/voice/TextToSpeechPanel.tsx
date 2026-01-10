@@ -36,6 +36,7 @@ import { generateSpeech, waitForTask, fetchModelsFromAPI, type VoiceModel } from
 import { generateMinimaxSpeech, fetchMinimaxVoices, type MinimaxVoice, type VoiceClone } from "@/lib/minimax-api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTTSSettings } from "@/hooks/useTTSSettings";
 import { MinimaxVoiceLibrary } from "./MinimaxVoiceLibrary";
 
 interface TextToSpeechPanelProps {
@@ -83,6 +84,10 @@ export function TextToSpeechPanel({
   onOpenVoiceLibrary 
 }: TextToSpeechPanelProps) {
   const { user, profile, refreshProfile } = useAuth();
+  
+  // Use TTS settings hook for persistence
+  const ttsSettings = useTTSSettings(user?.id);
+  
   const [provider, setProvider] = useState<TTSProvider>("elevenlabs");
   const [text, setText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -118,6 +123,9 @@ export function TextToSpeechPanel({
   const [selectedMinimaxVoice, setSelectedMinimaxVoice] = useState<MinimaxVoice | VoiceClone | null>(null);
   const [loadingMinimaxVoices, setLoadingMinimaxVoices] = useState(false);
   const [showMinimaxVoiceLibrary, setShowMinimaxVoiceLibrary] = useState(false);
+  
+  // Track if we've loaded saved voice
+  const [savedVoiceLoaded, setSavedVoiceLoaded] = useState(false);
 
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -125,6 +133,116 @@ export function TextToSpeechPanel({
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
+
+  // Load saved settings when ready
+  useEffect(() => {
+    if (ttsSettings.isLoaded && !savedVoiceLoaded) {
+      const s = ttsSettings.settings;
+      setProvider(s.provider);
+      setText(s.text);
+      setModel(s.elevenLabsModel);
+      setLanguage(s.language);
+      setSpeed([s.speed]);
+      setStability([s.stability]);
+      setSimilarity([s.similarity]);
+      setStyle([s.style]);
+      setSpeakerBoost(s.speakerBoost);
+      setMinimaxModel(s.minimaxModel);
+      setMinimaxLanguage(s.minimaxLanguage);
+      setMinimaxVol([s.minimaxVol]);
+      setMinimaxPitch([s.minimaxPitch]);
+      setMinimaxSpeed([s.minimaxSpeed]);
+      if (s.minimaxVoice) {
+        setSelectedMinimaxVoice(s.minimaxVoice as MinimaxVoice);
+      }
+      setSavedVoiceLoaded(true);
+    }
+  }, [ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  // Save settings when they change
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateProvider(provider);
+  }, [provider, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateText(text);
+  }, [text, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateElevenLabsModel(model);
+  }, [model, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateLanguage(language);
+  }, [language, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateSpeed(speed[0]);
+  }, [speed, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateStability(stability[0]);
+  }, [stability, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateSimilarity(similarity[0]);
+  }, [similarity, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateStyle(style[0]);
+  }, [style, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateSpeakerBoost(speakerBoost);
+  }, [speakerBoost, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateMinimaxModel(minimaxModel);
+  }, [minimaxModel, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateMinimaxLanguage(minimaxLanguage);
+  }, [minimaxLanguage, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateMinimaxVol(minimaxVol[0]);
+  }, [minimaxVol, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateMinimaxPitch(minimaxPitch[0]);
+  }, [minimaxPitch, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateMinimaxSpeed(minimaxSpeed[0]);
+  }, [minimaxSpeed, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded || !selectedMinimaxVoice) return;
+    ttsSettings.updateMinimaxVoice({
+      voice_id: selectedMinimaxVoice.voice_id,
+      voice_name: selectedMinimaxVoice.voice_name,
+    });
+  }, [selectedMinimaxVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  // Save ElevenLabs voice when it changes from parent
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded || !selectedVoice) return;
+    ttsSettings.updateElevenLabsVoice(selectedVoice);
+  }, [selectedVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
 
   // Fetch ElevenLabs models on mount
   useEffect(() => {

@@ -12,11 +12,31 @@ interface SelectedVoice {
   name: string;
 }
 
+const VOICE_STORAGE_KEY = "tts_settings";
+
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
   const [selectedVoice, setSelectedVoice] = useState<SelectedVoice | null>(null);
   const [showVoiceLibrary, setShowVoiceLibrary] = useState(false);
+
+  // Load saved voice from localStorage on mount
+  useEffect(() => {
+    if (user) {
+      try {
+        const storageKey = `${VOICE_STORAGE_KEY}_${user.id}`;
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.elevenLabsVoice && !location.state?.selectedVoice) {
+            setSelectedVoice(parsed.elevenLabsVoice);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load saved voice:", error);
+      }
+    }
+  }, [user]);
 
   // Check for voice passed from Voice Library page
   useEffect(() => {
