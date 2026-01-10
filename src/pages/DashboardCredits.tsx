@@ -258,35 +258,35 @@ export default function DashboardCredits() {
       <div className="space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold">Buy Credits</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold">Buy Credits</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Purchase credits to generate more speech. 1 credit = 1 character.
           </p>
         </div>
 
         {/* Current Balance */}
         <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="flex items-center justify-between py-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Zap className="h-6 w-6 text-primary" />
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 sm:py-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-primary/10">
+                <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Current Balance</p>
-                <p className="text-3xl font-bold">{(profile?.credits ?? 0).toLocaleString()}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Current Balance</p>
+                <p className="text-2xl sm:text-3xl font-bold">{(profile?.credits ?? 0).toLocaleString()}</p>
               </div>
             </div>
-            <Badge variant="secondary" className="text-sm">
+            <Badge variant="secondary" className="text-xs sm:text-sm">
               Credits never expire
             </Badge>
           </CardContent>
         </Card>
 
         {/* Pricing Cards */}
-        <div className={`grid gap-6 ${
-          packages.length === 3 ? 'md:grid-cols-3' : 
+        <div className={`grid gap-4 sm:gap-6 ${
+          packages.length === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 
           packages.length === 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' :
-          packages.length >= 5 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3'
+          packages.length >= 5 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-3'
         }`}>
           {packages.map((pkg) => (
             <Card 

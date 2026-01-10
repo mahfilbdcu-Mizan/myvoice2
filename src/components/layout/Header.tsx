@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Zap } from "lucide-react";
-import logo from "@/assets/logo.jpeg";
+import defaultLogo from "@/assets/logo.jpeg";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -11,14 +12,30 @@ interface HeaderProps {
 
 export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchLogo() {
+      const { data } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "site_logo_url")
+        .maybeSingle();
+      
+      if (data?.value) {
+        setLogoUrl(data.value);
+      }
+    }
+    fetchLogo();
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6 lg:gap-8">
           <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="BD YT Automation" className="h-9 w-9 rounded-xl object-cover shadow-lg" />
-            <span className="text-xl font-bold tracking-tight">BD YT Automation</span>
+            <img src={logoUrl || defaultLogo} alt="BD YT Automation" className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover shadow-lg" />
+            <span className="text-lg sm:text-xl font-bold tracking-tight">BD YT Automation</span>
           </Link>
           
           <nav className="hidden items-center gap-6 md:flex">
