@@ -14,6 +14,7 @@ import DashboardHistory from "./pages/DashboardHistory";
 import DashboardSTT from "./pages/DashboardSTT";
 import DashboardDubbing from "./pages/DashboardDubbing";
 import DashboardSettings from "./pages/DashboardSettings";
+import DashboardVoiceClone from "./pages/DashboardVoiceClone";
 import Pricing from "./pages/Pricing";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/voices" element={<DashboardVoices />} />
+            <Route path="/dashboard/voice-clone" element={<DashboardVoiceClone />} />
             <Route path="/dashboard/credits" element={<DashboardCredits />} />
             <Route path="/dashboard/api-key" element={<DashboardApiKey />} />
             <Route path="/dashboard/history" element={<DashboardHistory />} />
