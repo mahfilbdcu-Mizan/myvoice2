@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Save, Loader2, AlertCircle, CheckCircle, Shield, Key, Eye, EyeOff, Trash2, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Save, Loader2, AlertCircle, CheckCircle, Shield, Key, Eye, EyeOff, Trash2, RefreshCw, MessageCircle, Send, Phone, Facebook, Youtube } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -32,6 +33,9 @@ export default function AdminSettings() {
   const [apiKeyStatus, setApiKeyStatus] = useState<"unknown" | "valid" | "invalid">("unknown");
   const [currentApiKey, setCurrentApiKey] = useState<string | null>(null);
 
+  // Chatbot states
+  const [chatbotEnabled, setChatbotEnabled] = useState(true);
+
   // Fetch settings on mount
   useEffect(() => {
     fetchSettings();
@@ -49,11 +53,12 @@ export default function AdminSettings() {
       const settingsMap: Record<string, string> = {};
       (data as PlatformSetting[])?.forEach((setting) => {
         if (setting.key === "ai33_api_key") {
-          // Store masked version of API key if exists
           if (setting.value) {
             setCurrentApiKey(setting.value);
             setApiKeyStatus("valid");
           }
+        } else if (setting.key === "chatbot_enabled") {
+          setChatbotEnabled(setting.value === "true");
         } else {
           settingsMap[setting.key] = setting.value || "";
         }
@@ -81,11 +86,15 @@ export default function AdminSettings() {
       for (const [key, value] of Object.entries(settings)) {
         const { error } = await supabase
           .from("platform_settings")
-          .update({ value })
-          .eq("key", key);
+          .upsert({ key, value }, { onConflict: "key" });
 
         if (error) throw error;
       }
+
+      // Update chatbot enabled
+      await supabase
+        .from("platform_settings")
+        .upsert({ key: "chatbot_enabled", value: chatbotEnabled ? "true" : "false" }, { onConflict: "key" });
 
       toast({
         title: "Settings saved",
@@ -119,11 +128,9 @@ export default function AdminSettings() {
 
     setIsApiKeySaving(true);
     try {
-      // Save to platform_settings table
       const { error } = await supabase
         .from("platform_settings")
-        .update({ value: apiKey })
-        .eq("key", "ai33_api_key");
+        .upsert({ key: "ai33_api_key", value: apiKey }, { onConflict: "key" });
 
       if (error) throw error;
 
@@ -133,7 +140,7 @@ export default function AdminSettings() {
       
       toast({
         title: "API Key saved",
-        description: "Your API key has been saved successfully. Note: For production use, also update the Cloud secret.",
+        description: "Your API key has been saved successfully.",
       });
     } catch (error) {
       console.error("Error saving API key:", error);
@@ -151,7 +158,6 @@ export default function AdminSettings() {
     
     setIsApiKeyChecking(true);
     try {
-      // Call check-api-balance function to verify key
       const { data, error } = await supabase.functions.invoke("check-api-balance", {
         body: { apiKey: currentApiKey },
       });
@@ -230,7 +236,7 @@ export default function AdminSettings() {
         <div>
           <h1 className="text-3xl font-bold">Platform Settings</h1>
           <p className="text-muted-foreground">
-            Configure your platform settings and pricing
+            Configure your platform settings, contact links, and chatbot
           </p>
         </div>
 
@@ -246,7 +252,6 @@ export default function AdminSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Current API Key Status */}
             {currentApiKey ? (
               <div className="rounded-lg border p-4 space-y-4">
                 <div className="flex items-center justify-between">
@@ -309,7 +314,6 @@ export default function AdminSettings() {
               </Alert>
             )}
 
-            {/* Add/Update API Key */}
             <div className="space-y-2">
               <Label>{currentApiKey ? "Update API Key" : "Add API Key"}</Label>
               <div className="flex gap-2">
@@ -332,20 +336,178 @@ export default function AdminSettings() {
                   {currentApiKey ? "Update" : "Save"}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Get your API key from AI33.pro dashboard
-              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Contact Links Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              <CardTitle>Contact Page Links</CardTitle>
+            </div>
+            <CardDescription>
+              Manage the contact links displayed on the Contact page
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Telegram Channel */}
+            <div className="grid gap-4 sm:grid-cols-2 p-4 border rounded-lg">
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <Send className="h-5 w-5 text-[hsl(200,90%,50%)]" />
+                <span className="font-medium">Telegram Channel</span>
+              </div>
+              <div className="space-y-2">
+                <Label>Display Name</Label>
+                <Input
+                  value={settings.contact_telegram_channel_name || ""}
+                  onChange={(e) => updateSetting("contact_telegram_channel_name", e.target.value)}
+                  placeholder="@BDYTAUTOMATION"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Link URL</Label>
+                <Input
+                  value={settings.contact_telegram_channel || ""}
+                  onChange={(e) => updateSetting("contact_telegram_channel", e.target.value)}
+                  placeholder="https://t.me/BDYTAUTOMATION"
+                />
+              </div>
             </div>
 
-            {/* Cloud Secret Notice */}
-            <div className="rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-4">
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
-                <Shield className="h-5 w-5" />
-                <span className="font-medium">Cloud Secret</span>
+            {/* Telegram Support */}
+            <div className="grid gap-4 sm:grid-cols-2 p-4 border rounded-lg">
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <MessageCircle className="h-5 w-5 text-[hsl(200,90%,50%)]" />
+                <span className="font-medium">Telegram Support</span>
               </div>
-              <p className="mt-2 text-sm text-blue-600 dark:text-blue-500">
-                For production, the AI33_API_KEY is also stored in Cloud secrets for secure backend usage.
-                This database setting is used as a fallback.
+              <div className="space-y-2">
+                <Label>Display Name</Label>
+                <Input
+                  value={settings.contact_telegram_support_name || ""}
+                  onChange={(e) => updateSetting("contact_telegram_support_name", e.target.value)}
+                  placeholder="@BDTYAUTOMATIONSupport"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Link URL</Label>
+                <Input
+                  value={settings.contact_telegram_support || ""}
+                  onChange={(e) => updateSetting("contact_telegram_support", e.target.value)}
+                  placeholder="https://t.me/BDTYAUTOMATIONSupport"
+                />
+              </div>
+            </div>
+
+            {/* WhatsApp */}
+            <div className="grid gap-4 sm:grid-cols-2 p-4 border rounded-lg">
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <Phone className="h-5 w-5 text-[hsl(140,70%,45%)]" />
+                <span className="font-medium">WhatsApp</span>
+              </div>
+              <div className="space-y-2">
+                <Label>Display Number</Label>
+                <Input
+                  value={settings.contact_whatsapp_number || ""}
+                  onChange={(e) => updateSetting("contact_whatsapp_number", e.target.value)}
+                  placeholder="+8801757433586"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Link URL</Label>
+                <Input
+                  value={settings.contact_whatsapp || ""}
+                  onChange={(e) => updateSetting("contact_whatsapp", e.target.value)}
+                  placeholder="https://wa.me/8801757433586"
+                />
+              </div>
+            </div>
+
+            {/* Facebook */}
+            <div className="grid gap-4 sm:grid-cols-2 p-4 border rounded-lg">
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <Facebook className="h-5 w-5 text-[hsl(220,90%,55%)]" />
+                <span className="font-medium">Facebook</span>
+              </div>
+              <div className="space-y-2">
+                <Label>Display Name</Label>
+                <Input
+                  value={settings.contact_facebook_name || ""}
+                  onChange={(e) => updateSetting("contact_facebook_name", e.target.value)}
+                  placeholder="Abdus Samad"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Link URL</Label>
+                <Input
+                  value={settings.contact_facebook || ""}
+                  onChange={(e) => updateSetting("contact_facebook", e.target.value)}
+                  placeholder="https://www.facebook.com/AbdusSamad2979/"
+                />
+              </div>
+            </div>
+
+            {/* YouTube */}
+            <div className="grid gap-4 sm:grid-cols-2 p-4 border rounded-lg">
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <Youtube className="h-5 w-5 text-[hsl(0,85%,55%)]" />
+                <span className="font-medium">YouTube Channel</span>
+              </div>
+              <div className="space-y-2">
+                <Label>Display Name</Label>
+                <Input
+                  value={settings.contact_youtube_name || ""}
+                  onChange={(e) => updateSetting("contact_youtube_name", e.target.value)}
+                  placeholder="@BDTYAUTOMATION"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Link URL</Label>
+                <Input
+                  value={settings.contact_youtube || ""}
+                  onChange={(e) => updateSetting("contact_youtube", e.target.value)}
+                  placeholder="https://www.youtube.com/@BDTYAUTOMATION/videos"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Chatbot Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              <CardTitle>Chatbot Widget</CardTitle>
+            </div>
+            <CardDescription>
+              Configure the floating chatbot widget that redirects to Telegram
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium">Enable Chatbot</Label>
+                <p className="text-sm text-muted-foreground">
+                  Show floating chat button on all pages
+                </p>
+              </div>
+              <Switch
+                checked={chatbotEnabled}
+                onCheckedChange={setChatbotEnabled}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Telegram Redirect Link</Label>
+              <Input
+                value={settings.chatbot_telegram_link || ""}
+                onChange={(e) => updateSetting("chatbot_telegram_link", e.target.value)}
+                placeholder="https://t.me/BDTYAUTOMATIONSupport"
+              />
+              <p className="text-xs text-muted-foreground">
+                When users click the chat button, they will be redirected to this Telegram link
               </p>
             </div>
           </CardContent>
@@ -360,7 +522,6 @@ export default function AdminSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Current Wallet Display */}
             {settings.usdt_wallet_trc20 && (
               <div className="rounded-lg border p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -406,7 +567,6 @@ export default function AdminSettings() {
               </div>
             )}
             
-            {/* Add/Update Wallet */}
             <div className="space-y-3">
               <Label>{settings.usdt_wallet_trc20 ? "Update Wallet Address" : "Add Wallet Address"}</Label>
               <div className="grid gap-4 md:grid-cols-2">
@@ -425,60 +585,6 @@ export default function AdminSettings() {
                   <p className="text-xs text-muted-foreground">
                     Only TRC20 network is supported
                   </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pricing Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Credit Pricing</CardTitle>
-            <CardDescription>
-              Set the pricing for credit packages
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="space-y-4 rounded-lg border p-4">
-                <h4 className="font-semibold">Starter Package</h4>
-                <div className="space-y-2">
-                  <Label>Credits</Label>
-                  <Input type="number" defaultValue="1000000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Price (USDT)</Label>
-                  <Input type="number" defaultValue="25" />
-                </div>
-              </div>
-
-              <div className="space-y-4 rounded-lg border border-primary p-4">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold">Popular Package</h4>
-                  <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-                    Popular
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <Label>Credits</Label>
-                  <Input type="number" defaultValue="5000000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Price (USDT)</Label>
-                  <Input type="number" defaultValue="110" />
-                </div>
-              </div>
-
-              <div className="space-y-4 rounded-lg border p-4">
-                <h4 className="font-semibold">Pro Package</h4>
-                <div className="space-y-2">
-                  <Label>Credits</Label>
-                  <Input type="number" defaultValue="10000000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Price (USDT)</Label>
-                  <Input type="number" defaultValue="200" />
                 </div>
               </div>
             </div>
@@ -516,7 +622,7 @@ export default function AdminSettings() {
                 onChange={(e) => updateSetting("free_credits_signup", e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Number of free words new users get on signup
+                Number of free credits new users get on signup
               </p>
             </div>
           </CardContent>
@@ -525,7 +631,7 @@ export default function AdminSettings() {
         <Separator />
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving} size="lg">
             {isSaving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
