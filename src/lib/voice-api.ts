@@ -305,8 +305,14 @@ export async function getTaskStatus(taskId: string, userId?: string): Promise<Ta
   }
 }
 
-// Poll until task is complete
-export async function waitForTask(taskId: string, userId?: string, maxAttempts = 60, intervalMs = 2000): Promise<TaskResult | null> {
+// Poll until task is complete with progress callback
+export async function waitForTask(
+  taskId: string, 
+  userId?: string, 
+  maxAttempts = 60, 
+  intervalMs = 2000,
+  onProgress?: (progress: number, status: string) => void
+): Promise<TaskResult | null> {
   for (let i = 0; i < maxAttempts; i++) {
     const task = await getTaskStatus(taskId, userId);
     
@@ -314,8 +320,14 @@ export async function waitForTask(taskId: string, userId?: string, maxAttempts =
     
     if (!task) return null;
     
+    // Report progress
+    if (onProgress && task.progress !== undefined) {
+      onProgress(task.progress, task.status);
+    }
+    
     // API returns "done" for success and "error" for failure
     if (task.status === "done") {
+      if (onProgress) onProgress(100, "done");
       return task;
     }
     

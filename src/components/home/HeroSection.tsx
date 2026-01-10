@@ -31,7 +31,7 @@ export function HeroSection() {
           {/* Description */}
           <p className="animate-slide-up delay-100 mx-auto mt-6 sm:mt-8 max-w-2xl text-base sm:text-lg lg:text-xl text-muted-foreground leading-relaxed px-4">
             Create lifelike voiceovers, podcasts, and audio content with our 
-            state-of-the-art AI voice generation platform. <span className="font-semibold text-primary">100+ premium voices</span> in <span className="font-semibold text-accent">29 languages</span>.
+            state-of-the-art AI voice generation platform. <span className="font-semibold text-primary">10000+ premium voices</span> in <span className="font-semibold text-accent">29 languages</span>.
           </p>
           
           {/* CTA Buttons */}
