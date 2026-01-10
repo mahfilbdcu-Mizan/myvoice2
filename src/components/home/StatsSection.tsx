@@ -1,17 +1,15 @@
-import { Headphones, Mic, Globe, Shield } from "lucide-react";
+import { Headphones, Mic } from "lucide-react";
 
 const stats = [
-  { value: "1M+", label: "Audio Minutes", icon: Headphones },
-  { value: "100+", label: "Premium Voices", icon: Mic },
-  { value: "29", label: "Languages", icon: Globe },
-  { value: "99.9%", label: "Uptime", icon: Shield },
+  { value: "10M+", label: "Audio Minutes", icon: Headphones },
+  { value: "10000+", label: "Premium Voices", icon: Mic },
 ];
 
 export function StatsSection() {
   return (
     <section className="border-b border-border/50 bg-gradient-to-b from-primary/5 via-accent/3 to-transparent py-12 sm:py-16 lg:py-20">
       <div className="container px-4 sm:px-6">
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:gap-8 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-w-2xl mx-auto">
           {stats.map((stat, index) => (
             <div 
               key={index} 
