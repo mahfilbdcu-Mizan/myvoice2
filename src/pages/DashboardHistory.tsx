@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Download, Play, Pause, Clock, CheckCircle, AlertCircle, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { BlockedUserGuard } from "@/components/BlockedUserGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -283,7 +284,8 @@ export default function DashboardHistory() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <BlockedUserGuard featureName="Generation History">
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -415,7 +417,8 @@ export default function DashboardHistory() {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      </BlockedUserGuard>
     </DashboardLayout>
   );
 }

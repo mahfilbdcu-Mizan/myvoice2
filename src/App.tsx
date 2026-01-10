@@ -18,6 +18,7 @@ import DashboardVoiceClone from "./pages/DashboardVoiceClone";
 import Pricing from "./pages/Pricing";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminUserDashboard from "./pages/admin/AdminUserDashboard";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminPackages from "./pages/admin/AdminPackages";
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/user-dashboard/:userId" element={<AdminUserDashboard />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/packages" element={<AdminPackages />} />

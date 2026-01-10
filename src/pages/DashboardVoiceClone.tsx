@@ -1,5 +1,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { VoiceClonePanel } from "@/components/voice/VoiceClonePanel";
+import { BlockedUserGuard } from "@/components/BlockedUserGuard";
+import { FreeCreditsOnlyGuard } from "@/components/FreeCreditsOnlyGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -21,7 +23,11 @@ export default function DashboardVoiceClone() {
 
   return (
     <DashboardLayout>
-      <VoiceClonePanel />
+      <BlockedUserGuard featureName="Voice Clone">
+        <FreeCreditsOnlyGuard featureName="Voice Clone">
+          <VoiceClonePanel />
+        </FreeCreditsOnlyGuard>
+      </BlockedUserGuard>
     </DashboardLayout>
   );
 }
