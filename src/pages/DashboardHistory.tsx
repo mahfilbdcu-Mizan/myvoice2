@@ -222,6 +222,16 @@ export default function DashboardHistory() {
   };
 
   const handleDelete = async (taskId: string) => {
+    // Optimistic UI update - remove immediately from UI
+    const previousTasks = tasks;
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    
+    // Stop audio if playing this task
+    if (playingId === taskId && audioElement) {
+      audioElement.pause();
+      setPlayingId(null);
+    }
+    
     try {
       const { error } = await supabase
         .from("generation_tasks")
@@ -235,6 +245,8 @@ export default function DashboardHistory() {
         description: "Task removed from history",
       });
     } catch (error) {
+      // Revert on error
+      setTasks(previousTasks);
       toast({
         title: "Delete failed",
         description: "Could not delete the task",
