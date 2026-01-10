@@ -132,6 +132,14 @@ export default function DashboardHistory() {
     setPlayingId(task.id);
   };
 
+  const getFirstLine = (text: string): string => {
+    // Get first line or first 50 characters, clean for filename
+    const firstLine = text.split(/[\n\r]/)[0].trim();
+    const truncated = firstLine.length > 50 ? firstLine.slice(0, 50) : firstLine;
+    // Remove invalid filename characters
+    return truncated.replace(/[<>:"/\\|?*]/g, '').trim() || 'voice';
+  };
+
   const handleDownload = async (task: GenerationTask) => {
     if (!task.audio_url) return;
 
@@ -141,7 +149,9 @@ export default function DashboardHistory() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${task.voice_name || 'voice'}-${task.id.slice(0, 8)}.mp3`;
+      // Use first line of text as filename
+      const fileName = getFirstLine(task.input_text);
+      a.download = `${fileName}.mp3`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -354,7 +364,7 @@ export default function DashboardHistory() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium truncate">
-                          {task.voice_name || task.voice_id}
+                          {getFirstLine(task.input_text)}
                         </span>
                         {getStatusBadge(task)}
                         {task.expires_at && task.status === "done" && !isExpired(task.expires_at) && (
@@ -363,6 +373,9 @@ export default function DashboardHistory() {
                           </span>
                         )}
                       </div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Voice: {task.voice_name || task.voice_id}
+                      </p>
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                         {task.input_text.slice(0, 200)}
                         {task.input_text.length > 200 ? "..." : ""}

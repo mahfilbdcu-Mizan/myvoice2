@@ -79,8 +79,8 @@ async function getApiKey(userId?: string): Promise<string | null> {
   }
 }
 
-// Update local task with audio URL when done
-async function updateLocalTask(externalTaskId: string, audioUrl: string, status: string) {
+// Update local task with progress, audio URL when done
+async function updateLocalTask(externalTaskId: string, updates: { audioUrl?: string; status?: string; progress?: number }) {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -89,16 +89,29 @@ async function updateLocalTask(externalTaskId: string, audioUrl: string, status:
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    await supabase
-      .from("generation_tasks")
-      .update({ 
-        audio_url: audioUrl,
-        status: status,
-        completed_at: status === "done" ? new Date().toISOString() : null,
-      })
-      .eq("external_task_id", externalTaskId);
-      
-    console.log(`Updated local task for external ID ${externalTaskId}`);
+    const updateData: Record<string, unknown> = {};
+    
+    if (updates.audioUrl) {
+      updateData.audio_url = updates.audioUrl;
+    }
+    if (updates.status) {
+      updateData.status = updates.status;
+      if (updates.status === "done") {
+        updateData.completed_at = new Date().toISOString();
+      }
+    }
+    if (updates.progress !== undefined) {
+      updateData.progress = updates.progress;
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+      await supabase
+        .from("generation_tasks")
+        .update(updateData)
+        .eq("external_task_id", externalTaskId);
+        
+      console.log(`Updated local task for external ID ${externalTaskId}:`, updateData);
+    }
   } catch (e) {
     console.error("Error updating local task:", e);
   }
@@ -162,11 +175,22 @@ serve(async (req) => {
     const data = await response.json();
     console.log("Task status:", data.status, "Progress:", data.progress);
 
-    // If task is done, update local database with audio URL
+    // Update local database with progress and status
     if (data.status === "done" && data.metadata?.audio_url) {
-      await updateLocalTask(taskId, data.metadata.audio_url, "done");
-    } else if (data.status === "error") {
-      await updateLocalTask(taskId, "", "failed");
+      await updateLocalTask(taskId, { 
+        audioUrl: data.metadata.audio_url, 
+        status: "done",
+        progress: 100
+      });
+    } else if (data.status === "error" || data.status === "failed") {
+      await updateLocalTask(taskId, { status: "failed", progress: 0 });
+    } else if (data.status === "processing" || data.status === "pending") {
+      // Update progress during processing
+      const progress = data.progress || data.percent_complete || 0;
+      await updateLocalTask(taskId, { 
+        status: "processing",
+        progress: Math.round(progress)
+      });
     }
 
     return new Response(JSON.stringify(data), {
