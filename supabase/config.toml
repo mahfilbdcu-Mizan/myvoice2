@@ -20,3 +20,21 @@ verify_jwt = false
 
 [functions.admin-operations]
 verify_jwt = false
+
+[functions.fetch-minimax-voices]
+verify_jwt = false
+
+[functions.fetch-minimax-config]
+verify_jwt = false
+
+[functions.generate-minimax-speech]
+verify_jwt = false
+
+[functions.clone-voice]
+verify_jwt = false
+
+[functions.list-voice-clones]
+verify_jwt = false
+
+[functions.delete-voice-clone]
+verify_jwt = false
