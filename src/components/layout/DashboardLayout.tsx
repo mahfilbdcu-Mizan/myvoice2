@@ -14,7 +14,8 @@ import {
   User,
   Loader2,
   Key,
-  History
+  History,
+  Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { icon: Mic, label: "Text to Speech", href: "/dashboard" },
+  { icon: Copy, label: "Voice Clone", href: "/dashboard/voice-clone" },
   { icon: Library, label: "Voice Library", href: "/dashboard/voices" },
   { icon: History, label: "History", href: "/dashboard/history" },
   { icon: Key, label: "API Key", href: "/dashboard/api-key" },
