@@ -50,10 +50,11 @@ export interface UserProfile {
   created_at: string;
   is_blocked: boolean;
   has_received_free_credits: boolean;
+  api_credits?: number; // Paid API credits from user_api_keys
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
-  const { data, error } = await supabase
+  const { data: profiles, error } = await supabase
     .from("profiles")
     .select("*")
     .order("created_at", { ascending: false });
@@ -63,7 +64,27 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     return [];
   }
   
-  return data || [];
+  // Fetch API key balances for each user
+  const userIds = profiles?.map(p => p.id) || [];
+  const { data: apiKeys } = await supabase
+    .from("user_api_keys")
+    .select("user_id, remaining_credits")
+    .in("user_id", userIds)
+    .eq("provider", "ai33");
+  
+  // Create a map of user_id to api_credits
+  const apiCreditsMap = new Map<string, number>();
+  apiKeys?.forEach(key => {
+    if (key.remaining_credits !== null) {
+      apiCreditsMap.set(key.user_id, key.remaining_credits);
+    }
+  });
+  
+  // Merge profiles with API credits
+  return (profiles || []).map(profile => ({
+    ...profile,
+    api_credits: apiCreditsMap.get(profile.id)
+  }));
 }
 
 export interface UpdateCreditsResult {

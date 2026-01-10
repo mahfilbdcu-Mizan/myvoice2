@@ -217,7 +217,8 @@ export default function AdminUsers() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Credits</TableHead>
+                    <TableHead>Free Credits</TableHead>
+                    <TableHead>Paid API Credits</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -239,6 +240,11 @@ export default function AdminUsers() {
                       <TableCell>
                         <Badge variant="secondary">
                           {user.credits.toLocaleString()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-primary border-primary/30">
+                          {user.api_credits !== undefined ? user.api_credits.toLocaleString() : '-'}
                         </Badge>
                       </TableCell>
                       <TableCell>

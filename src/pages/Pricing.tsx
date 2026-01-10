@@ -21,7 +21,7 @@ interface Package {
 }
 
 const features = [
-  "100+ premium AI voices",
+  "10000+ premium AI voices",
   "29 supported languages",
   "Text to Speech",
   "Speech to Text",
@@ -210,13 +210,13 @@ export default function Pricing() {
                 <div className="rounded-xl border border-border bg-card p-6">
                   <h3 className="font-semibold">How do credits work?</h3>
                   <p className="mt-2 text-muted-foreground">
-                    1 credit = 1 generated word. Credits are deducted only after successful audio generation.
+                    1 credit = 1 character. Credits are deducted only after successful audio generation.
                   </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6">
-                  <h3 className="font-semibold">Do credits expire?</h3>
+                  <h3 className="font-semibold">Will credit limit expire?</h3>
                   <p className="mt-2 text-muted-foreground">
-                    No, credits never expire. Use them whenever you need.
+                    Credit expiry depends on your package. Each package has a validity period after which unused credits expire.
                   </p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6">

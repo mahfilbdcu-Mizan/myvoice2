@@ -12,6 +12,7 @@ import {
   Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
@@ -90,6 +91,7 @@ export function TextToSpeechPanel({
   const [showSettings, setShowSettings] = useState(true);
   const [models, setModels] = useState<Array<{ id: string; name: string }>>(defaultElevenLabsModels);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
+  const [generationProgress, setGenerationProgress] = useState<number>(0);
   
   // User API key balance
   const [userApiBalance, setUserApiBalance] = useState<number | null>(null);
@@ -341,12 +343,17 @@ export function TextToSpeechPanel({
           refreshProfile();
         } else if (result.taskId) {
           setTaskStatus("Processing...");
+          setGenerationProgress(0);
           
-          const task = await waitForTask(result.taskId, userData?.user?.id);
+          const task = await waitForTask(result.taskId, userData?.user?.id, 60, 2000, (progress, status) => {
+            setGenerationProgress(progress);
+            setTaskStatus(`Processing ${progress}%`);
+          });
           
           if (task?.status === "done" && task.metadata?.audio_url) {
             setAudioUrl(task.metadata.audio_url);
             setTaskStatus(null);
+            setGenerationProgress(0);
             toast({
               title: "Speech generated!",
               description: "Your audio is ready to play and download.",
@@ -359,6 +366,7 @@ export function TextToSpeechPanel({
               variant: "destructive",
             });
             setTaskStatus(null);
+            setGenerationProgress(0);
           } else {
             toast({
               title: "Generation timeout",
@@ -366,6 +374,7 @@ export function TextToSpeechPanel({
               variant: "destructive",
             });
             setTaskStatus(null);
+            setGenerationProgress(0);
           }
         }
       } else {
@@ -388,10 +397,15 @@ export function TextToSpeechPanel({
             variant: "destructive",
           });
           setTaskStatus(null);
+          setGenerationProgress(0);
         } else if (result.taskId) {
           setTaskStatus("Processing...");
+          setGenerationProgress(0);
           
-          const task = await waitForTask(result.taskId, userData?.user?.id);
+          const task = await waitForTask(result.taskId, userData?.user?.id, 60, 2000, (progress, status) => {
+            setGenerationProgress(progress);
+            setTaskStatus(`Processing ${progress}%`);
+          });
           
           if (task?.status === "done" && task.metadata?.audio_url) {
             setAudioUrl(task.metadata.audio_url);
@@ -408,6 +422,7 @@ export function TextToSpeechPanel({
               variant: "destructive",
             });
             setTaskStatus(null);
+            setGenerationProgress(0);
           } else {
             toast({
               title: "Generation timeout",
@@ -415,6 +430,7 @@ export function TextToSpeechPanel({
               variant: "destructive",
             });
             setTaskStatus(null);
+            setGenerationProgress(0);
           }
         }
       }
@@ -425,6 +441,7 @@ export function TextToSpeechPanel({
         variant: "destructive",
       });
       setTaskStatus(null);
+      setGenerationProgress(0);
     } finally {
       setIsGenerating(false);
     }
@@ -681,25 +698,42 @@ export function TextToSpeechPanel({
             />
           )}
 
-          {/* Generate Button */}
-          <Button
-            size="lg"
-            className="mt-4 h-14 text-lg"
-            onClick={handleGenerate}
-            disabled={!text.trim() || !currentVoice || isGenerating}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                {taskStatus || "Generating..."}
-              </>
-            ) : (
-              <>
-                <Play className="h-5 w-5" />
-                Create Speech
-              </>
+          {/* Generate Button with Progress */}
+          <div className="mt-4 space-y-2">
+            <Button
+              size="lg"
+              className="w-full h-14 text-lg"
+              onClick={handleGenerate}
+              disabled={!text.trim() || !currentVoice || isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  {taskStatus || "Generating..."}
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5" />
+                  Create Speech
+                </>
+              )}
+            </Button>
+            
+            {/* Progress Bar */}
+            {isGenerating && generationProgress > 0 && (
+              <div className="space-y-1">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300 ease-out"
+                    style={{ width: `${generationProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-center text-muted-foreground">
+                  {generationProgress}% complete
+                </p>
+              </div>
             )}
-          </Button>
+          </div>
         </div>
 
         {/* Settings & Output Panel */}
