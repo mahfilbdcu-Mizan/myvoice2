@@ -22,13 +22,13 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
           </Link>
           
           <nav className="hidden items-center gap-6 md:flex">
-            <Link to="/voices" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            <Link to="/voices" className="text-base font-semibold text-primary transition-colors hover:text-primary/80">
               Voices
             </Link>
-            <Link to="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            <Link to="/pricing" className="text-base font-semibold text-primary transition-colors hover:text-primary/80">
               Pricing
             </Link>
-            <Link to="/contact" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            <Link to="/contact" className="text-base font-semibold text-primary transition-colors hover:text-primary/80">
               Contact
             </Link>
           </nav>
@@ -72,21 +72,21 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
           <nav className="flex flex-col gap-2">
             <Link 
               to="/voices" 
-              className="rounded-lg px-4 py-3 text-sm font-medium hover:bg-accent"
+              className="rounded-lg px-4 py-3 text-base font-semibold text-primary hover:bg-accent"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Voices
             </Link>
             <Link 
               to="/pricing" 
-              className="rounded-lg px-4 py-3 text-sm font-medium hover:bg-accent"
+              className="rounded-lg px-4 py-3 text-base font-semibold text-primary hover:bg-accent"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Pricing
             </Link>
             <Link 
               to="/contact" 
-              className="rounded-lg px-4 py-3 text-sm font-medium hover:bg-accent"
+              className="rounded-lg px-4 py-3 text-base font-semibold text-primary hover:bg-accent"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Contact

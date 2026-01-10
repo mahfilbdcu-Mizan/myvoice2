@@ -35,6 +35,7 @@ import { generateSpeech, waitForTask, fetchModelsFromAPI, type VoiceModel } from
 import { generateMinimaxSpeech, fetchMinimaxVoices, type MinimaxVoice } from "@/lib/minimax-api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { MinimaxVoiceLibrary } from "./MinimaxVoiceLibrary";
 
 interface TextToSpeechPanelProps {
   selectedVoice?: { id: string; name: string; provider?: string } | null;
@@ -114,6 +115,7 @@ export function TextToSpeechPanel({
   const [minimaxVoices, setMinimaxVoices] = useState<MinimaxVoice[]>([]);
   const [selectedMinimaxVoice, setSelectedMinimaxVoice] = useState<MinimaxVoice | null>(null);
   const [loadingMinimaxVoices, setLoadingMinimaxVoices] = useState(false);
+  const [showMinimaxVoiceLibrary, setShowMinimaxVoiceLibrary] = useState(false);
 
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -631,16 +633,25 @@ export function TextToSpeechPanel({
                 )
               ) : (
                 selectedMinimaxVoice ? (
-                  <div>
-                    <p className="font-medium">{selectedMinimaxVoice.voice_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Minimax voice • {selectedMinimaxVoice.tag_list?.slice(0, 2).join(", ")}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    {selectedMinimaxVoice.cover_url && (
+                      <img 
+                        src={selectedMinimaxVoice.cover_url} 
+                        alt="" 
+                        className="h-8 w-8 rounded-full object-cover border border-border"
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium">{selectedMinimaxVoice.voice_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Minimax voice • {selectedMinimaxVoice.tag_list?.slice(0, 2).join(", ")}
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div>
-                    <p className="font-medium">Select a Minimax voice</p>
-                    <p className="text-sm text-muted-foreground">Choose from the dropdown</p>
+                    <p className="font-medium">No voice selected</p>
+                    <p className="text-sm text-muted-foreground">Choose from the library</p>
                   </div>
                 )
               )}
@@ -651,33 +662,24 @@ export function TextToSpeechPanel({
                 {selectedVoice ? "Change Voice" : "Select Voice"}
               </Button>
             ) : (
-              <div className="flex items-center gap-2">
-                <Select 
-                  value={selectedMinimaxVoice?.voice_id || ""} 
-                  onValueChange={(id) => {
-                    const voice = minimaxVoices.find(v => v.voice_id === id);
-                    if (voice) setSelectedMinimaxVoice(voice);
-                  }}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder={loadingMinimaxVoices ? "Loading..." : "Select voice"} />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {minimaxVoices.map((voice) => (
-                      <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                        <div className="flex items-center gap-2">
-                          {voice.cover_url && (
-                            <img src={voice.cover_url} alt="" className="h-5 w-5 rounded-full object-cover" />
-                          )}
-                          <span>{voice.voice_name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Button variant="outline" onClick={() => setShowMinimaxVoiceLibrary(true)}>
+                {selectedMinimaxVoice ? "Change Voice" : "Select Voice"}
+              </Button>
             )}
           </div>
+
+          {/* Minimax Voice Library Modal */}
+          {showMinimaxVoiceLibrary && (
+            <MinimaxVoiceLibrary
+              isModal
+              selectedVoice={selectedMinimaxVoice}
+              onSelectVoice={(voice) => {
+                setSelectedMinimaxVoice(voice);
+                setShowMinimaxVoiceLibrary(false);
+              }}
+              onClose={() => setShowMinimaxVoiceLibrary(false)}
+            />
+          )}
 
           {/* Generate Button */}
           <Button
