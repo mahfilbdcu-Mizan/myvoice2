@@ -80,7 +80,7 @@ export function PricingSection({ packages }: PricingSectionProps) {
               </CardHeader>
               <CardContent className="space-y-4 sm:space-y-6">
                 <div className="space-y-2 sm:space-y-3">
-                  {pkg.features?.slice(0, 4).map((feature, index) => (
+                  {pkg.features?.map((feature, index) => (
                     <div key={index} className="flex items-center gap-2 text-xs sm:text-sm">
                       <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success shrink-0" />
                       <span>{feature}</span>
