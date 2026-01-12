@@ -63,9 +63,9 @@ export function PricingSection({ packages }: PricingSectionProps) {
                 </div>
               )}
               <CardHeader className="pt-6 sm:pt-8">
-                <CardDescription className="text-sm sm:text-base font-medium">
+                <p className="text-sm sm:text-base font-medium text-[hsl(262,83%,58%)]">
                   {pkg.name}
-                </CardDescription>
+                </p>
                 <CardTitle className="flex items-baseline gap-1.5 sm:gap-2">
                   <span className="text-2xl sm:text-3xl lg:text-4xl font-bold">${pkg.offer_price}</span>
                   {pkg.discount_percentage > 0 && (
