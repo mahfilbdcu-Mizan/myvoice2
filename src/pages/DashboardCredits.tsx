@@ -328,7 +328,7 @@ export default function DashboardCredits() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  {pkg.features?.slice(0, 4).map((feature, index) => (
+                  {pkg.features?.map((feature, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm">
                       <Check className="h-4 w-4 text-green-500 shrink-0" />
                       <span>{feature}</span>
