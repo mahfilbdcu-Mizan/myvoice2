@@ -67,7 +67,6 @@ export default function Pricing() {
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
               No subscriptions, no hidden fees. Buy credits and use them anytime.
-              Credits never expire.
             </p>
           </div>
         </section>
@@ -154,10 +153,6 @@ export default function Pricing() {
                             <span>{feature}</span>
                           </div>
                         ))}
-                        <div className="flex items-center gap-2 text-sm">
-                          <Check className="h-4 w-4 text-success" />
-                          <span>Credits never expire</span>
-                        </div>
                       </div>
                       
                       <Link to="/login">
