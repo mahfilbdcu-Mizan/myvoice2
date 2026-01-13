@@ -1159,12 +1159,12 @@ export function TextToSpeechPanel({
                     <p className="text-2xl font-bold text-green-600">
                       {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
                     </p>
-                    <p className="text-sm text-muted-foreground">Your API Balance</p>
+                    <p className="text-sm text-muted-foreground">Your Available Credits</p>
                   </div>
                 </div>
                 <div className="rounded-lg bg-green-500/10 p-2">
                   <p className="text-xs text-green-700 font-medium text-center">
-                    ✓ Using your API key — Unlimited generation
+                    ✓ Your Available Credits — Unlimited generation
                   </p>
                 </div>
               </>
