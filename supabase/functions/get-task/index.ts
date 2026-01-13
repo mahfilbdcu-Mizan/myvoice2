@@ -176,49 +176,70 @@ serve(async (req) => {
 
     const data = await response.json();
     
+    console.log("Raw API response:", JSON.stringify(data));
+    
     // Get progress - handle null/undefined values
     const rawProgress = data.progress ?? data.percent_complete ?? null;
     const progress = rawProgress !== null ? Math.round(rawProgress) : null;
     
-    // Handle "done" status - API may return audio URL in different places
-    const audioUrl = data.metadata?.audio_url || data.audio_url || data.result?.audio_url || data.output?.audio_url;
+    // Handle "done" status - API may return audio URL in many different places
+    // Check ALL possible locations for audio_url
+    const audioUrl = 
+      data.audio_url || 
+      data.metadata?.audio_url || 
+      data.result?.audio_url || 
+      data.output?.audio_url ||
+      data.output ||  // Sometimes output is the URL directly
+      data.url ||
+      data.file_url ||
+      null;
     
-    console.log("Task status:", data.status, "Progress:", progress, "Audio URL:", audioUrl, "Raw data:", JSON.stringify(data));
+    // Check if output is a string URL (not an object)
+    const finalAudioUrl = typeof audioUrl === 'string' && audioUrl.startsWith('http') ? audioUrl : 
+                          (typeof audioUrl === 'object' && audioUrl !== null ? null : null);
+    
+    console.log("Task status:", data.status, "Progress:", progress, "Audio URL found:", finalAudioUrl);
+
+    // Determine the real status
+    const apiStatus = data.status?.toLowerCase() || "pending";
+    const isDone = apiStatus === "done" || apiStatus === "completed" || apiStatus === "success";
+    const isError = apiStatus === "error" || apiStatus === "failed";
+    const isProcessing = apiStatus === "doing" || apiStatus === "processing" || apiStatus === "pending";
 
     // Update local database with progress and status
-    if (data.status === "done" && audioUrl) {
+    if (isDone && finalAudioUrl) {
       await updateLocalTask(taskId, { 
-        audioUrl: audioUrl, 
+        audioUrl: finalAudioUrl, 
         status: "done",
         progress: 100
       });
-    } else if (data.status === "error" || data.status === "failed") {
+    } else if (isError) {
       await updateLocalTask(taskId, { status: "failed", progress: 0 });
-    } else if (data.status === "processing" || data.status === "pending" || data.status === "doing") {
-      // Update progress during processing - "doing" is the actual status from API
+    } else if (isProcessing) {
       await updateLocalTask(taskId, { 
         status: "processing",
-        progress: progress ?? 50 // Default to 50% if no progress provided
+        progress: progress ?? 50
       });
     }
 
-    // Build normalized response with audio_url at top level and in metadata
+    // Build normalized response
+    const normalizedStatus = isDone ? "done" : (isError ? "error" : "processing");
+    const normalizedProgress = isDone ? 100 : (isError ? 0 : (progress ?? 50));
+    
     const normalizedResponse = {
-      ...data,
-      status: data.status === "doing" ? "done" : data.status, // "doing" with audio_url means done
-      progress: data.status === "done" || audioUrl ? 100 : (progress ?? 50),
-      audio_url: audioUrl || null,
+      id: data.id || taskId,
+      created_at: data.created_at,
+      status: normalizedStatus,
+      credit_cost: data.credit_cost || 0,
+      progress: normalizedProgress,
+      type: data.type || "tts",
+      error_message: data.error_message || data.error || null,
+      audio_url: finalAudioUrl,
       metadata: {
         ...(data.metadata || {}),
-        audio_url: audioUrl || null
+        audio_url: finalAudioUrl
       }
     };
-
-    // If we have audio_url and status is "doing", treat as "done"
-    if (audioUrl && (data.status === "doing" || data.status === "done")) {
-      normalizedResponse.status = "done";
-      normalizedResponse.progress = 100;
-    }
 
     console.log("Returning normalized response:", JSON.stringify(normalizedResponse));
 
