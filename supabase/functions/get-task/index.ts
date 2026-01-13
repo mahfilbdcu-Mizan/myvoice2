@@ -180,12 +180,12 @@ serve(async (req) => {
     const rawProgress = data.progress ?? data.percent_complete ?? null;
     const progress = rawProgress !== null ? Math.round(rawProgress) : null;
     
-    console.log("Task status:", data.status, "Progress:", progress, "Raw data:", JSON.stringify(data));
+    // Handle "done" status - API may return audio URL in different places
+    const audioUrl = data.metadata?.audio_url || data.audio_url || data.result?.audio_url || data.output?.audio_url;
+    
+    console.log("Task status:", data.status, "Progress:", progress, "Audio URL:", audioUrl, "Raw data:", JSON.stringify(data));
 
     // Update local database with progress and status
-    // Handle "done" status - API may return audio URL in different places
-    const audioUrl = data.metadata?.audio_url || data.audio_url || data.result?.audio_url;
-    
     if (data.status === "done" && audioUrl) {
       await updateLocalTask(taskId, { 
         audioUrl: audioUrl, 
@@ -202,7 +202,27 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify(data), {
+    // Build normalized response with audio_url at top level and in metadata
+    const normalizedResponse = {
+      ...data,
+      status: data.status === "doing" ? "done" : data.status, // "doing" with audio_url means done
+      progress: data.status === "done" || audioUrl ? 100 : (progress ?? 50),
+      audio_url: audioUrl || null,
+      metadata: {
+        ...(data.metadata || {}),
+        audio_url: audioUrl || null
+      }
+    };
+
+    // If we have audio_url and status is "doing", treat as "done"
+    if (audioUrl && (data.status === "doing" || data.status === "done")) {
+      normalizedResponse.status = "done";
+      normalizedResponse.progress = 100;
+    }
+
+    console.log("Returning normalized response:", JSON.stringify(normalizedResponse));
+
+    return new Response(JSON.stringify(normalizedResponse), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
