@@ -287,37 +287,40 @@ export function TextToSpeechPanel({
           .eq("provider", "ai33")
           .maybeSingle();
         
-        if (apiKeyData) {
+        // Only show balance if key exists AND is valid
+        if (apiKeyData && apiKeyData.is_valid === true) {
           setHasUserApiKey(true);
           setUserApiBalance(apiKeyData.remaining_credits);
           
+          // Only check balance if the key is valid
           if (apiKeyData.encrypted_key) {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            
-            const response = await fetch(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                  Authorization: token ? `Bearer ${token}` : `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-                },
-                body: JSON.stringify({ apiKey: apiKeyData.encrypted_key }),
-              }
-            );
-            
-            if (response.ok) {
-              const data = await response.json();
-              if (data.valid && data.credits !== null) {
-                setUserApiBalance(data.credits);
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token;
+              
+              if (token) {
+                const response = await fetch(
+                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-api-balance`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ provider: "ai33" }),
+                  }
+                );
                 
-                await supabase
-                  .from("user_api_keys")
-                  .update({ remaining_credits: data.credits, updated_at: new Date().toISOString() })
-                  .eq("id", apiKeyData.id);
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.valid && data.credits !== null) {
+                    setUserApiBalance(data.credits);
+                  }
+                }
               }
+            } catch (balanceError) {
+              console.log("Balance check skipped:", balanceError);
             }
           }
         } else {
