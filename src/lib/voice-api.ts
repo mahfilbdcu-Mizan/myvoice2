@@ -85,6 +85,7 @@ export interface TaskResult {
   error_message: string | null;
   credit_cost: number;
   progress?: number;
+  audio_url?: string; // Top level audio URL (normalized)
   metadata: {
     audio_url?: string;
     srt_url?: string;
@@ -300,26 +301,50 @@ export async function getTaskStatus(taskId: string, userId?: string): Promise<Ta
 
     const data = await response.json();
     
-    console.log("Raw task response:", data);
+    console.log("Raw task response from get-task:", JSON.stringify(data));
     
-    // Normalize audio_url location - API may return it in different places
-    const audioUrl = data.audio_url || data.metadata?.audio_url || data.result?.audio_url;
+    // Normalize audio_url location - edge function should return it at top level AND in metadata
+    // Check ALL possible locations
+    const audioUrl = 
+      data.audio_url || 
+      data.metadata?.audio_url || 
+      data.result?.audio_url ||
+      data.output?.audio_url ||
+      (typeof data.output === 'string' && data.output.startsWith('http') ? data.output : null);
     
-    // Ensure metadata.audio_url is always set correctly
-    if (audioUrl) {
-      if (!data.metadata) {
-        data.metadata = {};
-      }
+    // Ensure metadata exists and audio_url is set correctly
+    if (!data.metadata) {
+      data.metadata = {};
+    }
+    if (audioUrl && typeof audioUrl === 'string') {
       data.metadata.audio_url = audioUrl;
+      // Also set at top level for easy access
+      data.audio_url = audioUrl;
     }
     
-    // Ensure status is properly set
-    if (data.status === "done" && !audioUrl) {
-      // If status is done but no audio, keep polling
+    // CRITICAL: Only mark as "processing" if status is "done" but NO audio_url
+    // This ensures polling continues until audio is available
+    const normalizedStatus = data.status?.toLowerCase() || "processing";
+    const isDone = normalizedStatus === "done" || normalizedStatus === "completed" || normalizedStatus === "success";
+    const isError = normalizedStatus === "error" || normalizedStatus === "failed";
+    
+    if (isDone && audioUrl && typeof audioUrl === 'string') {
+      // Task is truly complete with audio
+      data.status = "done";
+      data.progress = 100;
+    } else if (isDone && !audioUrl) {
+      // API says done but no audio - keep polling (API might be lagging)
+      console.log("Status is done but no audio URL yet, continuing to poll...");
+      data.status = "processing";
+      data.progress = data.progress || 90; // Almost done
+    } else if (isError) {
+      data.status = "error";
+    } else {
+      // Still processing
       data.status = "processing";
     }
     
-    console.log("Normalized task status:", data.status, "audio_url:", data.metadata?.audio_url);
+    console.log("Final task status:", data.status, "audio_url:", data.metadata?.audio_url || data.audio_url);
     
     return data;
   } catch (err) {
@@ -332,37 +357,50 @@ export async function getTaskStatus(taskId: string, userId?: string): Promise<Ta
 export async function waitForTask(
   taskId: string, 
   userId?: string, 
-  maxAttempts = 60, 
+  maxAttempts = 120, // Increased from 60 to 120 for longer texts
   intervalMs = 2000,
   onProgress?: (progress: number, status: string) => void
 ): Promise<TaskResult | null> {
+  console.log(`Starting polling for task: ${taskId}, max attempts: ${maxAttempts}`);
+  
   for (let i = 0; i < maxAttempts; i++) {
     const task = await getTaskStatus(taskId, userId);
     
-    console.log(`Task poll ${i + 1}:`, task);
+    console.log(`Task poll attempt ${i + 1}/${maxAttempts}:`, task?.status, task?.progress, "audio:", task?.audio_url || task?.metadata?.audio_url);
     
-    if (!task) return null;
-    
-    // Report progress
-    if (onProgress && task.progress !== undefined) {
-      onProgress(task.progress, task.status);
+    if (!task) {
+      console.log("No task returned, continuing poll...");
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      continue;
     }
     
-    // API returns "done" for success and "error" for failure
-    if (task.status === "done") {
+    // Report progress
+    const progress = task.progress ?? 0;
+    if (onProgress) {
+      onProgress(progress, task.status);
+    }
+    
+    // Check for audio URL in normalized locations
+    const audioUrl = task.audio_url || task.metadata?.audio_url;
+    
+    // Task is complete with audio
+    if (task.status === "done" && audioUrl) {
+      console.log("Task completed successfully with audio:", audioUrl);
       if (onProgress) onProgress(100, "done");
       return task;
     }
     
+    // Task failed
     if (task.status === "error" || task.status === "failed") {
+      console.log("Task failed:", task.error_message);
       return task;
     }
     
-    // Task still processing ("doing", "pending", "processing")
-    // Wait before next poll
+    // Task still processing - wait before next poll
     await new Promise(resolve => setTimeout(resolve, intervalMs));
   }
   
+  console.log(`Task polling timed out after ${maxAttempts} attempts`);
   return null;
 }
 
