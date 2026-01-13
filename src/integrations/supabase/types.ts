@@ -436,16 +436,27 @@ export type Database = {
         }
         Returns: string
       }
-      save_user_api_key_secure_admin: {
-        Args: {
-          p_api_key: string
-          p_is_valid?: boolean
-          p_provider: string
-          p_remaining_credits?: number
-          p_user_id: string
-        }
-        Returns: string
-      }
+      save_user_api_key_secure_admin:
+        | {
+            Args: {
+              p_api_key: string
+              p_is_valid?: boolean
+              p_provider: string
+              p_remaining_credits?: number
+              p_user_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_api_key: string
+              p_is_valid?: boolean
+              p_provider: string
+              p_remaining_credits?: number
+              p_user_id: string
+            }
+            Returns: string
+          }
       update_api_key_balance: {
         Args: {
           p_is_valid: boolean
