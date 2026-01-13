@@ -217,7 +217,7 @@ export default function AdminUsers() {
   };
 
   const handleDeleteApiKey = async (user: UserProfile) => {
-    if (user.api_credits === undefined) {
+    if (!user.has_api_key) {
       toast({
         title: "No API Key",
         description: "This user does not have an API key configured",
@@ -316,9 +316,17 @@ export default function AdminUsers() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-primary border-primary/30">
-                          {user.api_credits !== undefined ? user.api_credits.toLocaleString() : '-'}
-                        </Badge>
+                        {user.has_api_key ? (
+                          <Badge variant="outline" className="text-primary border-primary/30">
+                            {user.api_credits !== undefined && user.api_credits !== null 
+                              ? user.api_credits.toLocaleString() 
+                              : 'Checking...'}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            No Key
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {user.is_blocked ? (
@@ -360,7 +368,7 @@ export default function AdminUsers() {
                           >
                             <Key className="h-4 w-4" />
                           </Button>
-                          {user.api_credits !== undefined && (
+                          {user.has_api_key && (
                             <Button
                               variant="ghost"
                               size="sm"
