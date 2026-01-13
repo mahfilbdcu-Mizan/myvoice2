@@ -35,7 +35,6 @@ const navItems = [
   { icon: Copy, label: "Voice Clone", href: "/dashboard/voice-clone" },
   { icon: Library, label: "Voice Library", href: "/dashboard/voices" },
   { icon: History, label: "History", href: "/dashboard/history" },
-  { icon: Key, label: "API Key", href: "/dashboard/api-key" },
   { icon: FileAudio, label: "Speech to Text", href: "/dashboard/stt" },
   { icon: Languages, label: "Dubbing", href: "/dashboard/dubbing" },
   { icon: CreditCard, label: "Buy Credits", href: "/dashboard/credits" },

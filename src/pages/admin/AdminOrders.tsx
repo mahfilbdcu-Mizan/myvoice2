@@ -22,8 +22,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, X, Loader2, ExternalLink, Key } from "lucide-react";
-import { getAllOrders, approveOrder, rejectOrder, setUserApiKey, type CreditOrder } from "@/lib/admin-api";
+import { Check, X, Loader2, ExternalLink, Key, Trash2 } from "lucide-react";
+import { getAllOrders, approveOrder, rejectOrder, setUserApiKey, deleteUserApiKey, type CreditOrder } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 
 export default function AdminOrders() {
@@ -357,7 +357,7 @@ export default function AdminOrders() {
                 />
               </div>
               <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-                <p><strong>নোট:</strong> API Key সেট করার পর ইউজার তার ড্যাশবোর্ডে Key দেখতে এবং ব্যবহার করতে পারবে।</p>
+                <p><strong>নোট:</strong> API Key সেট করার পর ইউজার শুধু ক্রেডিট দেখতে ও ব্যবহার করতে পারবে। Key দেখতে বা কপি করতে পারবে না।</p>
               </div>
             </div>
             <DialogFooter>

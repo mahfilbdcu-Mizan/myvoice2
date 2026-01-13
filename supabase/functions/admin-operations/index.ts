@@ -406,6 +406,43 @@ serve(async (req) => {
         );
       }
 
+      case "delete_user_api_key": {
+        const { targetUserId, provider = "ai33" } = body;
+
+        // Validate inputs
+        if (!targetUserId || typeof targetUserId !== "string") {
+          return new Response(
+            JSON.stringify({ error: "Target user ID is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Delete the API key
+        const { error: deleteError } = await supabase
+          .from("user_api_keys")
+          .delete()
+          .eq("user_id", targetUserId)
+          .eq("provider", provider);
+
+        if (deleteError) {
+          console.error("Error deleting API key:", deleteError);
+          return new Response(
+            JSON.stringify({ error: "Failed to delete API key: " + deleteError.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Log the action
+        await logAdminAction(adminUserId, "delete_user_api_key", targetUserId, {
+          provider,
+        });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: "Unknown action" }),

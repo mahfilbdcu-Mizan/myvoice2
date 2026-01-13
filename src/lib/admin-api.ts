@@ -410,3 +410,44 @@ export async function getUserProfileForAdmin(userId: string): Promise<UserProfil
   
   return data;
 }
+
+export interface DeleteUserApiKeyResult {
+  success: boolean;
+  error?: string;
+}
+
+// Admin function to delete API key for a user
+export async function deleteUserApiKey(userId: string): Promise<DeleteUserApiKeyResult> {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Call server-side admin operation
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`
+      },
+      body: {
+        action: 'delete_user_api_key',
+        targetUserId: userId,
+        provider: 'ai33'
+      }
+    });
+
+    if (error) {
+      console.error("Error deleting API key:", error);
+      return { success: false, error: error.message || 'Failed to delete API key' };
+    }
+
+    if (data?.error) {
+      return { success: false, error: data.error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting API key:", error);
+    return { success: false, error: 'Unexpected error occurred' };
+  }
+}
