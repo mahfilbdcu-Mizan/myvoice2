@@ -20,8 +20,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, X, Loader2, ExternalLink } from "lucide-react";
-import { getAllOrders, approveOrder, rejectOrder, type CreditOrder } from "@/lib/admin-api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Check, X, Loader2, ExternalLink, Key } from "lucide-react";
+import { getAllOrders, approveOrder, rejectOrder, setUserApiKey, type CreditOrder } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 
 export default function AdminOrders() {
@@ -30,6 +32,8 @@ export default function AdminOrders() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<CreditOrder | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
+  const [settingApiKeyOrder, setSettingApiKeyOrder] = useState<CreditOrder | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState("");
 
   useEffect(() => {
     fetchOrders();
@@ -84,6 +88,29 @@ export default function AdminOrders() {
     setProcessingId(null);
     setRejectingOrder(null);
     setRejectNotes("");
+  };
+
+  const handleSetApiKey = async () => {
+    if (!settingApiKeyOrder || !apiKeyInput.trim()) return;
+    
+    setProcessingId(settingApiKeyOrder.id);
+    const result = await setUserApiKey(settingApiKeyOrder.user_id, apiKeyInput.trim());
+    
+    if (result.success) {
+      toast({
+        title: "API Key সেট হয়েছে",
+        description: `ইউজারের জন্য API Key সেট করা হয়েছে${result.remainingCredits ? ` (ব্যালেন্স: ${result.remainingCredits.toLocaleString()})` : ''}`,
+      });
+    } else {
+      toast({
+        title: "API Key সেট ব্যর্থ",
+        description: result.error || "API Key সেট করা যায়নি",
+        variant: "destructive",
+      });
+    }
+    setProcessingId(null);
+    setSettingApiKeyOrder(null);
+    setApiKeyInput("");
   };
 
   const getStatusBadge = (status: string) => {
@@ -194,6 +221,16 @@ export default function AdminOrders() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="text-primary hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => setSettingApiKeyOrder(order)}
+                            disabled={processingId === order.id}
+                            title="Set API Key"
+                          >
+                            <Key className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             className="text-success hover:bg-success hover:text-success-foreground"
                             onClick={() => handleApprove(order)}
                             disabled={processingId === order.id}
@@ -291,6 +328,55 @@ export default function AdminOrders() {
               </Button>
               <Button variant="destructive" onClick={handleReject}>
                 Reject Order
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Set API Key Dialog */}
+        <Dialog open={!!settingApiKeyOrder} onOpenChange={() => {
+          setSettingApiKeyOrder(null);
+          setApiKeyInput("");
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>ইউজারের জন্য API Key সেট করুন</DialogTitle>
+              <DialogDescription>
+                {settingApiKeyOrder?.profiles?.email || "ইউজার"} এর জন্য API Key সেট করুন। এই Key দিয়ে তিনি সার্ভিস ব্যবহার করতে পারবেন।
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="apiKey">API Key</Label>
+                <Input
+                  id="apiKey"
+                  type="password"
+                  placeholder="sk-..."
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                />
+              </div>
+              <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                <p><strong>নোট:</strong> API Key সেট করার পর ইউজার তার ড্যাশবোর্ডে Key দেখতে এবং ব্যবহার করতে পারবে।</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setSettingApiKeyOrder(null);
+                setApiKeyInput("");
+              }}>
+                বাতিল
+              </Button>
+              <Button 
+                onClick={handleSetApiKey}
+                disabled={!apiKeyInput.trim() || processingId === settingApiKeyOrder?.id}
+              >
+                {processingId === settingApiKeyOrder?.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Key className="h-4 w-4 mr-2" />
+                )}
+                API Key সেট করুন
               </Button>
             </DialogFooter>
           </DialogContent>

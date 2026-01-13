@@ -280,6 +280,59 @@ export async function rejectOrder(orderId: string, notes?: string): Promise<bool
   }
 }
 
+export interface SetUserApiKeyResult {
+  success: boolean;
+  error?: string;
+  isValid?: boolean;
+  remainingCredits?: number | null;
+}
+
+// Admin function to set API key for a user
+export async function setUserApiKey(userId: string, apiKey: string): Promise<SetUserApiKeyResult> {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Client-side validation
+    if (!apiKey || apiKey.length < 10) {
+      return { success: false, error: 'API key must be at least 10 characters' };
+    }
+
+    // Call server-side admin operation
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      headers: {
+        Authorization: `Bearer ${session.session.access_token}`
+      },
+      body: {
+        action: 'set_user_api_key',
+        targetUserId: userId,
+        apiKey,
+        provider: 'ai33'
+      }
+    });
+
+    if (error) {
+      console.error("Error setting API key:", error);
+      return { success: false, error: error.message || 'Failed to set API key' };
+    }
+
+    if (data?.error) {
+      return { success: false, error: data.error };
+    }
+
+    return { 
+      success: true,
+      isValid: data?.isValid,
+      remainingCredits: data?.remainingCredits
+    };
+  } catch (error) {
+    console.error("Error setting API key:", error);
+    return { success: false, error: 'Unexpected error occurred' };
+  }
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalCreditsIssued: number;
