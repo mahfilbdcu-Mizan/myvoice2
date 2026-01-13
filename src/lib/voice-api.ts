@@ -298,7 +298,27 @@ export async function getTaskStatus(taskId: string, userId?: string): Promise<Ta
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // Normalize audio_url location - API may return it in different places
+    const audioUrl = data.metadata?.audio_url || data.audio_url || data.result?.audio_url;
+    
+    // Ensure metadata.audio_url is always set correctly
+    if (audioUrl && data.status === "done") {
+      if (!data.metadata) {
+        data.metadata = {};
+      }
+      data.metadata.audio_url = audioUrl;
+    }
+    
+    // Handle "doing" status as "processing" for frontend compatibility
+    if (data.status === "doing") {
+      data.status = "processing";
+    }
+    
+    console.log("Normalized task status:", data.status, "audio_url:", data.metadata?.audio_url);
+    
+    return data;
   } catch (err) {
     console.error("Error getting task status:", err);
     return null;
