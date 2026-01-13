@@ -175,23 +175,30 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Task status:", data.status, "Progress:", data.progress);
+    
+    // Get progress - handle null/undefined values
+    const rawProgress = data.progress ?? data.percent_complete ?? null;
+    const progress = rawProgress !== null ? Math.round(rawProgress) : null;
+    
+    console.log("Task status:", data.status, "Progress:", progress, "Raw data:", JSON.stringify(data));
 
     // Update local database with progress and status
-    if (data.status === "done" && data.metadata?.audio_url) {
+    // Handle "done" status - API may return audio URL in different places
+    const audioUrl = data.metadata?.audio_url || data.audio_url || data.result?.audio_url;
+    
+    if (data.status === "done" && audioUrl) {
       await updateLocalTask(taskId, { 
-        audioUrl: data.metadata.audio_url, 
+        audioUrl: audioUrl, 
         status: "done",
         progress: 100
       });
     } else if (data.status === "error" || data.status === "failed") {
       await updateLocalTask(taskId, { status: "failed", progress: 0 });
-    } else if (data.status === "processing" || data.status === "pending") {
-      // Update progress during processing
-      const progress = data.progress || data.percent_complete || 0;
+    } else if (data.status === "processing" || data.status === "pending" || data.status === "doing") {
+      // Update progress during processing - "doing" is the actual status from API
       await updateLocalTask(taskId, { 
         status: "processing",
-        progress: Math.round(progress)
+        progress: progress ?? 50 // Default to 50% if no progress provided
       });
     }
 
