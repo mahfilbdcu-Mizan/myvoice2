@@ -36,7 +36,7 @@ async function validateAuth(req: Request): Promise<{ userId: string | null; erro
   return { userId: data.user.id, error: null };
 }
 
-// Get API key - try user's key first, then environment variable (secure - not stored in database)
+// Get API key - try user's decrypted key first, then environment variable
 async function getApiKey(userId?: string): Promise<string | null> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -49,25 +49,27 @@ async function getApiKey(userId?: string): Promise<string | null> {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Try user's own API key first
+    // Try user's own API key first - MUST decrypt it!
     if (userId) {
-      const { data: userKey } = await supabase
-        .from("user_api_keys")
-        .select("encrypted_key")
-        .eq("user_id", userId)
-        .eq("provider", "ai33")
-        .eq("is_valid", true)
-        .maybeSingle();
+      const { data: decryptedKey, error: decryptError } = await supabase.rpc(
+        "get_decrypted_api_key",
+        { p_user_id: userId, p_provider: "ai33" }
+      );
 
-      if (userKey?.encrypted_key) {
-        console.log("Using user's API key for task polling");
-        return userKey.encrypted_key;
+      if (!decryptError && decryptedKey) {
+        console.log("Using user's decrypted API key for task polling");
+        return decryptedKey;
+      }
+      
+      if (decryptError) {
+        console.log("Error decrypting user API key:", decryptError.message);
       }
     }
     
-    // Use environment variable only for platform API key (secure - not stored in database)
+    // Use environment variable only for platform API key
     const envApiKey = Deno.env.get("AI33_API_KEY");
     if (envApiKey) {
+      console.log("Using platform API key");
       return envApiKey;
     }
 
