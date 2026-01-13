@@ -51,6 +51,7 @@ export interface UserProfile {
   is_blocked: boolean;
   has_received_free_credits: boolean;
   api_credits?: number; // Paid API credits from user_api_keys
+  has_api_key?: boolean; // Whether user has an API key set
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
@@ -72,19 +73,24 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     .in("user_id", userIds)
     .eq("provider", "ai33");
   
-  // Create a map of user_id to api_credits
-  const apiCreditsMap = new Map<string, number>();
+  // Create a map of user_id to api_credits and whether they have a key
+  const apiKeyMap = new Map<string, { credits: number | null; hasKey: boolean }>();
   apiKeys?.forEach(key => {
-    if (key.remaining_credits !== null) {
-      apiCreditsMap.set(key.user_id, key.remaining_credits);
-    }
+    apiKeyMap.set(key.user_id, { 
+      credits: key.remaining_credits, 
+      hasKey: true 
+    });
   });
   
   // Merge profiles with API credits
-  return (profiles || []).map(profile => ({
-    ...profile,
-    api_credits: apiCreditsMap.get(profile.id)
-  }));
+  return (profiles || []).map(profile => {
+    const apiKeyData = apiKeyMap.get(profile.id);
+    return {
+      ...profile,
+      api_credits: apiKeyData?.credits ?? undefined,
+      has_api_key: apiKeyData?.hasKey ?? false
+    };
+  });
 }
 
 export interface UpdateCreditsResult {
