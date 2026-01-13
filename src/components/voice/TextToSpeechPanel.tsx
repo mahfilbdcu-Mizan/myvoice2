@@ -244,12 +244,18 @@ export function TextToSpeechPanel({
     ttsSettings.updateElevenLabsVoice(selectedVoice);
   }, [selectedVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
 
-  // Fetch ElevenLabs models on mount
+  // Fetch ElevenLabs models on mount - with error handling
   useEffect(() => {
     async function loadModels() {
-      const apiModels = await fetchModelsFromAPI();
-      if (apiModels.length > 0) {
-        setModels(apiModels.map(m => ({ id: m.model_id, name: m.name })));
+      try {
+        const apiModels = await fetchModelsFromAPI();
+        if (apiModels && apiModels.length > 0) {
+          setModels(apiModels.map(m => ({ id: m.model_id, name: m.name })));
+        }
+        // If API fails, keep using defaultElevenLabsModels (already set as initial state)
+      } catch (error) {
+        console.log("Using default models - API unavailable:", error);
+        // Keep default models - no crash
       }
     }
     loadModels();
@@ -264,10 +270,16 @@ export function TextToSpeechPanel({
 
   const loadMinimaxVoices = async () => {
     setLoadingMinimaxVoices(true);
-    const result = await fetchMinimaxVoices({ page: 1, page_size: 50 });
-    setMinimaxVoices(result.voices);
-    if (result.voices.length > 0 && !selectedMinimaxVoice) {
-      setSelectedMinimaxVoice(result.voices[0]);
+    try {
+      const result = await fetchMinimaxVoices({ page: 1, page_size: 50 });
+      if (result && result.voices) {
+        setMinimaxVoices(result.voices);
+        if (result.voices.length > 0 && !selectedMinimaxVoice) {
+          setSelectedMinimaxVoice(result.voices[0]);
+        }
+      }
+    } catch (error) {
+      console.log("Failed to load Minimax voices:", error);
     }
     setLoadingMinimaxVoices(false);
   };
