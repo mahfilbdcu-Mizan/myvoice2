@@ -21,8 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle } from "lucide-react";
-import { getAllUsers, updateUserCredits, toggleUserBlock, type UserProfile } from "@/lib/admin-api";
+import { Label } from "@/components/ui/label";
+import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key } from "lucide-react";
+import { getAllUsers, updateUserCredits, toggleUserBlock, setUserApiKey, type UserProfile } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,11 @@ export default function AdminUsers() {
   const [newCredits, setNewCredits] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [togglingBlock, setTogglingBlock] = useState<string | null>(null);
+  
+  // API Key dialog state
+  const [apiKeyUser, setApiKeyUser] = useState<UserProfile | null>(null);
+  const [apiKeyValue, setApiKeyValue] = useState("");
+  const [isSettingApiKey, setIsSettingApiKey] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -178,6 +184,37 @@ export default function AdminUsers() {
     navigate(`/admin/user-dashboard/${user.id}`);
   };
 
+  const handleSetApiKey = async () => {
+    if (!apiKeyUser || !apiKeyValue.trim()) {
+      toast({
+        title: "API Key required",
+        description: "Please enter an API key",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSettingApiKey(true);
+    const result = await setUserApiKey(apiKeyUser.id, apiKeyValue.trim());
+    setIsSettingApiKey(false);
+
+    if (result.success) {
+      toast({
+        title: "API Key set successfully",
+        description: `API Key has been configured for ${apiKeyUser.email}`,
+      });
+      setApiKeyUser(null);
+      setApiKeyValue("");
+      fetchUsers();
+    } else {
+      toast({
+        title: "Failed to set API Key",
+        description: result.error || "Could not set API key",
+        variant: "destructive",
+      });
+    }
+  };
+
   const creditsValue = parseInt(newCredits, 10);
   const showWarning = !isNaN(creditsValue) && creditsValue > WARN_THRESHOLD;
 
@@ -278,6 +315,18 @@ export default function AdminUsers() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => {
+                              setApiKeyUser(user);
+                              setApiKeyValue("");
+                            }}
+                            title="Set API Key"
+                            className="text-primary hover:text-primary"
+                          >
+                            <Key className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleToggleBlock(user)}
                             disabled={togglingBlock === user.id}
                             title={user.is_blocked ? "Unblock user" : "Block user"}
@@ -351,6 +400,48 @@ export default function AdminUsers() {
                   </>
                 ) : (
                   "Save Changes"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Set API Key Dialog */}
+        <Dialog open={!!apiKeyUser} onOpenChange={() => setApiKeyUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Set User API Key</DialogTitle>
+              <DialogDescription>
+                Set API Key for {apiKeyUser?.email}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="api-key">API Key</Label>
+                <Input
+                  id="api-key"
+                  type="text"
+                  value={apiKeyValue}
+                  onChange={(e) => setApiKeyValue(e.target.value)}
+                  placeholder="Enter API key..."
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This API key will be encrypted and stored securely for the user.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setApiKeyUser(null)} disabled={isSettingApiKey}>
+                Cancel
+              </Button>
+              <Button onClick={handleSetApiKey} disabled={isSettingApiKey || !apiKeyValue.trim()}>
+                {isSettingApiKey ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Setting...
+                  </>
+                ) : (
+                  "Set API Key"
                 )}
               </Button>
             </DialogFooter>
