@@ -300,19 +300,22 @@ export async function getTaskStatus(taskId: string, userId?: string): Promise<Ta
 
     const data = await response.json();
     
+    console.log("Raw task response:", data);
+    
     // Normalize audio_url location - API may return it in different places
-    const audioUrl = data.metadata?.audio_url || data.audio_url || data.result?.audio_url;
+    const audioUrl = data.audio_url || data.metadata?.audio_url || data.result?.audio_url;
     
     // Ensure metadata.audio_url is always set correctly
-    if (audioUrl && data.status === "done") {
+    if (audioUrl) {
       if (!data.metadata) {
         data.metadata = {};
       }
       data.metadata.audio_url = audioUrl;
     }
     
-    // Handle "doing" status as "processing" for frontend compatibility
-    if (data.status === "doing") {
+    // Ensure status is properly set
+    if (data.status === "done" && !audioUrl) {
+      // If status is done but no audio, keep polling
       data.status = "processing";
     }
     
