@@ -22,8 +22,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key } from "lucide-react";
-import { getAllUsers, updateUserCredits, toggleUserBlock, setUserApiKey, type UserProfile } from "@/lib/admin-api";
+import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key, Trash2 } from "lucide-react";
+import { getAllUsers, updateUserCredits, toggleUserBlock, setUserApiKey, deleteUserApiKey, type UserProfile } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +47,7 @@ export default function AdminUsers() {
   const [apiKeyUser, setApiKeyUser] = useState<UserProfile | null>(null);
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [isSettingApiKey, setIsSettingApiKey] = useState(false);
+  const [isDeletingApiKey, setIsDeletingApiKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -215,6 +216,41 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDeleteApiKey = async (user: UserProfile) => {
+    if (user.api_credits === undefined) {
+      toast({
+        title: "No API Key",
+        description: "This user does not have an API key configured",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the API key for ${user.email}? They will no longer be able to use the service.`
+    );
+
+    if (!confirmed) return;
+
+    setIsDeletingApiKey(user.id);
+    const result = await deleteUserApiKey(user.id);
+    setIsDeletingApiKey(null);
+
+    if (result.success) {
+      toast({
+        title: "API Key deleted",
+        description: `API Key has been removed for ${user.email}`,
+      });
+      fetchUsers();
+    } else {
+      toast({
+        title: "Failed to delete API Key",
+        description: result.error || "Could not delete API key",
+        variant: "destructive",
+      });
+    }
+  };
+
   const creditsValue = parseInt(newCredits, 10);
   const showWarning = !isNaN(creditsValue) && creditsValue > WARN_THRESHOLD;
 
@@ -324,6 +360,22 @@ export default function AdminUsers() {
                           >
                             <Key className="h-4 w-4" />
                           </Button>
+                          {user.api_credits !== undefined && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteApiKey(user)}
+                              disabled={isDeletingApiKey === user.id}
+                              title="Delete API Key"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              {isDeletingApiKey === user.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

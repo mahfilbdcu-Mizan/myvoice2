@@ -10,7 +10,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import DashboardVoices from "./pages/DashboardVoices";
 import DashboardCredits from "./pages/DashboardCredits";
-import DashboardApiKey from "./pages/DashboardApiKey";
+// API Key page removed - admin sets keys for users
 import DashboardHistory from "./pages/DashboardHistory";
 import DashboardSTT from "./pages/DashboardSTT";
 import DashboardDubbing from "./pages/DashboardDubbing";
@@ -45,7 +45,6 @@ const App = () => (
             <Route path="/dashboard/voices" element={<DashboardVoices />} />
             <Route path="/dashboard/voice-clone" element={<DashboardVoiceClone />} />
             <Route path="/dashboard/credits" element={<DashboardCredits />} />
-            <Route path="/dashboard/api-key" element={<DashboardApiKey />} />
             <Route path="/dashboard/history" element={<DashboardHistory />} />
             <Route path="/dashboard/stt" element={<DashboardSTT />} />
             <Route path="/dashboard/dubbing" element={<DashboardDubbing />} />
