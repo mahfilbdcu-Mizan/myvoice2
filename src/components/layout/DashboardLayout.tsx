@@ -53,54 +53,65 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const credits = profile?.credits ?? 0;
 
+  // Fetch API key data function (extracted for reuse)
+  const fetchApiKeyData = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch API key data - show if key exists (even if not validated yet)
+      const { data: apiKeyData } = await supabase
+        .from("user_api_keys")
+        .select("remaining_credits, is_valid")
+        .eq("user_id", user.id)
+        .eq("provider", "ai33")
+        .maybeSingle();
+      
+      // Show API balance if key exists
+      if (apiKeyData) {
+        setHasUserApiKey(true);
+        // Show balance even if is_valid is null/false - admin set it
+        setUserApiBalance(apiKeyData.remaining_credits ?? 0);
+        
+        // If key exists but not validated, try to refresh balance
+        if (apiKeyData.is_valid !== true || apiKeyData.remaining_credits === null) {
+          try {
+            await supabase.functions.invoke('check-api-balance', {
+              body: { provider: 'ai33' }
+            });
+            
+            // Refetch after balance check
+            const { data: refreshedData } = await supabase
+              .from("user_api_keys")
+              .select("remaining_credits, is_valid")
+              .eq("user_id", user.id)
+              .eq("provider", "ai33")
+              .maybeSingle();
+            
+            if (refreshedData) {
+              setUserApiBalance(refreshedData.remaining_credits ?? 0);
+            }
+          } catch (e) {
+            console.log("Balance check skipped:", e);
+          }
+        }
+      } else {
+        setHasUserApiKey(false);
+        setUserApiBalance(null);
+      }
+    } catch (error) {
+      console.error("Error fetching API key data:", error);
+    }
+  };
+
   // Fetch user API key balance and logo
   useEffect(() => {
     async function fetchData() {
       if (!user) return;
       
-      try {
-        // Fetch API key data - show if key exists (even if not validated yet)
-        const { data: apiKeyData } = await supabase
-          .from("user_api_keys")
-          .select("remaining_credits, is_valid")
-          .eq("user_id", user.id)
-          .eq("provider", "ai33")
-          .maybeSingle();
-        
-        // Show API balance if key exists
-        if (apiKeyData) {
-          setHasUserApiKey(true);
-          // Show balance even if is_valid is null/false - admin set it
-          setUserApiBalance(apiKeyData.remaining_credits ?? 0);
-          
-          // If key exists but not validated, try to refresh balance
-          if (apiKeyData.is_valid !== true || apiKeyData.remaining_credits === null) {
-            try {
-              await supabase.functions.invoke('check-api-balance', {
-                body: { provider: 'ai33' }
-              });
-              
-              // Refetch after balance check
-              const { data: refreshedData } = await supabase
-                .from("user_api_keys")
-                .select("remaining_credits, is_valid")
-                .eq("user_id", user.id)
-                .eq("provider", "ai33")
-                .maybeSingle();
-              
-              if (refreshedData) {
-                setUserApiBalance(refreshedData.remaining_credits ?? 0);
-              }
-            } catch (e) {
-              console.log("Balance check skipped:", e);
-            }
-          }
-        } else {
-          setHasUserApiKey(false);
-          setUserApiBalance(null);
-        }
+      await fetchApiKeyData();
 
-        // Fetch logo URL
+      // Fetch logo URL
+      try {
         const { data: logoData } = await supabase
           .from("platform_settings")
           .select("value")
@@ -111,11 +122,38 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           setLogoUrl(logoData.value);
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching logo:", error);
       }
     }
     
     fetchData();
+  }, [user]);
+
+  // Subscribe to realtime changes on user_api_keys table
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('user-api-keys-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_api_keys',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('API key changed:', payload);
+          // Refetch API key data when changes occur
+          fetchApiKeyData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   // Close mobile menu on route change
