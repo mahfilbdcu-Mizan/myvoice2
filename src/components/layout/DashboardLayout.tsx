@@ -262,7 +262,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">API Key Balance</p>
+                  <p className="text-xs text-muted-foreground">Your Available Credits</p>
                 </div>
               )}
             </div>
@@ -371,7 +371,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">API Key Balance</p>
+                <p className="text-xs text-muted-foreground">Your Available Credits</p>
               </div>
             )}
           </div>
