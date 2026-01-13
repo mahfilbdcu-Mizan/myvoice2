@@ -59,15 +59,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       if (!user) return;
       
       try {
-        // Fetch API key balance
+        // Fetch API key balance - only show if key is valid
         const { data: apiKeyData } = await supabase
           .from("user_api_keys")
-          .select("remaining_credits")
+          .select("remaining_credits, is_valid")
           .eq("user_id", user.id)
           .eq("provider", "ai33")
           .maybeSingle();
         
-        if (apiKeyData) {
+        // Only show API balance if key exists AND is valid
+        if (apiKeyData && apiKeyData.is_valid === true) {
           setHasUserApiKey(true);
           setUserApiBalance(apiKeyData.remaining_credits);
         } else {
