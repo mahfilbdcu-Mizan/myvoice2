@@ -344,8 +344,8 @@ serve(async (req) => {
         }
 
         // Validate API key by checking balance
-        let isValid = true;
-        let remainingCredits = null;
+        let isValid = false;
+        let remainingCredits: number | null = null;
         
         try {
           const response = await fetch("https://api.ai33.pro/v1/credits", {
@@ -358,14 +358,22 @@ serve(async (req) => {
 
           if (response.ok) {
             const data = await response.json();
-            remainingCredits = data.credits?.remaining || data.remaining_credits || null;
+            // Try multiple possible response formats
+            remainingCredits = data.credits?.remaining ?? data.remaining_credits ?? data.balance ?? data.credits ?? 0;
             isValid = true;
+            console.log("API key validated successfully, credits:", remainingCredits);
           } else {
+            const errorText = await response.text();
+            console.log("API key validation failed:", response.status, errorText);
             isValid = false;
+            remainingCredits = 0;
           }
         } catch (e) {
-          console.log("API key validation skipped due to network error:", e);
-          // Still save the key even if validation fails
+          console.log("API key validation network error:", e);
+          // If network error, assume key is valid but set credits to 0
+          // User can refresh later
+          isValid = true;
+          remainingCredits = 0;
         }
 
         // Encrypt and save the API key for the user
