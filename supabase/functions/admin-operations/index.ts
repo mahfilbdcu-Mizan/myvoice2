@@ -325,6 +325,87 @@ serve(async (req) => {
         );
       }
 
+      case "set_user_api_key": {
+        const { targetUserId, apiKey, provider = "ai33" } = body;
+
+        // Validate inputs
+        if (!targetUserId || typeof targetUserId !== "string") {
+          return new Response(
+            JSON.stringify({ error: "Target user ID is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!apiKey || typeof apiKey !== "string" || apiKey.length < 10) {
+          return new Response(
+            JSON.stringify({ error: "Valid API key is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Validate API key by checking balance
+        let isValid = true;
+        let remainingCredits = null;
+        
+        try {
+          const response = await fetch("https://api.ai33.pro/v1/credits", {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            remainingCredits = data.credits?.remaining || data.remaining_credits || null;
+            isValid = true;
+          } else {
+            isValid = false;
+          }
+        } catch (e) {
+          console.log("API key validation skipped due to network error:", e);
+          // Still save the key even if validation fails
+        }
+
+        // Encrypt and save the API key for the user
+        const { data: keyId, error: saveError } = await supabase.rpc(
+          "save_user_api_key_secure_admin",
+          {
+            p_user_id: targetUserId,
+            p_provider: provider,
+            p_api_key: apiKey,
+            p_is_valid: isValid,
+            p_remaining_credits: remainingCredits,
+          }
+        );
+
+        if (saveError) {
+          console.error("Error saving API key:", saveError);
+          return new Response(
+            JSON.stringify({ error: "Failed to save API key: " + saveError.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Log the action
+        await logAdminAction(adminUserId, "set_user_api_key", targetUserId, {
+          provider,
+          is_valid: isValid,
+          remaining_credits: remainingCredits,
+        });
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            keyId,
+            isValid,
+            remainingCredits,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: "Unknown action" }),
