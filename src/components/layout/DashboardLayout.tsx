@@ -59,7 +59,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       if (!user) return;
       
       try {
-        // Fetch API key balance - only show if key is valid
+        // Fetch API key data - show if key exists (even if not validated yet)
         const { data: apiKeyData } = await supabase
           .from("user_api_keys")
           .select("remaining_credits, is_valid")
@@ -67,10 +67,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           .eq("provider", "ai33")
           .maybeSingle();
         
-        // Only show API balance if key exists AND is valid
-        if (apiKeyData && apiKeyData.is_valid === true) {
+        // Show API balance if key exists
+        if (apiKeyData) {
           setHasUserApiKey(true);
-          setUserApiBalance(apiKeyData.remaining_credits);
+          // Show balance even if is_valid is null/false - admin set it
+          setUserApiBalance(apiKeyData.remaining_credits ?? 0);
+          
+          // If key exists but not validated, try to refresh balance
+          if (apiKeyData.is_valid !== true || apiKeyData.remaining_credits === null) {
+            try {
+              await supabase.functions.invoke('check-api-balance', {
+                body: { provider: 'ai33' }
+              });
+              
+              // Refetch after balance check
+              const { data: refreshedData } = await supabase
+                .from("user_api_keys")
+                .select("remaining_credits, is_valid")
+                .eq("user_id", user.id)
+                .eq("provider", "ai33")
+                .maybeSingle();
+              
+              if (refreshedData) {
+                setUserApiBalance(refreshedData.remaining_credits ?? 0);
+              }
+            } catch (e) {
+              console.log("Balance check skipped:", e);
+            }
+          }
         } else {
           setHasUserApiKey(false);
           setUserApiBalance(null);
