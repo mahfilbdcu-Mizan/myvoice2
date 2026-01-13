@@ -483,8 +483,10 @@ export function TextToSpeechPanel({
             setTaskStatus(`Processing ${progress}%`);
           });
           
-          if (task?.status === "done" && task.metadata?.audio_url) {
-            setAudioUrl(task.metadata.audio_url);
+          // Check for audio_url in multiple possible locations
+          const taskAudioUrl = task?.metadata?.audio_url || (task as any)?.audio_url || (task as any)?.result?.audio_url;
+          if (task?.status === "done" && taskAudioUrl) {
+            setAudioUrl(taskAudioUrl);
             setTaskStatus(null);
             setGenerationProgress(0);
             toast({
@@ -540,8 +542,10 @@ export function TextToSpeechPanel({
             setTaskStatus(`Processing ${progress}%`);
           });
           
-          if (task?.status === "done" && task.metadata?.audio_url) {
-            setAudioUrl(task.metadata.audio_url);
+          // Check for audio_url in multiple possible locations
+          const minimaxAudioUrl = task?.metadata?.audio_url || (task as any)?.audio_url || (task as any)?.result?.audio_url;
+          if (task?.status === "done" && minimaxAudioUrl) {
+            setAudioUrl(minimaxAudioUrl);
             setTaskStatus(null);
             toast({
               title: "Speech generated!",
