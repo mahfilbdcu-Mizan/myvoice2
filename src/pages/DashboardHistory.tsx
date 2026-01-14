@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 import { formatDistanceToNow, differenceInHours, parseISO } from "date-fns";
-import { getTaskStatus } from "@/lib/voice-api";
+import { getTaskStatus, TaskResult } from "@/lib/voice-api";
 
 interface GenerationTask {
   id: string;
@@ -39,6 +39,31 @@ export default function DashboardHistory() {
   const pollingRef = useRef<Map<string, boolean>>(new Map());
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Update database when task completes
+  const updateTaskInDatabase = useCallback(async (taskId: string, updates: { status?: string; progress?: number; audio_url?: string }) => {
+    try {
+      const updateData: Record<string, unknown> = {};
+      
+      if (updates.status) updateData.status = updates.status;
+      if (updates.progress !== undefined) updateData.progress = updates.progress;
+      if (updates.audio_url) updateData.audio_url = updates.audio_url;
+      if (updates.status === "done") updateData.completed_at = new Date().toISOString();
+      
+      const { error } = await supabase
+        .from("generation_tasks")
+        .update(updateData)
+        .eq("id", taskId);
+        
+      if (error) {
+        console.error("Failed to update task in database:", error);
+      } else {
+        console.log(`Database updated for task ${taskId}:`, updateData);
+      }
+    } catch (e) {
+      console.error("Error updating database:", e);
+    }
+  }, []);
+
   // Function to sync a single processing task with external API
   const syncProcessingTask = useCallback(async (task: GenerationTask) => {
     if (!task.external_task_id) return;
@@ -53,28 +78,43 @@ export default function DashboardHistory() {
       
       if (result) {
         const audioUrl = result.audio_url || result.metadata?.audio_url;
+        console.log(`Task sync result - status: ${result.status}, progress: ${result.progress}, audioUrl: ${audioUrl}`);
         
-        // If task is now done with audio, update UI immediately
+        // If task is now done with audio, update UI AND database
         if (result.status === "done" && audioUrl) {
           console.log(`Task ${task.id} completed with audio:`, audioUrl);
+          
+          // Update UI immediately
           setTasks(prev => prev.map(t => 
             t.id === task.id 
               ? { ...t, status: "done", progress: 100, audio_url: audioUrl }
               : t
           ));
+          
+          // Also update database
+          await updateTaskInDatabase(task.id, { 
+            status: "done", 
+            progress: 100, 
+            audio_url: audioUrl 
+          });
+          
         } else if (result.status === "error" || result.status === "failed") {
           setTasks(prev => prev.map(t => 
             t.id === task.id 
               ? { ...t, status: "failed", error_message: result.error_message }
               : t
           ));
+          await updateTaskInDatabase(task.id, { status: "failed" });
+          
         } else if (result.progress !== undefined && result.progress !== task.progress) {
-          // Update progress
+          // Update progress in UI
           setTasks(prev => prev.map(t => 
             t.id === task.id 
               ? { ...t, progress: result.progress ?? t.progress }
               : t
           ));
+          // Update progress in database
+          await updateTaskInDatabase(task.id, { progress: result.progress });
         }
       }
     } catch (error) {
@@ -82,7 +122,7 @@ export default function DashboardHistory() {
     } finally {
       pollingRef.current.set(task.id, false);
     }
-  }, [user?.id]);
+  }, [user?.id, updateTaskInDatabase]);
 
   // Background sync for all processing tasks
   const syncAllProcessingTasks = useCallback(async () => {
@@ -107,18 +147,20 @@ export default function DashboardHistory() {
     }
     
     // Only start if there are processing tasks
-    const hasProcessingTasks = tasks.some(t => 
+    const processingTasks = tasks.filter(t => 
       t.status === "processing" || t.status === "pending"
     );
     
-    if (hasProcessingTasks && user) {
-      // Initial sync
+    if (processingTasks.length > 0 && user) {
+      console.log(`Starting sync for ${processingTasks.length} processing tasks`);
+      
+      // Initial sync immediately
       syncAllProcessingTasks();
       
-      // Set up interval (every 5 seconds)
+      // Set up interval (every 3 seconds for faster updates)
       syncIntervalRef.current = setInterval(() => {
         syncAllProcessingTasks();
-      }, 5000);
+      }, 3000);
     }
     
     return () => {
