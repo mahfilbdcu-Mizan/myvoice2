@@ -478,7 +478,10 @@ export function TextToSpeechPanel({
           setTaskStatus("Processing...");
           setGenerationProgress(0);
           
-          const task = await waitForTask(result.taskId, userData?.user?.id, 60, 2000, (progress, status) => {
+          // Use 180 attempts (6 minutes) for longer texts, 90 attempts (3 minutes) for shorter
+          const maxAttempts = wordCount > 500 ? 180 : 90;
+          
+          const task = await waitForTask(result.taskId, userData?.user?.id, maxAttempts, 2000, (progress, status) => {
             setGenerationProgress(progress);
             setTaskStatus(`Processing ${progress}%`);
           });

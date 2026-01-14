@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Download, Play, Pause, Clock, CheckCircle, AlertCircle, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { BlockedUserGuard } from "@/components/BlockedUserGuard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 import { formatDistanceToNow, differenceInHours, parseISO } from "date-fns";
+import { getTaskStatus } from "@/lib/voice-api";
 
 interface GenerationTask {
   id: string;
@@ -26,6 +27,7 @@ interface GenerationTask {
   created_at: string;
   completed_at: string | null;
   expires_at: string | null;
+  external_task_id: string | null;
 }
 
 export default function DashboardHistory() {
@@ -34,6 +36,97 @@ export default function DashboardHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const pollingRef = useRef<Map<string, boolean>>(new Map());
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Function to sync a single processing task with external API
+  const syncProcessingTask = useCallback(async (task: GenerationTask) => {
+    if (!task.external_task_id) return;
+    
+    // Prevent duplicate polling for the same task
+    if (pollingRef.current.get(task.id)) return;
+    pollingRef.current.set(task.id, true);
+    
+    try {
+      console.log(`Syncing task ${task.external_task_id}...`);
+      const result = await getTaskStatus(task.external_task_id, user?.id);
+      
+      if (result) {
+        const audioUrl = result.audio_url || result.metadata?.audio_url;
+        
+        // If task is now done with audio, update UI immediately
+        if (result.status === "done" && audioUrl) {
+          console.log(`Task ${task.id} completed with audio:`, audioUrl);
+          setTasks(prev => prev.map(t => 
+            t.id === task.id 
+              ? { ...t, status: "done", progress: 100, audio_url: audioUrl }
+              : t
+          ));
+        } else if (result.status === "error" || result.status === "failed") {
+          setTasks(prev => prev.map(t => 
+            t.id === task.id 
+              ? { ...t, status: "failed", error_message: result.error_message }
+              : t
+          ));
+        } else if (result.progress !== undefined && result.progress !== task.progress) {
+          // Update progress
+          setTasks(prev => prev.map(t => 
+            t.id === task.id 
+              ? { ...t, progress: result.progress ?? t.progress }
+              : t
+          ));
+        }
+      }
+    } catch (error) {
+      console.error(`Error syncing task ${task.id}:`, error);
+    } finally {
+      pollingRef.current.set(task.id, false);
+    }
+  }, [user?.id]);
+
+  // Background sync for all processing tasks
+  const syncAllProcessingTasks = useCallback(async () => {
+    const processingTasks = tasks.filter(t => 
+      (t.status === "processing" || t.status === "pending") && 
+      t.external_task_id
+    );
+    
+    if (processingTasks.length === 0) return;
+    
+    console.log(`Syncing ${processingTasks.length} processing tasks...`);
+    
+    // Sync all in parallel
+    await Promise.all(processingTasks.map(syncProcessingTask));
+  }, [tasks, syncProcessingTask]);
+
+  // Start background sync interval for processing tasks
+  useEffect(() => {
+    // Clear any existing interval
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+    }
+    
+    // Only start if there are processing tasks
+    const hasProcessingTasks = tasks.some(t => 
+      t.status === "processing" || t.status === "pending"
+    );
+    
+    if (hasProcessingTasks && user) {
+      // Initial sync
+      syncAllProcessingTasks();
+      
+      // Set up interval (every 5 seconds)
+      syncIntervalRef.current = setInterval(() => {
+        syncAllProcessingTasks();
+      }, 5000);
+    }
+    
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [tasks.length, user, syncAllProcessingTasks]);
 
   useEffect(() => {
     if (user) {
