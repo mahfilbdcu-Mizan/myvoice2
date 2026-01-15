@@ -354,15 +354,15 @@ export async function getTaskStatus(taskId: string, userId?: string): Promise<Ta
 }
 
 // Poll until task is complete with progress callback
-// For long texts, maxAttempts should be very high (e.g., 600 for 20 minutes)
+// Unlimited polling - will keep polling until task completes or fails
 export async function waitForTask(
   taskId: string, 
   userId?: string, 
-  maxAttempts = 600, // Default: 600 attempts = 20 minutes (at 2s interval)
+  maxAttempts = 18000, // Default: 18000 attempts = 10 hours (at 2s interval) - effectively unlimited
   intervalMs = 2000,
   onProgress?: (progress: number, status: string) => void
 ): Promise<TaskResult | null> {
-  console.log(`Starting polling for task: ${taskId}, max attempts: ${maxAttempts} (${Math.round(maxAttempts * intervalMs / 60000)} minutes)`);
+  console.log(`Starting unlimited polling for task: ${taskId}`);
   
   let consecutiveErrors = 0;
   const maxConsecutiveErrors = 5; // Give up after 5 consecutive errors

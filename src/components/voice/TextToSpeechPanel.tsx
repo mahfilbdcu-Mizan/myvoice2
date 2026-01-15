@@ -478,19 +478,9 @@ export function TextToSpeechPanel({
           setTaskStatus("Processing...");
           setGenerationProgress(0);
           
-          // Use much longer polling for long texts
-          // Short text (<100 words): 3 minutes (90 attempts)
-          // Medium text (100-500 words): 10 minutes (300 attempts)
-          // Long text (500-2000 words): 20 minutes (600 attempts)
-          // Very long text (>2000 words): 30 minutes (900 attempts)
-          let maxAttempts = 90; // 3 minutes
-          if (wordCount > 2000) {
-            maxAttempts = 900; // 30 minutes
-          } else if (wordCount > 500) {
-            maxAttempts = 600; // 20 minutes
-          } else if (wordCount > 100) {
-            maxAttempts = 300; // 10 minutes
-          }
+          // Unlimited polling - use very high number (10 hours = 18000 attempts at 2s interval)
+          // This ensures task will complete no matter how long it takes
+          const maxAttempts = 18000;
           
           const task = await waitForTask(result.taskId, userData?.user?.id, maxAttempts, 2000, (progress, status) => {
             setGenerationProgress(progress);
