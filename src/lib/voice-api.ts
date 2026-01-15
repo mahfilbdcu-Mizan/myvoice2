@@ -354,14 +354,18 @@ export async function getTaskStatus(taskId: string, userId?: string): Promise<Ta
 }
 
 // Poll until task is complete with progress callback
+// For long texts, maxAttempts should be very high (e.g., 600 for 20 minutes)
 export async function waitForTask(
   taskId: string, 
   userId?: string, 
-  maxAttempts = 120, // Increased from 60 to 120 for longer texts
+  maxAttempts = 600, // Default: 600 attempts = 20 minutes (at 2s interval)
   intervalMs = 2000,
   onProgress?: (progress: number, status: string) => void
 ): Promise<TaskResult | null> {
-  console.log(`Starting polling for task: ${taskId}, max attempts: ${maxAttempts}`);
+  console.log(`Starting polling for task: ${taskId}, max attempts: ${maxAttempts} (${Math.round(maxAttempts * intervalMs / 60000)} minutes)`);
+  
+  let consecutiveErrors = 0;
+  const maxConsecutiveErrors = 5; // Give up after 5 consecutive errors
   
   for (let i = 0; i < maxAttempts; i++) {
     const task = await getTaskStatus(taskId, userId);
@@ -369,10 +373,26 @@ export async function waitForTask(
     console.log(`Task poll attempt ${i + 1}/${maxAttempts}:`, task?.status, task?.progress, "audio:", task?.audio_url || task?.metadata?.audio_url);
     
     if (!task) {
-      console.log("No task returned, continuing poll...");
+      consecutiveErrors++;
+      console.log(`No task returned (error ${consecutiveErrors}/${maxConsecutiveErrors}), continuing poll...`);
+      
+      // If too many consecutive errors, the task might be expired
+      if (consecutiveErrors >= maxConsecutiveErrors) {
+        console.log("Too many consecutive errors, task may be expired");
+        return { 
+          id: taskId, 
+          status: "error", 
+          error_message: "Task expired or not found",
+          progress: 0 
+        } as TaskResult;
+      }
+      
       await new Promise(resolve => setTimeout(resolve, intervalMs));
       continue;
     }
+    
+    // Reset error counter on successful response
+    consecutiveErrors = 0;
     
     // Report progress
     const progress = task.progress ?? 0;
