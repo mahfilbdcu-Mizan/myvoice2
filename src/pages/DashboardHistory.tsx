@@ -76,46 +76,78 @@ export default function DashboardHistory() {
       console.log(`Syncing task ${task.external_task_id}...`);
       const result = await getTaskStatus(task.external_task_id, user?.id);
       
-      if (result) {
-        const audioUrl = result.audio_url || result.metadata?.audio_url;
-        console.log(`Task sync result - status: ${result.status}, progress: ${result.progress}, audioUrl: ${audioUrl}`);
+      // If result is null or has error about "not found" or "expired", mark as expired
+      if (!result) {
+        // Check if task is old (created more than 30 minutes ago)
+        const createdAt = new Date(task.created_at).getTime();
+        const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
         
-        // If task is now done with audio, update UI AND database
-        if (result.status === "done" && audioUrl) {
-          console.log(`Task ${task.id} completed with audio:`, audioUrl);
-          
-          // Update UI immediately
+        if (createdAt < thirtyMinutesAgo) {
+          console.log(`Task ${task.id} appears expired (no API response and older than 30 min)`);
           setTasks(prev => prev.map(t => 
             t.id === task.id 
-              ? { ...t, status: "done", progress: 100, audio_url: audioUrl }
+              ? { ...t, status: "expired", error_message: "Task expired on external server" }
               : t
           ));
-          
-          // Also update database
-          await updateTaskInDatabase(task.id, { 
-            status: "done", 
-            progress: 100, 
-            audio_url: audioUrl 
-          });
-          
-        } else if (result.status === "error" || result.status === "failed") {
-          setTasks(prev => prev.map(t => 
-            t.id === task.id 
-              ? { ...t, status: "failed", error_message: result.error_message }
-              : t
-          ));
-          await updateTaskInDatabase(task.id, { status: "failed" });
-          
-        } else if (result.progress !== undefined && result.progress !== task.progress) {
-          // Update progress in UI
-          setTasks(prev => prev.map(t => 
-            t.id === task.id 
-              ? { ...t, progress: result.progress ?? t.progress }
-              : t
-          ));
-          // Update progress in database
-          await updateTaskInDatabase(task.id, { progress: result.progress });
+          await updateTaskInDatabase(task.id, { status: "expired" });
         }
+        return;
+      }
+      
+      const audioUrl = result.audio_url || result.metadata?.audio_url;
+      const errorMessage = result.error_message || "";
+      const isExpired = errorMessage.toLowerCase().includes("expired") || 
+                        errorMessage.toLowerCase().includes("not found");
+      
+      console.log(`Task sync result - status: ${result.status}, progress: ${result.progress}, audioUrl: ${audioUrl}`);
+      
+      // If task expired on external API
+      if (isExpired) {
+        console.log(`Task ${task.id} expired on external API`);
+        setTasks(prev => prev.map(t => 
+          t.id === task.id 
+            ? { ...t, status: "expired", error_message: "Task expired on external server" }
+            : t
+        ));
+        await updateTaskInDatabase(task.id, { status: "expired" });
+        return;
+      }
+      
+      // If task is now done with audio, update UI AND database
+      if (result.status === "done" && audioUrl) {
+        console.log(`Task ${task.id} completed with audio:`, audioUrl);
+        
+        // Update UI immediately
+        setTasks(prev => prev.map(t => 
+          t.id === task.id 
+            ? { ...t, status: "done", progress: 100, audio_url: audioUrl }
+            : t
+        ));
+        
+        // Also update database
+        await updateTaskInDatabase(task.id, { 
+          status: "done", 
+          progress: 100, 
+          audio_url: audioUrl 
+        });
+        
+      } else if (result.status === "error" || result.status === "failed") {
+        setTasks(prev => prev.map(t => 
+          t.id === task.id 
+            ? { ...t, status: "failed", error_message: result.error_message }
+            : t
+        ));
+        await updateTaskInDatabase(task.id, { status: "failed" });
+        
+      } else if (result.progress !== undefined && result.progress !== task.progress) {
+        // Update progress in UI
+        setTasks(prev => prev.map(t => 
+          t.id === task.id 
+            ? { ...t, progress: result.progress ?? t.progress }
+            : t
+        ));
+        // Update progress in database
+        await updateTaskInDatabase(task.id, { progress: result.progress });
       }
     } catch (error) {
       console.error(`Error syncing task ${task.id}:`, error);
@@ -421,6 +453,13 @@ export default function DashboardHistory() {
           <Badge variant="destructive">
             <AlertCircle className="mr-1 h-3 w-3" />
             Failed
+          </Badge>
+        );
+      case "expired":
+        return (
+          <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+            <Clock className="mr-1 h-3 w-3" />
+            Expired (Retry)
           </Badge>
         );
       default:
