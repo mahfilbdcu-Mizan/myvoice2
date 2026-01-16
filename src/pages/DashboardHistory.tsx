@@ -156,9 +156,13 @@ export default function DashboardHistory() {
     }
   }, [user?.id, updateTaskInDatabase]);
 
-  // Background sync for all processing tasks
+  // Background sync for all processing tasks - use ref to avoid dependency issues
+  const tasksRef = useRef<GenerationTask[]>([]);
+  tasksRef.current = tasks;
+
   const syncAllProcessingTasks = useCallback(async () => {
-    const processingTasks = tasks.filter(t => 
+    const currentTasks = tasksRef.current;
+    const processingTasks = currentTasks.filter(t => 
       (t.status === "processing" || t.status === "pending") && 
       t.external_task_id
     );
@@ -168,39 +172,30 @@ export default function DashboardHistory() {
     console.log(`Syncing ${processingTasks.length} processing tasks...`);
     
     // Sync all in parallel
-    await Promise.all(processingTasks.map(syncProcessingTask));
-  }, [tasks, syncProcessingTask]);
+    for (const task of processingTasks) {
+      syncProcessingTask(task);
+    }
+  }, [syncProcessingTask]);
 
   // Start background sync interval for processing tasks
   useEffect(() => {
-    // Clear any existing interval
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-    }
+    if (!user) return;
     
-    // Only start if there are processing tasks
-    const processingTasks = tasks.filter(t => 
-      t.status === "processing" || t.status === "pending"
-    );
-    
-    if (processingTasks.length > 0 && user) {
-      console.log(`Starting sync for ${processingTasks.length} processing tasks`);
-      
-      // Initial sync immediately
+    // Initial sync after a small delay to let tasks load
+    const initialTimeout = setTimeout(() => {
       syncAllProcessingTasks();
-      
-      // Set up interval (every 3 seconds for faster updates)
-      syncIntervalRef.current = setInterval(() => {
-        syncAllProcessingTasks();
-      }, 3000);
-    }
+    }, 1000);
+    
+    // Set up interval (every 3 seconds for faster updates)
+    const intervalId = setInterval(() => {
+      syncAllProcessingTasks();
+    }, 3000);
     
     return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
+      clearTimeout(initialTimeout);
+      clearInterval(intervalId);
     };
-  }, [tasks.length, user, syncAllProcessingTasks]);
+  }, [user, syncAllProcessingTasks]);
 
   useEffect(() => {
     if (user) {
