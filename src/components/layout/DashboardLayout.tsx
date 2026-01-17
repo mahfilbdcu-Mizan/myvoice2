@@ -17,7 +17,8 @@ import {
   History,
   Copy,
   Menu,
-  X
+  X,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [userApiBalance, setUserApiBalance] = useState<number | null>(null);
   const [hasUserApiKey, setHasUserApiKey] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [userUsedCredits, setUserUsedCredits] = useState<number>(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user, signOut, isLoading } = useAuth();
@@ -103,7 +105,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
 
-  // Fetch user API key balance and logo
+  // Fetch user API key balance, logo, and usage data
   useEffect(() => {
     async function fetchData() {
       if (!user) return;
@@ -123,6 +125,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         }
       } catch (error) {
         console.error("Error fetching logo:", error);
+      }
+
+      // Fetch user's total used credits (words_count from generation_tasks)
+      try {
+        const { data: usageData } = await supabase
+          .from("generation_tasks")
+          .select("words_count")
+          .eq("user_id", user.id);
+        
+        if (usageData) {
+          const totalUsed = usageData.reduce((sum, task) => sum + (task.words_count || 0), 0);
+          setUserUsedCredits(totalUsed);
+        }
+      } catch (error) {
+        console.error("Error fetching usage data:", error);
       }
     }
     
@@ -263,6 +280,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">Your Available Credits</p>
+                  {/* User's personal usage */}
+                  <div className="mt-2 pt-2 border-t border-green-500/20">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="h-3 w-3 text-orange-500" />
+                      <span className="text-sm font-semibold text-orange-600">
+                        {userUsedCredits.toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">You've used so far</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -372,6 +399,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">Your Available Credits</p>
+                {/* User's personal usage - mobile */}
+                <div className="mt-2 pt-2 border-t border-green-500/20">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="h-3 w-3 text-orange-500" />
+                    <span className="text-sm font-semibold text-orange-600">
+                      {userUsedCredits.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">You've used so far</p>
+                </div>
               </div>
             )}
           </div>
