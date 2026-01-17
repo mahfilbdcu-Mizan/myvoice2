@@ -291,6 +291,7 @@ export default function AdminUsers() {
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Free Credits</TableHead>
+                    <TableHead>Used Credits</TableHead>
                     <TableHead>Paid API Credits</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
@@ -313,6 +314,11 @@ export default function AdminUsers() {
                       <TableCell>
                         <Badge variant="secondary">
                           {user.credits.toLocaleString()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-orange-600 border-orange-600/30">
+                          {(user.used_credits || 0).toLocaleString()}
                         </Badge>
                       </TableCell>
                       <TableCell>
