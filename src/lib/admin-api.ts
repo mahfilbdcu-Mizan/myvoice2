@@ -52,6 +52,7 @@ export interface UserProfile {
   has_received_free_credits: boolean;
   api_credits?: number; // Paid API credits from user_api_keys
   has_api_key?: boolean; // Whether user has an API key set
+  used_credits?: number; // Total words/credits used from generation_tasks
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
@@ -73,6 +74,19 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     .in("user_id", userIds)
     .eq("provider", "ai33");
   
+  // Fetch total words used for each user from generation_tasks
+  const { data: usageData } = await supabase
+    .from("generation_tasks")
+    .select("user_id, words_count")
+    .in("user_id", userIds);
+  
+  // Create a map of user_id to total words used
+  const usageMap = new Map<string, number>();
+  usageData?.forEach(task => {
+    const current = usageMap.get(task.user_id) || 0;
+    usageMap.set(task.user_id, current + (task.words_count || 0));
+  });
+  
   // Create a map of user_id to api_credits and whether they have a key
   const apiKeyMap = new Map<string, { credits: number | null; hasKey: boolean }>();
   apiKeys?.forEach(key => {
@@ -82,13 +96,14 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     });
   });
   
-  // Merge profiles with API credits
+  // Merge profiles with API credits and usage data
   return (profiles || []).map(profile => {
     const apiKeyData = apiKeyMap.get(profile.id);
     return {
       ...profile,
       api_credits: apiKeyData?.credits ?? undefined,
-      has_api_key: apiKeyData?.hasKey ?? false
+      has_api_key: apiKeyData?.hasKey ?? false,
+      used_credits: usageMap.get(profile.id) || 0
     };
   });
 }

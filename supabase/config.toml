@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.save-api-key]
 verify_jwt = false
+
+[functions.get-user-credits]
+verify_jwt = false
