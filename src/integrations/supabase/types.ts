@@ -419,6 +419,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_user_usage_stats: {
+        Args: never
+        Returns: {
+          total_words_used: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

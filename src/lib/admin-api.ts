@@ -74,17 +74,18 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     .in("user_id", userIds)
     .eq("provider", "ai33");
   
-  // Fetch total words used for each user from generation_tasks
-  const { data: usageData } = await supabase
-    .from("generation_tasks")
-    .select("user_id, words_count")
-    .in("user_id", userIds);
+  // Fetch aggregated usage stats using RPC function (avoids 1000 row limit)
+  const { data: usageStats, error: usageError } = await supabase
+    .rpc("get_user_usage_stats");
+  
+  if (usageError) {
+    console.error("Error fetching usage stats:", usageError);
+  }
   
   // Create a map of user_id to total words used
   const usageMap = new Map<string, number>();
-  usageData?.forEach(task => {
-    const current = usageMap.get(task.user_id) || 0;
-    usageMap.set(task.user_id, current + (task.words_count || 0));
+  usageStats?.forEach((stat: { user_id: string; total_words_used: number }) => {
+    usageMap.set(stat.user_id, stat.total_words_used || 0);
   });
   
   // Create a map of user_id to api_credits and whether they have a key
