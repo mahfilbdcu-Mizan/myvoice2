@@ -78,15 +78,25 @@ export async function getAllUsers(): Promise<UserProfile[]> {
   const { data: usageStats, error: usageError } = await supabase
     .rpc("get_user_usage_stats");
   
+  console.log("Usage stats raw response:", usageStats);
+  console.log("Usage stats error:", usageError);
+  
   if (usageError) {
     console.error("Error fetching usage stats:", usageError);
   }
   
   // Create a map of user_id to total words used
   const usageMap = new Map<string, number>();
-  usageStats?.forEach((stat: { user_id: string; total_words_used: number }) => {
-    usageMap.set(stat.user_id, stat.total_words_used || 0);
-  });
+  if (usageStats && Array.isArray(usageStats)) {
+    usageStats.forEach((stat: { user_id: string; total_words_used: number | string }) => {
+      // Convert bigint string to number if needed
+      const wordsUsed = typeof stat.total_words_used === 'string' 
+        ? parseInt(stat.total_words_used, 10) 
+        : (stat.total_words_used || 0);
+      usageMap.set(stat.user_id, wordsUsed);
+    });
+  }
+  console.log("Usage map size:", usageMap.size);
   
   // Create a map of user_id to api_credits and whether they have a key
   const apiKeyMap = new Map<string, { credits: number | null; hasKey: boolean }>();
