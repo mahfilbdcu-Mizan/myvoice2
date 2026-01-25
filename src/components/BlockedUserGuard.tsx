@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Ban } from "lucide-react";
+import { Ban, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface BlockedUserGuardProps {
@@ -8,7 +8,16 @@ interface BlockedUserGuardProps {
 }
 
 export function BlockedUserGuard({ children, featureName = "This feature" }: BlockedUserGuardProps) {
-  const { profile } = useAuth();
+  const { profile, isLoading, user } = useAuth();
+
+  // Show loading while auth is loading or profile is being fetched
+  if (isLoading || (user && !profile)) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (profile?.is_blocked) {
     return (
