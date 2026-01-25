@@ -94,19 +94,19 @@ async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remai
   return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - currentCount - 1 };
 }
 
-// Get user's API key or fallback to platform key (using secure decryption)
+// Get user's API key (no fallback to platform key - user MUST have their own key)
 async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string | null; isUserKey: boolean }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   
   if (!supabaseUrl || !supabaseKey) {
     console.log("Supabase credentials not found");
-    return { apiKey: Deno.env.get("AI33_API_KEY") || null, isUserKey: false };
+    return { apiKey: null, isUserKey: false };
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Try user's own API key first - using secure decryption function
+  // User MUST have their own API key - no platform key fallback
   if (userId) {
     const { data: decryptedKey, error: keyError } = await supabase.rpc("get_decrypted_api_key", {
       p_user_id: userId,
@@ -114,18 +114,13 @@ async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string
     });
 
     if (!keyError && decryptedKey) {
-      console.log("Using user's own API key (decrypted from secure storage)");
+      console.log("Using user's API key (decrypted from secure storage)");
       return { apiKey: decryptedKey, isUserKey: true };
     }
   }
 
-  // Use environment variable only for platform API key (secure - not stored in database)
-  const envApiKey = Deno.env.get("AI33_API_KEY");
-  if (envApiKey) {
-    return { apiKey: envApiKey, isUserKey: false };
-  }
-
-  console.error("AI33_API_KEY environment variable not configured");
+  // No API key found for user
+  console.log("No API key found for user:", userId);
   return { apiKey: null, isUserKey: false };
 }
 
@@ -284,30 +279,31 @@ serve(async (req) => {
     const wordCount = text.trim().split(/\s+/).length;
     console.log("Word count:", wordCount, "Voice ID:", voiceId);
 
-    // Get API key (user's own or platform's)
+    // Get user's API key - REQUIRED for generation
     const { apiKey, isUserKey } = await getApiKeyForUser(userId);
     
+    // API key is REQUIRED - users can only generate if they have an API key set by admin
     if (!apiKey) {
-      console.error("API key is not configured - checked user key and platform settings");
+      console.error("No API key found for user:", userId);
       return new Response(
-        JSON.stringify({ error: "API key not configured. Please contact admin." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          error: "API key not configured. Please contact admin to set up your API key before generating speech." 
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
-    console.log("Using API key type:", isUserKey ? "user" : "platform", "Key length:", apiKey.length);
+    console.log("Using API key for user:", userId, "Key length:", apiKey.length);
 
-    // If using platform key, check and deduct credits
-    if (!isUserKey) {
-      const userCredits = await getUserCredits(userId);
-      if (userCredits < wordCount) {
-        return new Response(
-          JSON.stringify({ 
-            error: `Insufficient credits. You have ${userCredits} words, but need ${wordCount}. Add your own API key for unlimited generation.`
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    // Check credits - all users need sufficient credits
+    const userCredits = await getUserCredits(userId);
+    if (userCredits < wordCount) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Insufficient credits. You have ${userCredits} words, but need ${wordCount}. Please contact admin to add more credits.`
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log(`Generating speech for voice ${voiceId}, text length: ${text.length}, using ${isUserKey ? 'user' : 'platform'} key`);
@@ -394,10 +390,8 @@ serve(async (req) => {
       if (audioUrl) {
         console.log("Direct audio URL returned:", audioUrl);
         
-        // Deduct credits atomically if using platform key
-        if (!isUserKey) {
-          await deductUserCreditsAtomic(userId, wordCount);
-        }
+        // Deduct credits atomically
+        await deductUserCreditsAtomic(userId, wordCount);
         
         if (taskId) {
           await updateTask(taskId, { 
@@ -435,10 +429,8 @@ serve(async (req) => {
         });
       }
 
-      // Deduct credits atomically if using platform key
-      if (!isUserKey) {
-        await deductUserCreditsAtomic(userId, wordCount);
-      }
+      // Deduct credits atomically
+      await deductUserCreditsAtomic(userId, wordCount);
 
       // Return the external task ID for polling
       return new Response(JSON.stringify({ 
@@ -454,10 +446,8 @@ serve(async (req) => {
     const audioBuffer = await response.arrayBuffer();
     console.log(`Generated audio: ${audioBuffer.byteLength} bytes`);
 
-    // Deduct credits atomically if using platform key
-    if (!isUserKey) {
-      await deductUserCreditsAtomic(userId, wordCount);
-    }
+    // Deduct credits atomically
+    await deductUserCreditsAtomic(userId, wordCount);
 
     // Update task with audio (we'd need to upload to storage for persistence, but for now just mark done)
     if (taskId) {
