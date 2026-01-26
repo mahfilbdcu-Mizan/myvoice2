@@ -158,16 +158,8 @@ serve(async (req) => {
 
     const wordsCount = text.trim().split(/\s+/).length;
 
-    // Check credits
-    const userCredits = await getUserCredits(userId);
-    if (userCredits < wordsCount) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Insufficient credits. You have ${userCredits} words, but need ${wordsCount}. Please contact admin to add more credits.`
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Users with API keys have UNLIMITED generation - no credit check needed
+    // Credits are only tracked for usage statistics, not as a limit
 
     // Create supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
