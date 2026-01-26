@@ -295,16 +295,8 @@ serve(async (req) => {
     
     console.log("Using API key for user:", userId, "Key length:", apiKey.length);
 
-    // Check credits - all users need sufficient credits
-    const userCredits = await getUserCredits(userId);
-    if (userCredits < wordCount) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Insufficient credits. You have ${userCredits} words, but need ${wordCount}. Please contact admin to add more credits.`
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Users with API keys have UNLIMITED generation - no credit check needed
+    // Credits are only tracked for usage statistics, not as a limit
 
     console.log(`Generating speech for voice ${voiceId}, text length: ${text.length}, using ${isUserKey ? 'user' : 'platform'} key`);
 
