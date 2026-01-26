@@ -6,28 +6,102 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function getApiKey(): string | null {
-  const apiKey = Deno.env.get("AI33_API_KEY");
-  if (!apiKey) {
-    console.error("AI33_API_KEY environment variable not configured");
-    return null;
+// Validate JWT and get user ID
+async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
+  const authHeader = req.headers.get("Authorization");
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { userId: null, error: "Missing or invalid authorization header" };
   }
-  return apiKey;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { userId: null, error: "Server configuration error" };
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data?.user) {
+    console.error("Auth validation error:", error?.message);
+    return { userId: null, error: "Invalid or expired token" };
+  }
+
+  return { userId: data.user.id, error: null };
 }
 
-function validateAuth(req: Request): string | null {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
+// Get user's API key - REQUIRED for generation
+async function getApiKeyForUser(userId: string): Promise<{ apiKey: string | null; isUserKey: boolean }> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   
-  try {
-    const token = authHeader.replace("Bearer ", "");
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.sub || null;
-  } catch {
-    return null;
+  if (!supabaseUrl || !supabaseKey) {
+    console.log("Supabase credentials not found");
+    return { apiKey: null, isUserKey: false };
   }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  // User MUST have their own API key - no platform key fallback
+  const { data: decryptedKey, error: keyError } = await supabase.rpc("get_decrypted_api_key", {
+    p_user_id: userId,
+    p_provider: "ai33",
+  });
+
+  if (!keyError && decryptedKey) {
+    console.log("Using user's API key (decrypted from secure storage)");
+    return { apiKey: decryptedKey, isUserKey: true };
+  }
+
+  // No API key found for user
+  console.log("No API key found for user:", userId);
+  return { apiKey: null, isUserKey: false };
+}
+
+// Get user profile credits
+async function getUserCredits(userId: string): Promise<number> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  
+  if (!supabaseUrl || !supabaseKey) return 0;
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { data } = await supabase
+    .from("profiles")
+    .select("credits")
+    .eq("id", userId)
+    .single();
+
+  return data?.credits || 0;
+}
+
+// Atomic credit deduction using database function
+async function deductUserCreditsAtomic(userId: string, amount: number): Promise<boolean> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  
+  if (!supabaseUrl || !supabaseKey) return false;
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  const { data, error } = await supabase
+    .rpc('deduct_credits_atomic', {
+      _user_id: userId,
+      _amount: amount
+    });
+
+  if (error) {
+    console.error("Error deducting credits:", error);
+    return false;
+  }
+
+  return data === true;
 }
 
 serve(async (req) => {
@@ -36,21 +110,31 @@ serve(async (req) => {
   }
 
   try {
-    const userId = validateAuth(req);
-    if (!userId) {
+    // Validate authentication
+    const { userId, error: authError } = await validateAuth(req);
+    
+    if (authError || !userId) {
+      console.error("Authentication failed:", authError);
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: authError || "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const API_KEY = getApiKey();
+    // Get user's API key - REQUIRED for generation
+    const { apiKey: API_KEY } = await getApiKeyForUser(userId);
+    
     if (!API_KEY) {
+      console.error("No API key found for user:", userId);
       return new Response(
-        JSON.stringify({ error: "API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          error: "API key not configured. Please contact admin to set up your API key before generating speech." 
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    console.log("Using API key for user:", userId, "Key length:", API_KEY.length);
 
     const body = await req.json();
     const {
@@ -73,6 +157,17 @@ serve(async (req) => {
     }
 
     const wordsCount = text.trim().split(/\s+/).length;
+
+    // Check credits
+    const userCredits = await getUserCredits(userId);
+    if (userCredits < wordsCount) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Insufficient credits. You have ${userCredits} words, but need ${wordsCount}. Please contact admin to add more credits.`
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Create supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -151,6 +246,9 @@ serve(async (req) => {
         .update({ external_task_id: data.task_id })
         .eq("id", localTaskId);
     }
+
+    // Deduct credits atomically
+    await deductUserCreditsAtomic(userId, wordsCount);
 
     return new Response(
       JSON.stringify({
