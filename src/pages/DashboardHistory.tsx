@@ -305,22 +305,57 @@ export default function DashboardHistory() {
   const handleDownload = async (task: GenerationTask) => {
     if (!task.audio_url) return;
 
+    const fileName = getFirstLine(task.input_text);
+    
     try {
-      const response = await fetch(task.audio_url);
+      // Try fetch with no-cors mode first, then fallback to direct link
+      const response = await fetch(task.audio_url, {
+        mode: 'cors',
+        credentials: 'omit',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const blob = await response.blob();
+      
+      // Check if we got a valid blob
+      if (blob.size === 0) {
+        throw new Error('Empty blob received');
+      }
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      // Use first line of text as filename
-      const fileName = getFirstLine(task.input_text);
       a.download = `${fileName}.mp3`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error) {
+      
       toast({
-        title: "Download Failed",
-        description: "Could not download the audio file",
-        variant: "destructive",
+        title: "Download Started",
+        description: "Your audio file is downloading",
+      });
+    } catch (error) {
+      console.log("Fetch download failed, using direct link:", error);
+      
+      // Fallback: Open in new tab for direct download
+      // This works even with CORS restrictions
+      const a = document.createElement("a");
+      a.href = task.audio_url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      // Set download attribute (may not work cross-origin but worth trying)
+      a.download = `${fileName}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Opening Audio",
+        description: "Audio opened in new tab. Right-click and 'Save As' to download.",
       });
     }
   };
