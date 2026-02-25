@@ -97,8 +97,18 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Voice clone API error:", response.status, errorText);
+      
+      // Parse error message for better user feedback
+      let userMessage = "Failed to clone voice";
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) {
+          userMessage = errorJson.message;
+        }
+      } catch { /* use default message */ }
+      
       return new Response(
-        JSON.stringify({ error: "Failed to clone voice", details: errorText }),
+        JSON.stringify({ error: userMessage, details: errorText }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
