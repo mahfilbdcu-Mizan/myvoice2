@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,9 +50,41 @@ export default function AdminUsers() {
   const [isSettingApiKey, setIsSettingApiKey] = useState(false);
   const [isDeletingApiKey, setIsDeletingApiKey] = useState<string | null>(null);
 
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debouncedFetchUsers = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchUsers();
+    }, 2000);
+  }, []);
+
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Realtime subscription on generation_tasks for auto-refresh
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-generation-tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'generation_tasks',
+        },
+        () => {
+          debouncedFetchUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [debouncedFetchUsers]);
 
   useEffect(() => {
     if (searchQuery) {
