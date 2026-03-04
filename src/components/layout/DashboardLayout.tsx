@@ -162,8 +162,45 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         },
         (payload) => {
           console.log('API key changed:', payload);
-          // Refetch API key data when changes occur
           fetchApiKeyData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Subscribe to realtime changes on generation_tasks for live used credits
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('user-generation-tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'generation_tasks',
+          filter: `user_id=eq.${user.id}`
+        },
+        async () => {
+          // Re-fetch used credits count
+          try {
+            const { data: usageData } = await supabase
+              .from("generation_tasks")
+              .select("words_count")
+              .eq("user_id", user.id);
+            
+            if (usageData) {
+              const totalUsed = usageData.reduce((sum, task) => sum + (task.words_count || 0), 0);
+              setUserUsedCredits(totalUsed);
+            }
+          } catch (error) {
+            console.error("Error refreshing usage data:", error);
+          }
         }
       )
       .subscribe();
