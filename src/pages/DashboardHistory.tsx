@@ -37,7 +37,7 @@ export default function DashboardHistory() {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const pollingRef = useRef<Map<string, boolean>>(new Map());
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const syncIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update database when task completes
   const updateTaskInDatabase = useCallback(async (taskId: string, updates: { status?: string; progress?: number; audio_url?: string }) => {
