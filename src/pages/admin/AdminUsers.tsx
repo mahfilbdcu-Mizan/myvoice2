@@ -50,7 +50,7 @@ export default function AdminUsers() {
   const [isSettingApiKey, setIsSettingApiKey] = useState(false);
   const [isDeletingApiKey, setIsDeletingApiKey] = useState<string | null>(null);
 
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedFetchUsers = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
