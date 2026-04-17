@@ -355,12 +355,27 @@ serve(async (req) => {
         // Use default error message
       }
 
+      // Detect ElevenLabs/upstream maintenance or downtime - DO NOT deduct credits
+      const lowerErr = (errorText + " " + errorMessage).toLowerCase();
+      const isMaintenance =
+        lowerErr.includes("maintenance") ||
+        lowerErr.includes("elevenlabs is down") ||
+        lowerErr.includes("service unavailable") ||
+        lowerErr.includes("temporarily unavailable") ||
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504;
+
+      if (isMaintenance) {
+        errorMessage = "ElevenLabs is down for maintenance. Please try again later. No credits were charged.";
+      }
+
       if (taskId) {
         await updateTask(taskId, { status: "failed", error_message: errorMessage });
       }
 
       return new Response(
-        JSON.stringify({ error: errorMessage }),
+        JSON.stringify({ error: errorMessage, maintenance: isMaintenance }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
