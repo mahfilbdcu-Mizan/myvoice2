@@ -82,7 +82,7 @@ async function getApiKey(userId?: string): Promise<string | null> {
 }
 
 // Update local task with progress, audio URL when done
-async function updateLocalTask(externalTaskId: string, updates: { audioUrl?: string; status?: string; progress?: number }) {
+async function updateLocalTask(externalTaskId: string, updates: { audioUrl?: string; status?: string; progress?: number; errorMessage?: string }) {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -105,6 +105,9 @@ async function updateLocalTask(externalTaskId: string, updates: { audioUrl?: str
     if (updates.progress !== undefined) {
       updateData.progress = updates.progress;
     }
+    if (updates.errorMessage) {
+      updateData.error_message = updates.errorMessage;
+    }
     
     if (Object.keys(updateData).length > 0) {
       await supabase
@@ -116,6 +119,42 @@ async function updateLocalTask(externalTaskId: string, updates: { audioUrl?: str
     }
   } catch (e) {
     console.error("Error updating local task:", e);
+  }
+}
+
+// Refund credits if task failed due to upstream maintenance
+async function refundCreditsForFailedTask(externalTaskId: string, reason: string) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseKey) return;
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: task } = await supabase
+      .from("generation_tasks")
+      .select("id, user_id, words_count, status")
+      .eq("external_task_id", externalTaskId)
+      .single();
+
+    if (!task || !task.user_id || !task.words_count) return;
+    if (task.status === "failed" || task.status === "done") return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("credits")
+      .eq("id", task.user_id)
+      .single();
+
+    const newCredits = (profile?.credits || 0) + task.words_count;
+    await supabase
+      .from("profiles")
+      .update({ credits: newCredits })
+      .eq("id", task.user_id);
+
+    console.log(`Refunded ${task.words_count} credits to user ${task.user_id} due to: ${reason}`);
+  } catch (e) {
+    console.error("Error refunding credits:", e);
   }
 }
 
@@ -206,6 +245,14 @@ serve(async (req) => {
     const isError = apiStatus === "error" || apiStatus === "failed";
     const isProcessing = apiStatus === "doing" || apiStatus === "processing" || apiStatus === "pending";
 
+    // Detect upstream maintenance in error message
+    const errMsg = (data.error_message || data.error || "").toString().toLowerCase();
+    const isMaintenance =
+      errMsg.includes("maintenance") ||
+      errMsg.includes("elevenlabs is down") ||
+      errMsg.includes("service unavailable") ||
+      errMsg.includes("temporarily unavailable");
+
     // Update local database with progress and status
     if (isDone && finalAudioUrl) {
       await updateLocalTask(taskId, { 
@@ -214,7 +261,15 @@ serve(async (req) => {
         progress: 100
       });
     } else if (isError) {
-      await updateLocalTask(taskId, { status: "failed", progress: 0 });
+      const friendlyMsg = isMaintenance
+        ? "ElevenLabs is down for maintenance. Please try again later. Credits have been refunded."
+        : (data.error_message || data.error || "Generation failed");
+
+      if (isMaintenance) {
+        await refundCreditsForFailedTask(taskId, "upstream maintenance");
+      }
+
+      await updateLocalTask(taskId, { status: "failed", progress: 0, errorMessage: friendlyMsg });
     } else if (isProcessing) {
       await updateLocalTask(taskId, { 
         status: "processing",
@@ -222,9 +277,13 @@ serve(async (req) => {
       });
     }
 
-    // Build normalized response
     const normalizedStatus = isDone ? "done" : (isError ? "error" : "processing");
     const normalizedProgress = isDone ? 100 : (isError ? 0 : (progress ?? 50));
+    const normalizedError = isError
+      ? (isMaintenance
+          ? "ElevenLabs is down for maintenance. Please try again later. Credits have been refunded."
+          : (data.error_message || data.error || null))
+      : null;
     
     const normalizedResponse = {
       id: data.id || taskId,
@@ -233,7 +292,8 @@ serve(async (req) => {
       credit_cost: data.credit_cost || 0,
       progress: normalizedProgress,
       type: data.type || "tts",
-      error_message: data.error_message || data.error || null,
+      error_message: normalizedError,
+      maintenance: isError && isMaintenance,
       audio_url: finalAudioUrl,
       metadata: {
         ...(data.metadata || {}),
