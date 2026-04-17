@@ -214,16 +214,36 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Minimax API error:", response.status, errorText);
-      
+
+      let errorMessage = "Failed to generate speech";
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.detail?.message || errorJson.message || errorJson.error || errorMessage;
+      } catch { /* default */ }
+
+      const lowerErr = (errorText + " " + errorMessage).toLowerCase();
+      const isMaintenance =
+        lowerErr.includes("maintenance") ||
+        lowerErr.includes("elevenlabs is down") ||
+        lowerErr.includes("service unavailable") ||
+        lowerErr.includes("temporarily unavailable") ||
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504;
+
+      if (isMaintenance) {
+        errorMessage = "ElevenLabs is down for maintenance. Please try again later. No credits were charged.";
+      }
+
       if (localTaskId) {
         await supabase
           .from("generation_tasks")
-          .update({ status: "failed", error_message: errorText })
+          .update({ status: "failed", error_message: errorMessage })
           .eq("id", localTaskId);
       }
 
       return new Response(
-        JSON.stringify({ error: "Failed to generate speech", details: errorText }),
+        JSON.stringify({ error: errorMessage, maintenance: isMaintenance, details: errorText }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
