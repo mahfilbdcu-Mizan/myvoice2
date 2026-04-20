@@ -34,9 +34,7 @@ export default function Login() {
   }
 
   if (user) {
-    const redirectPath = sessionStorage.getItem("post_auth_redirect") || "/dashboard";
-    sessionStorage.removeItem("post_auth_redirect");
-    return <Navigate to={redirectPath} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
