@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.jpeg";
 
 export default function AdminLogin() {
-  const { isLoading, signInWithGoogle, signInWithEmail } = useAuth();
+  const { user, isLoading, signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
@@ -65,7 +65,7 @@ export default function AdminLogin() {
 
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
-    const { error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle("/admin");
     setIsSubmitting(false);
     if (error) {
       toast({
@@ -153,6 +153,10 @@ export default function AdminLogin() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (user && !showForgotPassword) {
+    return <Navigate to="/admin" replace />;
   }
 
   return (
