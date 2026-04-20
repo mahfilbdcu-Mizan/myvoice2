@@ -1,8 +1,6 @@
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
@@ -10,13 +8,14 @@ import { toast } from "@/hooks/use-toast";
 import logo from "@/assets/logo.jpeg";
 
 export default function Login() {
-  const { isLoading, signInWithGoogle } = useAuth();
+  const { user, isLoading, signInWithGoogle } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
-    const { error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle("/dashboard");
     setIsSubmitting(false);
+
     if (error) {
       toast({
         title: "Sign in failed",
@@ -34,16 +33,20 @@ export default function Login() {
     );
   }
 
+  if (user) {
+    const redirectPath = sessionStorage.getItem("post_auth_redirect") || "/dashboard";
+    sessionStorage.removeItem("post_auth_redirect");
+    return <Navigate to={redirectPath} replace />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-surface-subtle p-4">
-      {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -right-1/4 -top-1/4 h-[600px] w-[600px] rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute -bottom-1/4 -left-1/4 h-[600px] w-[600px] rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        {/* Logo */}
         <Link to="/" className="mb-8 flex items-center justify-center gap-3">
           <img src={logo} alt="BD YT Automation" className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
           <span className="text-2xl font-bold tracking-tight">BD YT Automation</span>
@@ -52,9 +55,7 @@ export default function Login() {
         <Card className="shadow-elevated">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome</CardTitle>
-            <CardDescription>
-              Sign in with Google to continue
-            </CardDescription>
+            <CardDescription>Sign in with Google to continue</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <Button
@@ -104,9 +105,7 @@ export default function Login() {
 
             <div className="rounded-lg bg-muted/50 p-4 text-center">
               <p className="text-sm font-medium">New users get 100 free credits!</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Start creating audio content right away
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Start creating audio content right away</p>
             </div>
 
             <div className="text-center text-xs text-muted-foreground">
