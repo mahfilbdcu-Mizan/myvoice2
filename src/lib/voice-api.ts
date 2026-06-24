@@ -208,6 +208,7 @@ export interface GenerateOptions {
   voiceId: string;
   voiceName?: string;
   model?: string;
+  speed?: number;
   stability?: number;
   similarity?: number;
   style?: number;
@@ -235,6 +236,7 @@ export async function generateSpeech(options: GenerateOptions): Promise<Generate
           voiceId: options.voiceId,
           voiceName: options.voiceName,
           model: options.model,
+          speed: options.speed,
           stability: options.stability,
           similarity: options.similarity,
           style: options.style,
