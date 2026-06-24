@@ -386,29 +386,48 @@ serve(async (req) => {
     if (contentType.includes("application/json")) {
       // Task-based response - return task info
       const taskData = await response.json();
-      console.log("Task created:", JSON.stringify(taskData));
-      
-      // API returns task_id per documentation
-      const externalTaskId = taskData.task_id || taskData.id || taskData.taskId;
-      
+      console.log("Task response:", JSON.stringify(taskData));
+
+      // API returns task_id per documentation. Check many possible field names.
+      const externalTaskId =
+        taskData.task_id ||
+        taskData.id ||
+        taskData.taskId ||
+        taskData.request_id ||
+        taskData.requestId ||
+        taskData.job_id ||
+        taskData.jobId ||
+        taskData.generation_id ||
+        taskData.generationId ||
+        taskData.data?.task_id ||
+        taskData.data?.id ||
+        taskData.result?.task_id ||
+        taskData.result?.id;
+
       // Check if it immediately has audio URL (metadata.audio_url per API docs)
-      const audioUrl = taskData.metadata?.audio_url || taskData.audio_url || taskData.audioUrl;
-      
+      const audioUrl =
+        taskData.metadata?.audio_url ||
+        taskData.audio_url ||
+        taskData.audioUrl ||
+        taskData.url ||
+        taskData.data?.audio_url ||
+        taskData.result?.audio_url;
+
       if (audioUrl) {
         console.log("Direct audio URL returned:", audioUrl);
-        
+
         // Deduct credits atomically
         await deductUserCreditsAtomic(userId, wordCount);
-        
+
         if (taskId) {
-          await updateTask(taskId, { 
+          await updateTask(taskId, {
             status: "done",
             audio_url: audioUrl,
             completed_at: new Date().toISOString(),
           });
         }
-        
-        return new Response(JSON.stringify({ 
+
+        return new Response(JSON.stringify({
           audioUrl,
           localTaskId: taskId,
           status: "done",
@@ -416,14 +435,37 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
+
       if (!externalTaskId) {
         console.error("No task ID in response:", taskData);
+
+        // Surface any upstream message instead of the generic "No task ID" string.
+        const upstreamMsg =
+          taskData.detail?.message ||
+          taskData.detail ||
+          taskData.message ||
+          taskData.error ||
+          taskData.status ||
+          taskData.data?.message;
+
+        const lowerMsg = String(upstreamMsg || "").toLowerCase();
+        const isMaintenance =
+          lowerMsg.includes("maintenance") ||
+          lowerMsg.includes("unavailable") ||
+          lowerMsg.includes("down") ||
+          lowerMsg.includes("try again");
+
+        const friendly = isMaintenance
+          ? "ElevenLabs/AI33 সাময়িকভাবে বন্ধ আছে। একটু পরে আবার চেষ্টা করুন। কোনো ক্রেডিট কাটা হয়নি।"
+          : (upstreamMsg
+              ? `Upstream API error: ${upstreamMsg}`
+              : "Voice API থেকে কোনো task ID পাওয়া যায়নি। সম্ভবত API সাময়িকভাবে বন্ধ। কোনো ক্রেডিট কাটা হয়নি।");
+
         if (taskId) {
-          await updateTask(taskId, { status: "failed", error_message: "No task ID returned from API" });
+          await updateTask(taskId, { status: "failed", error_message: friendly });
         }
-        return new Response(JSON.stringify({ error: "No task ID returned from API" }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: friendly, maintenance: isMaintenance || !upstreamMsg }), {
+          status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       
