@@ -323,7 +323,13 @@ serve(async (req) => {
     const apiStatus = getStatus(data);
     const isDone = apiStatus === "done" || apiStatus === "completed" || apiStatus === "success";
     const isError = apiStatus === "error" || apiStatus === "failed";
-    const isProcessing = apiStatus === "doing" || apiStatus === "processing" || apiStatus === "pending";
+    const isProcessing =
+      apiStatus === "doing" ||
+      apiStatus === "processing" ||
+      apiStatus === "pending" ||
+      apiStatus === "in_queue" ||
+      apiStatus === "queued" ||
+      apiStatus === "generating";
 
     // Detect upstream maintenance in error message
     const errMsg = getErrorMessage(data) || "";
