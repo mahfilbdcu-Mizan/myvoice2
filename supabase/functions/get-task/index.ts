@@ -6,6 +6,105 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const AI33_TASK_URLS = [
+  (taskId: string) => `https://api.ai33.pro/v3/task/${encodeURIComponent(taskId)}`,
+  (taskId: string) => `https://api.ai33.pro/v3/tasks/${encodeURIComponent(taskId)}`,
+  (taskId: string) => `https://api.ai33.pro/v3/task?task_id=${encodeURIComponent(taskId)}`,
+  (taskId: string) => `https://api.ai33.pro/v1/task/${encodeURIComponent(taskId)}`,
+];
+
+function extractAudioUrl(data: Record<string, any>): string | null {
+  const audioUrl =
+    data.audio_url ||
+    data.audioUrl ||
+    data.metadata?.audio_url ||
+    data.result?.audio_url ||
+    data.result?.url ||
+    data.output?.audio_url ||
+    data.output_url ||
+    data.file_url ||
+    data.url ||
+    data.data?.audio_url ||
+    data.data?.url ||
+    data.output ||
+    null;
+
+  return typeof audioUrl === "string" && audioUrl.startsWith("http") ? audioUrl : null;
+}
+
+function getStatus(data: Record<string, any>): string {
+  return String(data.status || data.data?.status || data.result?.status || "pending").toLowerCase();
+}
+
+function getErrorMessage(data: Record<string, any>): string | null {
+  const rawMessage =
+    data.error_message ||
+    data.error?.message ||
+    data.error ||
+    data.message ||
+    data.data?.error_message ||
+    data.data?.message ||
+    data.result?.error_message ||
+    null;
+
+  return rawMessage ? String(rawMessage) : null;
+}
+
+function isMaintenanceMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("maintenance") ||
+    lower.includes("elevenlabs is down") ||
+    lower.includes("service unavailable") ||
+    lower.includes("temporarily unavailable") ||
+    lower.includes("unavailable") ||
+    lower.includes("try again")
+  );
+}
+
+async function fetchTaskStatus(taskId: string, apiKey: string): Promise<{ response: Response; data: Record<string, any>; url: string }> {
+  let lastResponse: Response | null = null;
+  let lastData: Record<string, any> = {};
+  let lastUrl = "";
+
+  for (const buildUrl of AI33_TASK_URLS) {
+    const url = buildUrl(taskId);
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const text = await response.text();
+    let data: Record<string, any> = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { message: text };
+    }
+
+    lastResponse = response;
+    lastData = data;
+    lastUrl = url;
+
+    const message = getErrorMessage(data)?.toLowerCase() || "";
+    const shouldTryNextEndpoint =
+      response.status === 404 ||
+      message.includes("not found") ||
+      message.includes("use api v3") ||
+      message.includes("cannot get") ||
+      message.includes("no route");
+
+    if (response.ok || !shouldTryNextEndpoint) {
+      return { response, data, url };
+    }
+  }
+
+  return { response: lastResponse!, data: lastData, url: lastUrl };
+}
+
 // Validate JWT and get user ID
 async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
   const authHeader = req.headers.get("Authorization");
@@ -196,62 +295,39 @@ serve(async (req) => {
 
     console.log(`Fetching task status: ${taskId} for user: ${userId}`);
 
-    const response = await fetch(`https://api.ai33.pro/v1/task/${taskId}`, {
-      method: "GET",
-      headers: {
-        "xi-api-key": API_KEY,
-        "Content-Type": "application/json",
-      },
-    });
+    const { response, data, url } = await fetchTaskStatus(taskId, API_KEY);
+    console.log(`Task status endpoint used: ${url}`);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API error:", response.status, errorText);
+      const errorMessage = getErrorMessage(data) || "Failed to get task status";
+      console.error("API error:", response.status, JSON.stringify(data));
       return new Response(
-        JSON.stringify({ error: "Failed to get task status" }),
+        JSON.stringify({ error: errorMessage }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const data = await response.json();
     
     console.log("Raw API response:", JSON.stringify(data));
     
     // Get progress - handle null/undefined values
-    const rawProgress = data.progress ?? data.percent_complete ?? null;
+    const rawProgress = data.progress ?? data.percent_complete ?? data.data?.progress ?? data.result?.progress ?? null;
     const progress = rawProgress !== null ? Math.round(rawProgress) : null;
     
     // Handle "done" status - API may return audio URL in many different places
     // Check ALL possible locations for audio_url
-    const audioUrl = 
-      data.audio_url || 
-      data.metadata?.audio_url || 
-      data.result?.audio_url || 
-      data.output?.audio_url ||
-      data.output ||  // Sometimes output is the URL directly
-      data.url ||
-      data.file_url ||
-      null;
-    
-    // Check if output is a string URL (not an object)
-    const finalAudioUrl = typeof audioUrl === 'string' && audioUrl.startsWith('http') ? audioUrl : 
-                          (typeof audioUrl === 'object' && audioUrl !== null ? null : null);
+    const finalAudioUrl = extractAudioUrl(data);
     
     console.log("Task status:", data.status, "Progress:", progress, "Audio URL found:", finalAudioUrl);
 
     // Determine the real status
-    const apiStatus = data.status?.toLowerCase() || "pending";
+    const apiStatus = getStatus(data);
     const isDone = apiStatus === "done" || apiStatus === "completed" || apiStatus === "success";
     const isError = apiStatus === "error" || apiStatus === "failed";
     const isProcessing = apiStatus === "doing" || apiStatus === "processing" || apiStatus === "pending";
 
     // Detect upstream maintenance in error message
-    const errMsg = (data.error_message || data.error || "").toString().toLowerCase();
-    const isMaintenance =
-      errMsg.includes("maintenance") ||
-      errMsg.includes("elevenlabs is down") ||
-      errMsg.includes("service unavailable") ||
-      errMsg.includes("temporarily unavailable");
+    const errMsg = getErrorMessage(data) || "";
+    const isMaintenance = isMaintenanceMessage(errMsg);
 
     // Update local database with progress and status
     if (isDone && finalAudioUrl) {
@@ -263,7 +339,7 @@ serve(async (req) => {
     } else if (isError) {
       const friendlyMsg = isMaintenance
         ? "ElevenLabs is down for maintenance. Please try again later. Credits have been refunded."
-        : (data.error_message || data.error || "Generation failed");
+        : (errMsg || "Generation failed");
 
       if (isMaintenance) {
         await refundCreditsForFailedTask(taskId, "upstream maintenance");
@@ -282,7 +358,7 @@ serve(async (req) => {
     const normalizedError = isError
       ? (isMaintenance
           ? "ElevenLabs is down for maintenance. Please try again later. Credits have been refunded."
-          : (data.error_message || data.error || null))
+          : (errMsg || null))
       : null;
     
     const normalizedResponse = {
