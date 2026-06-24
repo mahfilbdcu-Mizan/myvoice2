@@ -6,6 +6,93 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const AI33_V3_TTS_URL = "https://api.ai33.pro/v3/text-to-speech";
+const AI33_VOICE_PREFIXES = ["elevenlabs_", "minimax_", "clone_", "edge_", "kokoro_"];
+
+function getV3VoiceId(voiceId: string): string {
+  const trimmed = voiceId.trim();
+  return AI33_VOICE_PREFIXES.some((prefix) => trimmed.startsWith(prefix))
+    ? trimmed
+    : `elevenlabs_${trimmed}`;
+}
+
+function extractTaskId(taskData: Record<string, any>): string | null {
+  return (
+    taskData.task_id ||
+    taskData.id ||
+    taskData.taskId ||
+    taskData.request_id ||
+    taskData.requestId ||
+    taskData.job_id ||
+    taskData.jobId ||
+    taskData.generation_id ||
+    taskData.generationId ||
+    taskData.data?.task_id ||
+    taskData.data?.id ||
+    taskData.data?.generation_id ||
+    taskData.result?.task_id ||
+    taskData.result?.id ||
+    null
+  );
+}
+
+function extractAudioUrl(taskData: Record<string, any>): string | null {
+  const audioUrl =
+    taskData.metadata?.audio_url ||
+    taskData.audio_url ||
+    taskData.audioUrl ||
+    taskData.url ||
+    taskData.output_url ||
+    taskData.file_url ||
+    taskData.data?.audio_url ||
+    taskData.data?.url ||
+    taskData.data?.output_url ||
+    taskData.result?.audio_url ||
+    taskData.result?.url ||
+    null;
+
+  return typeof audioUrl === "string" && audioUrl.startsWith("http") ? audioUrl : null;
+}
+
+function extractUpstreamMessage(taskData: Record<string, any>): string | null {
+  const rawMessage =
+    taskData.detail?.message ||
+    taskData.detail ||
+    taskData.error?.message ||
+    taskData.message ||
+    taskData.error ||
+    taskData.status ||
+    taskData.data?.message ||
+    taskData.data?.error ||
+    null;
+
+  return rawMessage ? String(rawMessage) : null;
+}
+
+function isMaintenanceMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("maintenance") ||
+    lower.includes("unavailable") ||
+    lower.includes("down") ||
+    lower.includes("try again") ||
+    lower.includes("temporarily")
+  );
+}
+
+function buildV3FormData(params: {
+  text: string;
+  voiceId: string;
+  speed?: number;
+}): FormData {
+  const formData = new FormData();
+  formData.set("text", params.text);
+  formData.set("voice_id", getV3VoiceId(params.voiceId));
+  formData.set("speed", String(params.speed || 1));
+  formData.set("with_transcript", "false");
+  return formData;
+}
+
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 10; // 10 requests per minute
@@ -266,7 +353,7 @@ serve(async (req) => {
     const body = await req.json();
     console.log("Received request from user:", userId);
     
-    const { text, voiceId, voiceName, model, stability, similarity, style } = body;
+    const { text, voiceId, voiceName, model, stability, similarity, style, speed } = body;
 
     if (!text || !voiceId) {
       console.error("Missing required fields - text:", !!text, "voiceId:", !!voiceId);
@@ -310,35 +397,21 @@ serve(async (req) => {
       { stability, similarity, style }
     );
 
-    // Build voice settings
-    const voiceSettings: Record<string, number | boolean> = {};
-    if (stability !== undefined) voiceSettings.stability = stability;
-    if (similarity !== undefined) voiceSettings.similarity_boost = similarity;
-    if (style !== undefined) voiceSettings.style = style;
-    voiceSettings.use_speaker_boost = true;
+    // Call AI33 v3 TTS API. v1 text-to-speech now returns: "please use api v3 for this endpoint".
+    const v3VoiceId = getV3VoiceId(voiceId);
+    const normalizedSpeed = typeof speed === "number" && Number.isFinite(speed) ? Math.min(1.5, Math.max(0.5, speed)) : 1;
+    const requestBody = buildV3FormData({ text, voiceId, speed: normalizedSpeed });
 
-    // Build request body
-    const requestBody: Record<string, unknown> = {
-      text,
-      model_id: model || "eleven_multilingual_v2",
-    };
-
-    if (Object.keys(voiceSettings).length > 0) {
-      requestBody.voice_settings = voiceSettings;
-    }
-
-    // Call Voice API
-    console.log("Calling AI33 API with voice:", voiceId, "model:", model || "eleven_multilingual_v2");
-    const apiUrl = `https://api.ai33.pro/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+    console.log("Calling AI33 v3 TTS with voice:", v3VoiceId, "speed:", normalizedSpeed);
+    const apiUrl = AI33_V3_TTS_URL;
     console.log("API URL:", apiUrl);
     
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "xi-api-key": apiKey,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: requestBody,
     });
     
     console.log("API Response status:", response.status, "Content-Type:", response.headers.get("content-type"));
@@ -388,30 +461,8 @@ serve(async (req) => {
       const taskData = await response.json();
       console.log("Task response:", JSON.stringify(taskData));
 
-      // API returns task_id per documentation. Check many possible field names.
-      const externalTaskId =
-        taskData.task_id ||
-        taskData.id ||
-        taskData.taskId ||
-        taskData.request_id ||
-        taskData.requestId ||
-        taskData.job_id ||
-        taskData.jobId ||
-        taskData.generation_id ||
-        taskData.generationId ||
-        taskData.data?.task_id ||
-        taskData.data?.id ||
-        taskData.result?.task_id ||
-        taskData.result?.id;
-
-      // Check if it immediately has audio URL (metadata.audio_url per API docs)
-      const audioUrl =
-        taskData.metadata?.audio_url ||
-        taskData.audio_url ||
-        taskData.audioUrl ||
-        taskData.url ||
-        taskData.data?.audio_url ||
-        taskData.result?.audio_url;
+      const externalTaskId = extractTaskId(taskData);
+      const audioUrl = extractAudioUrl(taskData);
 
       if (audioUrl) {
         console.log("Direct audio URL returned:", audioUrl);
@@ -439,21 +490,8 @@ serve(async (req) => {
       if (!externalTaskId) {
         console.error("No task ID in response:", taskData);
 
-        // Surface any upstream message instead of the generic "No task ID" string.
-        const upstreamMsg =
-          taskData.detail?.message ||
-          taskData.detail ||
-          taskData.message ||
-          taskData.error ||
-          taskData.status ||
-          taskData.data?.message;
-
-        const lowerMsg = String(upstreamMsg || "").toLowerCase();
-        const isMaintenance =
-          lowerMsg.includes("maintenance") ||
-          lowerMsg.includes("unavailable") ||
-          lowerMsg.includes("down") ||
-          lowerMsg.includes("try again");
+        const upstreamMsg = extractUpstreamMessage(taskData);
+        const isMaintenance = upstreamMsg ? isMaintenanceMessage(upstreamMsg) : false;
 
         const friendly = isMaintenance
           ? "ElevenLabs/AI33 সাময়িকভাবে বন্ধ আছে। একটু পরে আবার চেষ্টা করুন। কোনো ক্রেডিট কাটা হয়নি।"
