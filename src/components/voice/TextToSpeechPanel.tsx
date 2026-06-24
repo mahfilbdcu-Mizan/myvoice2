@@ -453,6 +453,7 @@ export function TextToSpeechPanel({
           voiceId: selectedVoice!.id,
           voiceName: selectedVoice!.name,
           model,
+          speed: speed[0],
           stability: stability[0],
           similarity: similarity[0],
           style: style[0],
