@@ -308,6 +308,11 @@ serve(async (req) => {
     }
     
     console.log("Raw API response:", JSON.stringify(data));
+
+    // Unwrap { success: true, data: {...} } envelope from AI33 v3
+    if (data && typeof data === "object" && "success" in data && data.data && typeof data.data === "object") {
+      data = data.data as Record<string, any>;
+    }
     
     // Get progress - handle null/undefined values
     const rawProgress = data.progress ?? data.percent_complete ?? data.data?.progress ?? data.result?.progress ?? null;
