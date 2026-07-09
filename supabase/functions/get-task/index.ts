@@ -295,7 +295,7 @@ serve(async (req) => {
 
     console.log(`Fetching task status: ${taskId} for user: ${userId}`);
 
-    const { response, data, url } = await fetchTaskStatus(taskId, API_KEY);
+    let { response, data, url } = await fetchTaskStatus(taskId, API_KEY);
     console.log(`Task status endpoint used: ${url}`);
 
     if (!response.ok) {
