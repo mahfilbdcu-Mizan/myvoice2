@@ -132,7 +132,7 @@ serve(async (req) => {
 
     switch (action) {
       case "update_credits": {
-        const { targetUserId, credits } = body;
+        const { targetUserId, credits, validity } = body;
 
         // Validate inputs
         if (!targetUserId || typeof targetUserId !== "string") {
@@ -147,6 +147,28 @@ serve(async (req) => {
             JSON.stringify({ error: `Credits must be an integer between 0 and ${MAX_CREDITS}` }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
+        }
+
+        // Validity period: 1m, 3m, 6m, 1y, lifetime (or undefined = keep current)
+        const VALID_PERIODS: Record<string, number | null> = {
+          "1m": 1, "3m": 3, "6m": 6, "1y": 12, "lifetime": null,
+        };
+        let expiresAt: string | null | undefined = undefined;
+        if (validity !== undefined && validity !== null && validity !== "keep") {
+          if (!(validity in VALID_PERIODS)) {
+            return new Response(
+              JSON.stringify({ error: "Invalid validity period" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          const months = VALID_PERIODS[validity];
+          if (months === null) {
+            expiresAt = null;
+          } else {
+            const d = new Date();
+            d.setMonth(d.getMonth() + months);
+            expiresAt = d.toISOString();
+          }
         }
 
         // Get current credits
@@ -173,10 +195,16 @@ serve(async (req) => {
           );
         }
 
-        // Update credits
+        // Update credits (and validity, when provided)
+        const updatePayload: Record<string, unknown> = { credits };
+        if (expiresAt !== undefined) {
+          updatePayload.credits_expires_at = expiresAt;
+          updatePayload.credits_granted_at = new Date().toISOString();
+        }
+
         const { error: updateError } = await supabase
           .from("profiles")
-          .update({ credits })
+          .update(updatePayload)
           .eq("id", targetUserId);
 
         if (updateError) {
@@ -191,13 +219,16 @@ serve(async (req) => {
         await logAdminAction(adminUserId, "update_credits", targetUserId, {
           old_credits: oldCredits,
           new_credits: credits,
+          validity: validity ?? "keep",
+          expires_at: expiresAt ?? null,
         });
 
         return new Response(
-          JSON.stringify({ success: true, oldCredits, newCredits: credits }),
+          JSON.stringify({ success: true, oldCredits, newCredits: credits, expiresAt: expiresAt ?? null }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
 
       case "approve_order": {
         const { orderId, targetUserId, credits } = body;

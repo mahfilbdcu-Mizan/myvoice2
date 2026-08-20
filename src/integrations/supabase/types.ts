@@ -229,6 +229,8 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           credits: number
+          credits_expires_at: string | null
+          credits_granted_at: string | null
           email: string | null
           full_name: string | null
           has_received_free_credits: boolean
@@ -240,6 +242,8 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           credits?: number
+          credits_expires_at?: string | null
+          credits_granted_at?: string | null
           email?: string | null
           full_name?: string | null
           has_received_free_credits?: boolean
@@ -251,6 +255,8 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           credits?: number
+          credits_expires_at?: string | null
+          credits_granted_at?: string | null
           email?: string | null
           full_name?: string | null
           has_received_free_credits?: boolean

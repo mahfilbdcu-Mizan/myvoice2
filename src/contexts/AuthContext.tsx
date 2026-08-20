@@ -10,6 +10,8 @@ interface Profile {
   credits: number;
   is_blocked: boolean;
   has_received_free_credits: boolean;
+  credits_expires_at?: string | null;
+  credits_granted_at?: string | null;
 }
 
 interface AuthContextType {
@@ -72,6 +74,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Live-update the profile (credits / validity) when admin changes it
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("profile-credits-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) setProfile(payload.new as Profile);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const signInWithGoogle = async (redirectTo?: string) => {
     const redirectUrl = redirectTo

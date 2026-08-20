@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key, Trash2 } from "lucide-react";
-import { getAllUsers, updateUserCredits, toggleUserBlock, setUserApiKey, deleteUserApiKey, type UserProfile } from "@/lib/admin-api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAllUsers, updateUserCredits, type CreditValidity, toggleUserBlock, setUserApiKey, deleteUserApiKey, type UserProfile } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ export default function AdminUsers() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [newCredits, setNewCredits] = useState("");
+  const [validity, setValidity] = useState<CreditValidity>("keep");
   const [isSaving, setIsSaving] = useState(false);
   const [togglingBlock, setTogglingBlock] = useState<string | null>(null);
   
@@ -110,6 +112,7 @@ export default function AdminUsers() {
   const handleEditCredits = (user: UserProfile) => {
     setEditingUser(user);
     setNewCredits(user.credits.toString());
+    setValidity("keep");
   };
 
   const handleSaveCredits = async () => {
@@ -165,7 +168,7 @@ export default function AdminUsers() {
     }
 
     setIsSaving(true);
-    const result = await updateUserCredits(editingUser.id, credits);
+    const result = await updateUserCredits(editingUser.id, credits, validity);
     setIsSaving(false);
     
     if (result.success) {
@@ -323,9 +326,9 @@ export default function AdminUsers() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Free Credits</TableHead>
+                    <TableHead>Credits</TableHead>
                     <TableHead>Used Credits</TableHead>
-                    <TableHead>Paid API Credits</TableHead>
+                    <TableHead>Validity</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -355,18 +358,21 @@ export default function AdminUsers() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {user.has_api_key ? (
-                          <Badge variant="outline" className="text-primary border-primary/30">
-                            {user.api_credits !== undefined && user.api_credits !== null 
-                              ? user.api_credits.toLocaleString() 
-                              : 'Checking...'}
-                          </Badge>
+                        {user.credits_expires_at ? (
+                          new Date(user.credits_expires_at) > new Date() ? (
+                            <Badge variant="outline" className="text-primary border-primary/30">
+                              {new Date(user.credits_expires_at).toLocaleDateString()}
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">Expired</Badge>
+                          )
                         ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            No Key
+                          <Badge variant="outline" className="text-green-600 border-green-600/30">
+                            Lifetime
                           </Badge>
                         )}
                       </TableCell>
+
                       <TableCell>
                         {user.is_blocked ? (
                           <Badge variant="destructive">Blocked</Badge>
@@ -486,6 +492,28 @@ export default function AdminUsers() {
               <p className="text-xs text-muted-foreground mt-1">
                 Maximum: {MAX_CREDITS.toLocaleString()} credits
               </p>
+
+              <div className="mt-4">
+                <label className="text-sm font-medium">Validity Period</label>
+                <Select value={validity} onValueChange={(v) => setValidity(v as CreditValidity)}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select validity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="keep">Keep current validity</SelectItem>
+                    <SelectItem value="1m">1 Month</SelectItem>
+                    <SelectItem value="3m">3 Months</SelectItem>
+                    <SelectItem value="6m">6 Months</SelectItem>
+                    <SelectItem value="1y">1 Year</SelectItem>
+                    <SelectItem value="lifetime">Lifetime</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {editingUser?.credits_expires_at
+                    ? `Current expiry: ${new Date(editingUser.credits_expires_at).toLocaleDateString()}`
+                    : "Current expiry: Lifetime / not set"}
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingUser(null)} disabled={isSaving}>
