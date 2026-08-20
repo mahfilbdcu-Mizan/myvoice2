@@ -18,7 +18,9 @@ import {
   Copy,
   Menu,
   X,
-  TrendingUp
+  TrendingUp,
+  CalendarClock,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,65 @@ const navItems = [
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
+
+function CreditsPanel({
+  credits,
+  expiresAt,
+  isExpired,
+  usedCredits,
+  serviceIssue,
+}: {
+  credits: number;
+  expiresAt: string | null;
+  isExpired: boolean;
+  usedCredits: number;
+  serviceIssue: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl bg-primary/10 p-3">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-primary" />
+          <span className="text-xl font-bold">{credits.toLocaleString()}</span>
+        </div>
+        <p className="text-xs text-muted-foreground">Available Credits</p>
+
+        <div className="mt-2 pt-2 border-t border-primary/20 space-y-1">
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="h-3 w-3 text-orange-500" />
+            <span className="text-sm font-semibold text-orange-600">
+              {usedCredits.toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground">used so far</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CalendarClock className={cn("h-3 w-3", isExpired ? "text-destructive" : "text-muted-foreground")} />
+            <span className={cn("text-xs", isExpired ? "text-destructive font-medium" : "text-muted-foreground")}>
+              {expiresAt
+                ? isExpired
+                  ? "Validity expired"
+                  : `Valid till ${new Date(expiresAt).toLocaleDateString()}`
+                : "Lifetime validity"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {serviceIssue && (
+        <div className="rounded-xl bg-destructive/10 p-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-semibold text-destructive">Service Notice</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন।
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -54,6 +115,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, user, signOut, isLoading } = useAuth();
 
   const credits = profile?.credits ?? 0;
+  const creditsExpiresAt = profile?.credits_expires_at ?? null;
+  const creditsExpired = !!creditsExpiresAt && new Date(creditsExpiresAt) <= new Date();
+  // Service issue = platform provider is temporarily unavailable (never expose API balance to users)
+  const serviceIssue = hasUserApiKey && userApiBalance !== null && userApiBalance <= 0;
 
   // Fetch API key data function (extracted for reuse)
   const fetchApiKeyData = async () => {
@@ -297,39 +362,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Zap className="h-4 w-4 text-primary" />
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Platform Credits */}
-              <div className="rounded-xl bg-primary/10 p-3">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <span className="text-xl font-bold">{credits.toLocaleString()}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">Platform Credits</p>
-              </div>
-              
-              {/* User API Key Balance */}
-              {hasUserApiKey && (
-                <div className="rounded-xl bg-green-500/10 p-3">
-                  <div className="flex items-center gap-2">
-                    <Key className="h-4 w-4 text-green-500" />
-                    <span className="text-xl font-bold text-green-600">
-                      {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Your Available Credits</p>
-                  {/* User's personal usage */}
-                  <div className="mt-2 pt-2 border-t border-green-500/20">
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp className="h-3 w-3 text-orange-500" />
-                      <span className="text-sm font-semibold text-orange-600">
-                        {userUsedCredits.toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">You've used so far</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <CreditsPanel
+              credits={credits}
+              expiresAt={creditsExpiresAt}
+              isExpired={creditsExpired}
+              usedCredits={userUsedCredits}
+              serviceIssue={serviceIssue}
+            />
           )}
         </div>
 
@@ -418,37 +457,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       >
         {/* Credits Display */}
         <div className="border-b border-border p-4">
-          <div className="space-y-3">
-            <div className="rounded-xl bg-primary/10 p-3">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-primary" />
-                <span className="text-xl font-bold">{credits.toLocaleString()}</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Platform Credits</p>
-            </div>
-            
-            {hasUserApiKey && (
-              <div className="rounded-xl bg-green-500/10 p-3">
-                <div className="flex items-center gap-2">
-                  <Key className="h-4 w-4 text-green-500" />
-                  <span className="text-xl font-bold text-green-600">
-                    {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">Your Available Credits</p>
-                {/* User's personal usage - mobile */}
-                <div className="mt-2 pt-2 border-t border-green-500/20">
-                  <div className="flex items-center gap-1.5">
-                    <TrendingUp className="h-3 w-3 text-orange-500" />
-                    <span className="text-sm font-semibold text-orange-600">
-                      {userUsedCredits.toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">You've used so far</p>
-                </div>
-              </div>
-            )}
-          </div>
+            <CreditsPanel
+              credits={credits}
+              expiresAt={creditsExpiresAt}
+              isExpired={creditsExpired}
+              usedCredits={userUsedCredits}
+              serviceIssue={serviceIssue}
+            />
         </div>
 
         {/* Navigation */}
