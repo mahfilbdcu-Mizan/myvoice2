@@ -358,18 +358,21 @@ export default function AdminUsers() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {user.has_api_key ? (
-                          <Badge variant="outline" className="text-primary border-primary/30">
-                            {user.api_credits !== undefined && user.api_credits !== null 
-                              ? user.api_credits.toLocaleString() 
-                              : 'Checking...'}
-                          </Badge>
+                        {user.credits_expires_at ? (
+                          new Date(user.credits_expires_at) > new Date() ? (
+                            <Badge variant="outline" className="text-primary border-primary/30">
+                              {new Date(user.credits_expires_at).toLocaleDateString()}
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">Expired</Badge>
+                          )
                         ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            No Key
+                          <Badge variant="outline" className="text-green-600 border-green-600/30">
+                            Lifetime
                           </Badge>
                         )}
                       </TableCell>
+
                       <TableCell>
                         {user.is_blocked ? (
                           <Badge variant="destructive">Blocked</Badge>
