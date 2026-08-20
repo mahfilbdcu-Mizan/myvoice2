@@ -228,6 +228,23 @@ async function getUserCredits(userId: string): Promise<number> {
   return data?.credits || 0;
 }
 
+// Get user's assigned credits together with their validity window
+async function getUserCreditState(userId: string): Promise<{ credits: number; expiresAt: string | null }> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !supabaseKey) return { credits: 0, expiresAt: null };
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { data } = await supabase
+    .from("profiles")
+    .select("credits, credits_expires_at")
+    .eq("id", userId)
+    .single();
+
+  return { credits: data?.credits ?? 0, expiresAt: data?.credits_expires_at ?? null };
+}
+
 // Atomic credit deduction using database function to prevent race conditions
 async function deductUserCreditsAtomic(userId: string, amount: number): Promise<boolean> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -382,8 +399,24 @@ serve(async (req) => {
     
     console.log("Using API key for user:", userId, "Key length:", apiKey.length);
 
-    // Users with API keys have UNLIMITED generation - no credit check needed
-    // Credits are only tracked for usage statistics, not as a limit
+    // Enforce admin-assigned credits and their validity period
+    const { credits: availableCredits, expiresAt: creditsExpiresAt } = await getUserCreditState(userId);
+
+    if (creditsExpiresAt && new Date(creditsExpiresAt) <= new Date()) {
+      return new Response(
+        JSON.stringify({ error: "আপনার ক্রেডিটের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (availableCredits < wordCount) {
+      return new Response(
+        JSON.stringify({
+          error: `পর্যাপ্ত ক্রেডিট নেই। প্রয়োজন ${wordCount}, আপনার আছে ${availableCredits}।`,
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log(`Generating speech for voice ${voiceId}, text length: ${text.length}, using ${isUserKey ? 'user' : 'platform'} key`);
 
@@ -439,8 +472,17 @@ serve(async (req) => {
         response.status === 503 ||
         response.status === 504;
 
-      if (isMaintenance) {
-        errorMessage = "ElevenLabs is down for maintenance. Please try again later. No credits were charged.";
+      const isProviderBalanceIssue =
+        lowerErr.includes("insufficient") ||
+        lowerErr.includes("quota") ||
+        lowerErr.includes("balance") ||
+        lowerErr.includes("no credit") ||
+        lowerErr.includes("out of credit") ||
+        lowerErr.includes("payment") ||
+        response.status === 402;
+
+      if (isMaintenance || isProviderBalanceIssue) {
+        errorMessage = "সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন। আপনার কোনো ক্রেডিট কাটা হয়নি।";
       }
 
       if (taskId) {
@@ -448,7 +490,7 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: errorMessage, maintenance: isMaintenance }),
+        JSON.stringify({ error: errorMessage, maintenance: isMaintenance || isProviderBalanceIssue }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
