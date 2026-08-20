@@ -53,7 +53,11 @@ export interface UserProfile {
   api_credits?: number; // Paid API credits from user_api_keys
   has_api_key?: boolean; // Whether user has an API key set
   used_credits?: number; // Total words/credits used from generation_tasks
+  credits_expires_at?: string | null; // Credit validity expiry (null = lifetime)
+  credits_granted_at?: string | null;
 }
+
+export type CreditValidity = "1m" | "3m" | "6m" | "1y" | "lifetime" | "keep";
 
 export async function getAllUsers(): Promise<UserProfile[]> {
   const { data: profiles, error } = await supabase
@@ -127,7 +131,7 @@ export interface UpdateCreditsResult {
 }
 
 // Server-side validated admin operation for updating user credits
-export async function updateUserCredits(userId: string, credits: number): Promise<UpdateCreditsResult> {
+export async function updateUserCredits(userId: string, credits: number, validity: CreditValidity = "keep"): Promise<UpdateCreditsResult> {
   try {
     const { data: session } = await supabase.auth.getSession();
     if (!session?.session?.access_token) {
@@ -155,7 +159,8 @@ export async function updateUserCredits(userId: string, credits: number): Promis
       body: {
         action: 'update_credits',
         targetUserId: userId,
-        credits
+        credits,
+        validity
       }
     });
 
