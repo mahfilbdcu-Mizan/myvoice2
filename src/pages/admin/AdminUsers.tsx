@@ -23,9 +23,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key, Trash2 } from "lucide-react";
+import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key, Trash2, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllUsers, updateUserCredits, type CreditValidity, toggleUserBlock, setUserApiKey, deleteUserApiKey, type UserProfile } from "@/lib/admin-api";
+import { getAllUsers, updateUserCredits, bulkUpdateUserCredits, type CreditValidity, toggleUserBlock, setUserApiKey, deleteUserApiKey, type UserProfile } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +51,11 @@ export default function AdminUsers() {
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [isSettingApiKey, setIsSettingApiKey] = useState(false);
   const [isDeletingApiKey, setIsDeletingApiKey] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkCredits, setBulkCredits] = useState("");
+  const [bulkValidity, setBulkValidity] = useState<CreditValidity>("keep");
+  const [bulkOnlyApiKey, setBulkOnlyApiKey] = useState(true);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -329,6 +334,11 @@ export default function AdminUsers() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>All Users ({filteredUsers.length})</CardTitle>
+              <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => setBulkOpen(true)} className="gap-2">
+                <Users className="h-4 w-4" />
+                Bulk Assign Credits
+              </Button>
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -337,6 +347,7 @@ export default function AdminUsers() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
+              </div>
               </div>
             </div>
           </CardHeader>
@@ -485,6 +496,72 @@ export default function AdminUsers() {
             )}
           </CardContent>
         </Card>
+
+        {/* Bulk Assign Dialog */}
+        <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Bulk Assign Credits</DialogTitle>
+              <DialogDescription>
+                Set the same credit amount and validity for many users at once.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label htmlFor="bulk-credits">Credits</Label>
+                <Input
+                  id="bulk-credits"
+                  type="number"
+                  min={0}
+                  value={bulkCredits}
+                  onChange={(e) => setBulkCredits(e.target.value)}
+                  placeholder="e.g. 10000"
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label>Validity Period</Label>
+                <Select value={bulkValidity} onValueChange={(v) => setBulkValidity(v as CreditValidity)}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select validity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="keep">Keep current validity</SelectItem>
+                    <SelectItem value="1m">1 Month</SelectItem>
+                    <SelectItem value="3m">3 Months</SelectItem>
+                    <SelectItem value="6m">6 Months</SelectItem>
+                    <SelectItem value="1y">1 Year</SelectItem>
+                    <SelectItem value="lifetime">Lifetime</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Apply To</Label>
+                <Select
+                  value={bulkOnlyApiKey ? "with_key" : "all"}
+                  onValueChange={(v) => setBulkOnlyApiKey(v === "with_key")}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="with_key">Users with an API key</SelectItem>
+                    <SelectItem value="all">All users</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={isBulkSaving}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkAssign} disabled={isBulkSaving}>
+                {isBulkSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Apply
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Credits Dialog */}
         <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
