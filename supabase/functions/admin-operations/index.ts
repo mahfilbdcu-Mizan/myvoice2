@@ -229,6 +229,106 @@ serve(async (req) => {
         );
       }
 
+      case "bulk_update_credits": {
+        const { credits, validity, onlyWithApiKey } = body;
+
+        if (typeof credits !== "number" || credits < 0 || !Number.isFinite(credits)) {
+          return new Response(
+            JSON.stringify({ error: "Invalid credits value" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const PERIODS: Record<string, number | null> = {
+          "1m": 1, "3m": 3, "6m": 6, "1y": 12, "lifetime": null,
+        };
+        let bulkExpiresAt: string | null | undefined = undefined;
+        if (validity !== undefined && validity !== null && validity !== "keep") {
+          if (!(validity in PERIODS)) {
+            return new Response(
+              JSON.stringify({ error: "Invalid validity period" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          const months = PERIODS[validity];
+          if (months === null) {
+            bulkExpiresAt = null;
+          } else {
+            const d = new Date();
+            d.setMonth(d.getMonth() + months);
+            bulkExpiresAt = d.toISOString();
+          }
+        }
+
+        // Determine target users
+        let targetIds: string[] = [];
+        if (onlyWithApiKey) {
+          const { data: keys, error: keysError } = await supabase
+            .from("user_api_keys")
+            .select("user_id")
+            .eq("provider", "ai33");
+          if (keysError) {
+            return new Response(
+              JSON.stringify({ error: "Failed to load users with API keys" }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          targetIds = [...new Set((keys ?? []).map((k: { user_id: string }) => k.user_id))];
+        } else {
+          const { data: profilesList, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id");
+          if (profilesError) {
+            return new Response(
+              JSON.stringify({ error: "Failed to load users" }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          targetIds = (profilesList ?? []).map((p: { id: string }) => p.id);
+        }
+
+        if (targetIds.length === 0) {
+          return new Response(
+            JSON.stringify({ success: true, updated: 0 }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const bulkPayload: Record<string, unknown> = { credits };
+        if (bulkExpiresAt !== undefined) {
+          bulkPayload.credits_expires_at = bulkExpiresAt;
+          bulkPayload.credits_granted_at = new Date().toISOString();
+        }
+
+        const { error: bulkError } = await supabase
+          .from("profiles")
+          .update(bulkPayload)
+          .in("id", targetIds);
+
+        if (bulkError) {
+          console.error("Bulk credit update failed:", bulkError);
+          return new Response(
+            JSON.stringify({ error: "Failed to update credits" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        await logAdminAction(adminUserId, "bulk_update_credits", null, {
+          credits,
+          validity: validity ?? "keep",
+          expires_at: bulkExpiresAt ?? null,
+          only_with_api_key: !!onlyWithApiKey,
+          affected: targetIds.length,
+        });
+
+        return new Response(
+          JSON.stringify({ success: true, updated: targetIds.length, expiresAt: bulkExpiresAt ?? null }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+
+
 
       case "approve_order": {
         const { orderId, targetUserId, credits } = body;
