@@ -64,22 +64,23 @@ async function getApiKeyForUser(userId: string): Promise<{ apiKey: string | null
   return { apiKey: null, isUserKey: false };
 }
 
-// Get user profile credits
-async function getUserCredits(userId: string): Promise<number> {
+// Get user's assigned credits together with their validity window
+async function getUserCreditState(userId: string): Promise<{ credits: number; expiresAt: string | null }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  
-  if (!supabaseUrl || !supabaseKey) return 0;
+
+  if (!supabaseUrl || !supabaseKey) return { credits: 0, expiresAt: null };
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   const { data } = await supabase
     .from("profiles")
-    .select("credits")
+    .select("credits, credits_expires_at")
     .eq("id", userId)
     .single();
 
-  return data?.credits || 0;
+  return { credits: data?.credits ?? 0, expiresAt: data?.credits_expires_at ?? null };
 }
+
 
 // Atomic credit deduction using database function
 async function deductUserCreditsAtomic(userId: string, amount: number): Promise<boolean> {
