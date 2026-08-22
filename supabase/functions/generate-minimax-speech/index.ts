@@ -159,8 +159,23 @@ serve(async (req) => {
 
     const wordsCount = text.trim().split(/\s+/).length;
 
-    // Users with API keys have UNLIMITED generation - no credit check needed
-    // Credits are only tracked for usage statistics, not as a limit
+    // Enforce admin-assigned credits and their validity period
+    const { credits: availableCredits, expiresAt: creditsExpiresAt } = await getUserCreditState(userId);
+
+    if (creditsExpiresAt && new Date(creditsExpiresAt) <= new Date()) {
+      return new Response(
+        JSON.stringify({ error: "আপনার ক্রেডিটের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (availableCredits < wordsCount) {
+      return new Response(
+        JSON.stringify({ error: `পর্যাপ্ত ক্রেডিট নেই। প্রয়োজন ${wordsCount}, আপনার আছে ${availableCredits}।` }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
 
     // Create supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
