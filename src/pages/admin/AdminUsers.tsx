@@ -109,11 +109,36 @@ export default function AdminUsers() {
     setIsLoading(false);
   };
 
+  const handleBulkAssign = async () => {
+    const credits = parseInt(bulkCredits, 10);
+    if (isNaN(credits) || credits < 0) {
+      toast({ title: "Invalid credits", description: "Please enter a valid number", variant: "destructive" });
+      return;
+    }
+    const confirmed = window.confirm(
+      `Set ${credits.toLocaleString()} credits for ${bulkOnlyApiKey ? "all users with an API key" : "ALL users"}?`
+    );
+    if (!confirmed) return;
+
+    setIsBulkSaving(true);
+    const result = await bulkUpdateUserCredits(credits, bulkValidity, bulkOnlyApiKey);
+    setIsBulkSaving(false);
+
+    if (result.success) {
+      toast({ title: "Credits updated", description: `${result.updated} users updated.` });
+      setBulkOpen(false);
+      fetchUsers();
+    } else {
+      toast({ title: "Update failed", description: result.error, variant: "destructive" });
+    }
+  };
+
   const handleEditCredits = (user: UserProfile) => {
     setEditingUser(user);
     setNewCredits(user.credits.toString());
     setValidity("keep");
   };
+
 
   const handleSaveCredits = async () => {
     if (!editingUser) return;
