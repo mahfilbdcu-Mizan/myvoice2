@@ -184,6 +184,41 @@ export async function updateUserCredits(userId: string, credits: number, validit
   }
 }
 
+export async function bulkUpdateUserCredits(
+  credits: number,
+  validity: CreditValidity = "keep",
+  onlyWithApiKey = false
+): Promise<{ success: boolean; updated?: number; error?: string }> {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    if (!Number.isInteger(credits) || credits < 0 || credits > MAX_CREDITS) {
+      return { success: false, error: "Invalid credits value" };
+    }
+
+    const { data, error } = await supabase.functions.invoke("admin-operations", {
+      headers: { Authorization: `Bearer ${session.session.access_token}` },
+      body: {
+        action: "bulk_update_credits",
+        credits,
+        validity,
+        onlyWithApiKey,
+      },
+    });
+
+    if (error) return { success: false, error: error.message || "Failed to update credits" };
+    if (data?.error) return { success: false, error: data.error };
+
+    return { success: true, updated: data?.updated ?? 0 };
+  } catch (error) {
+    console.error("Error bulk updating credits:", error);
+    return { success: false, error: "Unexpected error occurred" };
+  }
+}
+
 export interface CreditOrder {
   id: string;
   user_id: string;

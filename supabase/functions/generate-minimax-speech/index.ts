@@ -64,22 +64,23 @@ async function getApiKeyForUser(userId: string): Promise<{ apiKey: string | null
   return { apiKey: null, isUserKey: false };
 }
 
-// Get user profile credits
-async function getUserCredits(userId: string): Promise<number> {
+// Get user's assigned credits together with their validity window
+async function getUserCreditState(userId: string): Promise<{ credits: number; expiresAt: string | null }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  
-  if (!supabaseUrl || !supabaseKey) return 0;
+
+  if (!supabaseUrl || !supabaseKey) return { credits: 0, expiresAt: null };
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   const { data } = await supabase
     .from("profiles")
-    .select("credits")
+    .select("credits, credits_expires_at")
     .eq("id", userId)
     .single();
 
-  return data?.credits || 0;
+  return { credits: data?.credits ?? 0, expiresAt: data?.credits_expires_at ?? null };
 }
+
 
 // Atomic credit deduction using database function
 async function deductUserCreditsAtomic(userId: string, amount: number): Promise<boolean> {
@@ -158,8 +159,23 @@ serve(async (req) => {
 
     const wordsCount = text.trim().split(/\s+/).length;
 
-    // Users with API keys have UNLIMITED generation - no credit check needed
-    // Credits are only tracked for usage statistics, not as a limit
+    // Enforce admin-assigned credits and their validity period
+    const { credits: availableCredits, expiresAt: creditsExpiresAt } = await getUserCreditState(userId);
+
+    if (creditsExpiresAt && new Date(creditsExpiresAt) <= new Date()) {
+      return new Response(
+        JSON.stringify({ error: "আপনার ক্রেডিটের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (availableCredits < wordsCount) {
+      return new Response(
+        JSON.stringify({ error: `পর্যাপ্ত ক্রেডিট নেই। প্রয়োজন ${wordsCount}, আপনার আছে ${availableCredits}।` }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
 
     // Create supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -222,18 +238,27 @@ serve(async (req) => {
       } catch { /* default */ }
 
       const lowerErr = (errorText + " " + errorMessage).toLowerCase();
-      const isMaintenance =
+      const isServiceIssue =
         lowerErr.includes("maintenance") ||
         lowerErr.includes("elevenlabs is down") ||
         lowerErr.includes("service unavailable") ||
         lowerErr.includes("temporarily unavailable") ||
+        lowerErr.includes("credit") ||
+        lowerErr.includes("balance") ||
+        lowerErr.includes("quota") ||
+        lowerErr.includes("insufficient") ||
+        response.status === 402 ||
+        response.status === 429 ||
         response.status === 502 ||
         response.status === 503 ||
         response.status === 504;
 
-      if (isMaintenance) {
-        errorMessage = "ElevenLabs is down for maintenance. Please try again later. No credits were charged.";
+      const isMaintenance = isServiceIssue;
+
+      if (isServiceIssue) {
+        errorMessage = "সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন। আপনার কোনো ক্রেডিট কাটা হয়নি।";
       }
+
 
       if (localTaskId) {
         await supabase
