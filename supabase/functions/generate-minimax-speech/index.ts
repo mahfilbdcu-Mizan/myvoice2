@@ -238,18 +238,27 @@ serve(async (req) => {
       } catch { /* default */ }
 
       const lowerErr = (errorText + " " + errorMessage).toLowerCase();
-      const isMaintenance =
+      const isServiceIssue =
         lowerErr.includes("maintenance") ||
         lowerErr.includes("elevenlabs is down") ||
         lowerErr.includes("service unavailable") ||
         lowerErr.includes("temporarily unavailable") ||
+        lowerErr.includes("credit") ||
+        lowerErr.includes("balance") ||
+        lowerErr.includes("quota") ||
+        lowerErr.includes("insufficient") ||
+        response.status === 402 ||
+        response.status === 429 ||
         response.status === 502 ||
         response.status === 503 ||
         response.status === 504;
 
-      if (isMaintenance) {
-        errorMessage = "ElevenLabs is down for maintenance. Please try again later. No credits were charged.";
+      const isMaintenance = isServiceIssue;
+
+      if (isServiceIssue) {
+        errorMessage = "সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন। আপনার কোনো ক্রেডিট কাটা হয়নি।";
       }
+
 
       if (localTaskId) {
         await supabase
