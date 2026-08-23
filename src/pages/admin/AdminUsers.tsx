@@ -365,6 +365,7 @@ export default function AdminUsers() {
                     <TableHead>Credits</TableHead>
                     <TableHead>Used Credits</TableHead>
                     <TableHead>Validity</TableHead>
+                    <TableHead>API Credits</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
