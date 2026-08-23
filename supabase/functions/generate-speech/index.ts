@@ -284,7 +284,8 @@ async function createTask(
   if (!supabaseUrl || !supabaseKey) return null;
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const wordsCount = text.trim().split(/\s+/).length;
+  // Charge exactly what the upstream API charges: per character
+  const wordsCount = [...text].length;
 
   const { data, error } = await supabase
     .from("generation_tasks")
@@ -380,8 +381,9 @@ serve(async (req) => {
       );
     }
 
-    const wordCount = text.trim().split(/\s+/).length;
-    console.log("Word count:", wordCount, "Voice ID:", voiceId);
+    // Upstream API charges per character — deduct the exact same amount
+    const wordCount = [...text].length;
+    console.log("Character count:", wordCount, "Voice ID:", voiceId);
 
     // Get user's API key - REQUIRED for generation
     const { apiKey, isUserKey } = await getApiKeyForUser(userId);
