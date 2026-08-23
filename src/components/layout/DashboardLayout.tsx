@@ -73,15 +73,6 @@ function CreditsPanel({
         <p className="text-xs text-muted-foreground">Available Credits</p>
 
         <div className="mt-2 pt-2 border-t border-primary/20 space-y-1">
-          {hasApiKey && (
-            <div className="flex items-center gap-1.5">
-              <Key className="h-3 w-3 text-primary" />
-              <span className="text-sm font-semibold text-primary">
-                {apiBalance !== null ? apiBalance.toLocaleString() : "—"}
-              </span>
-              <span className="text-xs text-muted-foreground">API credits</span>
-            </div>
-          )}
           <div className="flex items-center gap-1.5">
             <TrendingUp className="h-3 w-3 text-orange-500" />
             <span className="text-sm font-semibold text-orange-600">
