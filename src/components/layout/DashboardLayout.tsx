@@ -51,23 +51,37 @@ function CreditsPanel({
   isExpired,
   usedCredits,
   serviceIssue,
+  apiBalance,
+  hasApiKey,
 }: {
   credits: number;
   expiresAt: string | null;
   isExpired: boolean;
   usedCredits: number;
   serviceIssue: boolean;
+  apiBalance: number | null;
+  hasApiKey: boolean;
 }) {
+  const availableCredits = isExpired ? 0 : credits;
   return (
     <div className="space-y-3">
       <div className="rounded-xl bg-primary/10 p-3">
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-primary" />
-          <span className="text-xl font-bold">{credits.toLocaleString()}</span>
+          <span className="text-xl font-bold">{availableCredits.toLocaleString()}</span>
         </div>
         <p className="text-xs text-muted-foreground">Available Credits</p>
 
         <div className="mt-2 pt-2 border-t border-primary/20 space-y-1">
+          {hasApiKey && (
+            <div className="flex items-center gap-1.5">
+              <Key className="h-3 w-3 text-primary" />
+              <span className="text-sm font-semibold text-primary">
+                {apiBalance !== null ? apiBalance.toLocaleString() : "—"}
+              </span>
+              <span className="text-xs text-muted-foreground">API credits</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <TrendingUp className="h-3 w-3 text-orange-500" />
             <span className="text-sm font-semibold text-orange-600">
@@ -368,6 +382,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               isExpired={creditsExpired}
               usedCredits={userUsedCredits}
               serviceIssue={serviceIssue}
+              apiBalance={userApiBalance}
+              hasApiKey={hasUserApiKey}
             />
           )}
         </div>
@@ -463,6 +479,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               isExpired={creditsExpired}
               usedCredits={userUsedCredits}
               serviceIssue={serviceIssue}
+              apiBalance={userApiBalance}
+              hasApiKey={hasUserApiKey}
             />
         </div>
 
