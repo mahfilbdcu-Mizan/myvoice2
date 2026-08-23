@@ -157,7 +157,8 @@ serve(async (req) => {
       );
     }
 
-    const wordsCount = text.trim().split(/\s+/).length;
+    // Upstream API charges per character — deduct the exact same amount
+    const wordsCount = [...text].length;
 
     // Enforce admin-assigned credits and their validity period
     const { credits: availableCredits, expiresAt: creditsExpiresAt } = await getUserCreditState(userId);

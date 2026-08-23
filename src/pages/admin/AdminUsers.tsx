@@ -365,6 +365,7 @@ export default function AdminUsers() {
                     <TableHead>Credits</TableHead>
                     <TableHead>Used Credits</TableHead>
                     <TableHead>Validity</TableHead>
+                    <TableHead>API Credits</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -406,6 +407,16 @@ export default function AdminUsers() {
                           <Badge variant="outline" className="text-green-600 border-green-600/30">
                             Lifetime
                           </Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        {user.has_api_key ? (
+                          <Badge variant="outline" className="text-blue-600 border-blue-600/30">
+                            {(user.api_credits ?? 0).toLocaleString()}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No key</span>
                         )}
                       </TableCell>
 
