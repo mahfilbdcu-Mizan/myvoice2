@@ -1152,47 +1152,6 @@ export function TextToSpeechPanel({
             </div>
           )}
 
-          {/* Credits Info */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
-            {hasUserApiKey ? (
-              <>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
-                    <Zap className="h-5 w-5 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">
-                      {userApiBalance !== null ? userApiBalance.toLocaleString() : "—"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Your Available Credits</p>
-                  </div>
-                </div>
-                <div className="rounded-lg bg-green-500/10 p-2">
-                  <p className="text-xs text-green-700 font-medium text-center">
-                    ✓ Your Available Credits — Unlimited generation
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <Zap className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{profile?.credits?.toLocaleString() || 0}</p>
-                    <p className="text-sm text-muted-foreground">Platform Credits</p>
-                  </div>
-                </div>
-                <div className="rounded-lg bg-yellow-500/10 p-2">
-                  <p className="text-xs text-yellow-700 font-medium text-center">
-                    Add your own API key for unlimited generation
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
           {/* Usage Info */}
           <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="mb-2 font-semibold">Generation Info</h3>
