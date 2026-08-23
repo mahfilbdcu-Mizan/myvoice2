@@ -382,6 +382,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               isExpired={creditsExpired}
               usedCredits={userUsedCredits}
               serviceIssue={serviceIssue}
+              apiBalance={userApiBalance}
+              hasApiKey={hasUserApiKey}
             />
           )}
         </div>
