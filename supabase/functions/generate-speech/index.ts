@@ -6,6 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ---------------------------------------------------------------------------
+// FIXED CREDIT RATE — DO NOT CHANGE AUTOMATICALLY.
+// 1 character = 1.135531 credits. Total cost = ceil(characters * rate).
+// ---------------------------------------------------------------------------
+const CREDIT_RATE_PER_CHARACTER = 1.135531;
+
+function calculateCreditCost(text: string): number {
+  const characters = [...text].length;
+  return Math.ceil(characters * CREDIT_RATE_PER_CHARACTER);
+}
+
+
 const AI33_V3_TTS_URL = "https://api.ai33.pro/v3/text-to-speech";
 const AI33_VOICE_PREFIXES = ["elevenlabs_", "minimax_", "clone_", "edge_", "kokoro_"];
 
@@ -284,8 +296,8 @@ async function createTask(
   if (!supabaseUrl || !supabaseKey) return null;
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  // Charge exactly what the upstream API charges: per character
-  const wordsCount = [...text].length;
+  // Fixed billing rate: 1 character = CREDIT_RATE_PER_CHARACTER credits
+  const wordsCount = calculateCreditCost(text);
 
   const { data, error } = await supabase
     .from("generation_tasks")
@@ -381,8 +393,8 @@ serve(async (req) => {
       );
     }
 
-    // Upstream API charges per character — deduct the exact same amount
-    const wordCount = [...text].length;
+    // Fixed billing rate: 1 character = CREDIT_RATE_PER_CHARACTER credits
+    const wordCount = calculateCreditCost(text);
     console.log("Character count:", wordCount, "Voice ID:", voiceId);
 
     // Get user's API key - REQUIRED for generation
