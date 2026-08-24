@@ -6,6 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ---------------------------------------------------------------------------
+// FIXED CREDIT RATE — DO NOT CHANGE AUTOMATICALLY.
+// 1 character = 1.135531 credits. Total cost = ceil(characters * rate).
+// ---------------------------------------------------------------------------
+const CREDIT_RATE_PER_CHARACTER = 1.135531;
+
+function calculateCreditCost(text: string): number {
+  const characters = [...text].length;
+  return Math.ceil(characters * CREDIT_RATE_PER_CHARACTER);
+}
+
+
 // Validate JWT and get user ID
 async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
   const authHeader = req.headers.get("Authorization");
@@ -157,8 +169,8 @@ serve(async (req) => {
       );
     }
 
-    // Upstream API charges per character — deduct the exact same amount
-    const wordsCount = [...text].length;
+    // Fixed billing rate: 1 character = CREDIT_RATE_PER_CHARACTER credits
+    const wordsCount = calculateCreditCost(text);
 
     // Enforce admin-assigned credits and their validity period
     const { credits: availableCredits, expiresAt: creditsExpiresAt } = await getUserCreditState(userId);
