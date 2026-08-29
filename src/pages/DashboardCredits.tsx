@@ -35,6 +35,8 @@ export default function DashboardCredits() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
+  const [mobileNumbers, setMobileNumbers] = useState<{ label: string; number: string }[]>([]);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,21 +49,44 @@ export default function DashboardCredits() {
       
       if (pkgData) setPackages(pkgData);
 
-      // Fetch wallet address from platform_settings
+      // Fetch payment settings from platform_settings
       const { data: settingsData } = await supabase
         .from("platform_settings")
-        .select("value")
-        .eq("key", "usdt_wallet_trc20")
-        .single();
-      
-      if (settingsData?.value) {
-        setWalletAddress(settingsData.value);
-      }
+        .select("key, value")
+        .in("key", [
+          "usdt_wallet_trc20",
+          "payment_bkash_number",
+          "payment_nagad_number",
+          "payment_rocket_number",
+        ]);
+
+      const map: Record<string, string> = {};
+      (settingsData ?? []).forEach((s) => {
+        if (s.value) map[s.key] = s.value;
+      });
+
+      if (map.usdt_wallet_trc20) setWalletAddress(map.usdt_wallet_trc20);
+
+      setMobileNumbers(
+        [
+          { label: "bKash", number: map.payment_bkash_number || "" },
+          { label: "Nagad", number: map.payment_nagad_number || "" },
+          { label: "Rocket", number: map.payment_rocket_number || "" },
+        ].filter((m) => m.number)
+      );
 
       setLoadingPackages(false);
     };
     fetchData();
   }, []);
+
+  const handleCopyNumber = async (label: string, number: string) => {
+    await navigator.clipboard.writeText(number);
+    setCopiedKey(label);
+    toast({ title: `${label} number copied!` });
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
 
   const handleCopyAddress = async () => {
     await navigator.clipboard.writeText(walletAddress);
@@ -212,6 +237,33 @@ export default function DashboardCredits() {
                   </div>
                 </div>
 
+                {mobileNumbers.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Mobile Banking (bKash / Nagad / Rocket)</Label>
+                    <div className="space-y-2">
+                      {mobileNumbers.map((m) => (
+                        <div key={m.label} className="flex items-center gap-2">
+                          <div className="flex-1 rounded-lg bg-muted p-3 text-sm flex items-center justify-between">
+                            <span className="font-medium">{m.label}</span>
+                            <span className="font-mono">{m.number}</span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleCopyNumber(m.label, m.number)}
+                          >
+                            {copiedKey === m.label ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Send Money করার পরে TXID / Transaction ID নিচে দিন।
+                    </p>
+                  </div>
+                )}
+
+
                 <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4">
                   <p className="text-sm text-yellow-600 dark:text-yellow-400">
                     ⚠️ Please send exactly <strong>${selectedPackage.offer_price} USDT</strong> to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
@@ -355,10 +407,16 @@ export default function DashboardCredits() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted/50 p-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium">Accepted Payment:</span>
                 <Badge variant="outline">USDT (TRC20)</Badge>
+                {mobileNumbers.map((m) => (
+                  <Badge key={m.label} variant="outline">
+                    {m.label}: {m.number}
+                  </Badge>
+                ))}
               </div>
+
               <p className="mt-2 text-sm text-muted-foreground">
                 After payment, submit your TXID and credits will be added upon admin verification.
               </p>

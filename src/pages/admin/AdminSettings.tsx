@@ -662,7 +662,47 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
+        {/* Mobile Payment Numbers */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-primary" />
+              <CardTitle>Mobile Payment Numbers</CardTitle>
+            </div>
+            <CardDescription>
+              bKash, Nagad and Rocket numbers shown to users on the buy credits page
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>bKash Number</Label>
+              <Input
+                value={settings.payment_bkash_number ?? ""}
+                onChange={(e) => updateSetting("payment_bkash_number", e.target.value)}
+                placeholder="01757914726"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nagad Number</Label>
+              <Input
+                value={settings.payment_nagad_number ?? ""}
+                onChange={(e) => updateSetting("payment_nagad_number", e.target.value)}
+                placeholder="01757914726"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Rocket Number</Label>
+              <Input
+                value={settings.payment_rocket_number ?? ""}
+                onChange={(e) => updateSetting("payment_rocket_number", e.target.value)}
+                placeholder="01757914726"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Homepage Settings */}
+
         <Card>
           <CardHeader>
             <CardTitle>Homepage Content</CardTitle>
