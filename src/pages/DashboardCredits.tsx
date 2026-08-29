@@ -35,6 +35,8 @@ export default function DashboardCredits() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
+  const [mobileNumbers, setMobileNumbers] = useState<{ label: string; number: string }[]>([]);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,21 +49,44 @@ export default function DashboardCredits() {
       
       if (pkgData) setPackages(pkgData);
 
-      // Fetch wallet address from platform_settings
+      // Fetch payment settings from platform_settings
       const { data: settingsData } = await supabase
         .from("platform_settings")
-        .select("value")
-        .eq("key", "usdt_wallet_trc20")
-        .single();
-      
-      if (settingsData?.value) {
-        setWalletAddress(settingsData.value);
-      }
+        .select("key, value")
+        .in("key", [
+          "usdt_wallet_trc20",
+          "payment_bkash_number",
+          "payment_nagad_number",
+          "payment_rocket_number",
+        ]);
+
+      const map: Record<string, string> = {};
+      (settingsData ?? []).forEach((s) => {
+        if (s.value) map[s.key] = s.value;
+      });
+
+      if (map.usdt_wallet_trc20) setWalletAddress(map.usdt_wallet_trc20);
+
+      setMobileNumbers(
+        [
+          { label: "bKash", number: map.payment_bkash_number || "" },
+          { label: "Nagad", number: map.payment_nagad_number || "" },
+          { label: "Rocket", number: map.payment_rocket_number || "" },
+        ].filter((m) => m.number)
+      );
 
       setLoadingPackages(false);
     };
     fetchData();
   }, []);
+
+  const handleCopyNumber = async (label: string, number: string) => {
+    await navigator.clipboard.writeText(number);
+    setCopiedKey(label);
+    toast({ title: `${label} number copied!` });
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
 
   const handleCopyAddress = async () => {
     await navigator.clipboard.writeText(walletAddress);
