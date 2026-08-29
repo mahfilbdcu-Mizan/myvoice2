@@ -407,10 +407,16 @@ export default function DashboardCredits() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted/50 p-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium">Accepted Payment:</span>
                 <Badge variant="outline">USDT (TRC20)</Badge>
+                {mobileNumbers.map((m) => (
+                  <Badge key={m.label} variant="outline">
+                    {m.label}: {m.number}
+                  </Badge>
+                ))}
               </div>
+
               <p className="mt-2 text-sm text-muted-foreground">
                 After payment, submit your TXID and credits will be added upon admin verification.
               </p>
