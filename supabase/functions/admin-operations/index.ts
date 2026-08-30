@@ -163,13 +163,6 @@ serve(async (req) => {
             (p: { email: string | null }) => p.email && emails.includes(p.email.toLowerCase())
           );
           if (matched.length > 0) {
-            const { data: roleRows } = await supabase
-              .from("user_roles")
-              .select("user_id")
-              .eq("role", "moderator")
-              .in("id", []) // placeholder avoided below
-              .maybeSingle();
-            void roleRows;
             const { data: modRows } = await supabase
               .from("user_roles")
               .select("user_id")
