@@ -41,6 +41,74 @@ export async function checkIsAdmin(): Promise<boolean> {
   }
 }
 
+export interface StaffRole {
+  isAdmin: boolean;      // has access to the admin panel (admin or manager)
+  isSuperAdmin: boolean; // owner admin
+  isManager: boolean;
+}
+
+// Returns detailed staff role info for the current user
+export async function getStaffRole(): Promise<StaffRole> {
+  const fallback = { isAdmin: false, isSuperAdmin: false, isManager: false };
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) return fallback;
+
+    const { data, error } = await supabase.functions.invoke("verify-admin", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (error) return fallback;
+
+    return {
+      isAdmin: data?.isAdmin === true,
+      isSuperAdmin: data?.isSuperAdmin === true,
+      isManager: data?.isManager === true,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export interface ManagerEntry {
+  id: string;
+  email: string;
+  created_at: string;
+  active: boolean;
+}
+
+async function invokeAdminOperation<T>(body: Record<string, unknown>): Promise<{ data?: T; error?: string }> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return { error: "Not authenticated" };
+
+  const { data, error } = await supabase.functions.invoke("admin-operations", {
+    body,
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (error) return { error: error.message };
+  if (data?.error) return { error: data.error };
+  return { data: data as T };
+}
+
+export async function listManagers(): Promise<ManagerEntry[]> {
+  const { data } = await invokeAdminOperation<{ managers: ManagerEntry[] }>({ action: "list_managers" });
+  return data?.managers ?? [];
+}
+
+export async function addManager(email: string): Promise<{ success: boolean; activated?: boolean; error?: string }> {
+  const { data, error } = await invokeAdminOperation<{ activated: boolean }>({ action: "add_manager", email });
+  if (error) return { success: false, error };
+  return { success: true, activated: data?.activated };
+}
+
+export async function removeManager(email: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await invokeAdminOperation({ action: "remove_manager", email });
+  if (error) return { success: false, error };
+  return { success: true };
+}
+
 export interface UserProfile {
   id: string;
   email: string | null;
