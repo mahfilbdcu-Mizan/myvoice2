@@ -39,14 +39,14 @@ async function validateAuth(req: Request): Promise<{ userId: string | null; erro
   return { userId: data.user.id, error: null };
 }
 
-// Verify admin role using service role key
-async function verifyAdminRole(userId: string): Promise<boolean> {
+// Verify staff roles (admin or manager) using service role key
+async function getStaffRoles(userId: string): Promise<{ isAdmin: boolean; isManager: boolean }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !serviceRoleKey) {
     console.error("Missing Supabase configuration");
-    return false;
+    return { isAdmin: false, isManager: false };
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -55,15 +55,15 @@ async function verifyAdminRole(userId: string): Promise<boolean> {
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
+    .in("role", ["admin", "moderator"]);
 
   if (error) {
     console.error("Error checking admin role:", error);
-    return false;
+    return { isAdmin: false, isManager: false };
   }
 
-  return roleData !== null;
+  const roles = (roleData ?? []).map((r: { role: string }) => r.role);
+  return { isAdmin: roles.includes("admin"), isManager: roles.includes("moderator") };
 }
 
 // Log admin action for audit
@@ -105,9 +105,9 @@ serve(async (req) => {
       );
     }
 
-    // Verify admin role server-side
-    const isAdmin = await verifyAdminRole(adminUserId);
-    if (!isAdmin) {
+    // Verify staff role server-side (admin or manager)
+    const { isAdmin: isSuperAdmin, isManager } = await getStaffRoles(adminUserId);
+    if (!isSuperAdmin && !isManager) {
       console.error("Admin verification failed for user:", adminUserId);
       return new Response(
         JSON.stringify({ error: "Forbidden: Admin access required" }),
@@ -117,6 +117,15 @@ serve(async (req) => {
 
     const body = await req.json();
     const { action } = body;
+
+    // Manager administration is restricted to super admins only
+    const ADMIN_ONLY_ACTIONS = ["list_managers", "add_manager", "remove_manager"];
+    if (ADMIN_ONLY_ACTIONS.includes(action) && !isSuperAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Only the owner admin can manage managers" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -131,6 +140,129 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     switch (action) {
+      case "list_managers": {
+        const { data: invites, error: invitesError } = await supabase
+          .from("manager_invites")
+          .select("id, email, created_at")
+          .order("created_at", { ascending: false });
+
+        if (invitesError) {
+          return new Response(
+            JSON.stringify({ error: "Failed to load managers" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const emails = (invites ?? []).map((i: { email: string }) => i.email.toLowerCase());
+        let activeEmails: string[] = [];
+        if (emails.length > 0) {
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("id, email");
+          const matched = (profilesData ?? []).filter(
+            (p: { email: string | null }) => p.email && emails.includes(p.email.toLowerCase())
+          );
+          if (matched.length > 0) {
+            const { data: modRows } = await supabase
+              .from("user_roles")
+              .select("user_id")
+              .eq("role", "moderator");
+            const modIds = new Set((modRows ?? []).map((r: { user_id: string }) => r.user_id));
+            activeEmails = matched
+              .filter((p: { id: string }) => modIds.has(p.id))
+              .map((p: { email: string | null }) => (p.email ?? "").toLowerCase());
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            managers: (invites ?? []).map((i: { id: string; email: string; created_at: string }) => ({
+              ...i,
+              active: activeEmails.includes(i.email.toLowerCase()),
+            })),
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "add_manager": {
+        const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return new Response(
+            JSON.stringify({ error: "A valid email address is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { error: inviteError } = await supabase
+          .from("manager_invites")
+          .upsert({ email, invited_by: adminUserId }, { onConflict: "email" });
+
+        if (inviteError) {
+          console.error("Failed to add manager invite:", inviteError);
+          return new Response(
+            JSON.stringify({ error: "Failed to add manager" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // If the user already exists, grant the role right away
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id, email")
+          .ilike("email", email)
+          .maybeSingle();
+
+        let activated = false;
+        if (existing?.id) {
+          const { error: roleErr } = await supabase
+            .from("user_roles")
+            .upsert({ user_id: existing.id, role: "moderator" }, { onConflict: "user_id,role" });
+          activated = !roleErr;
+        }
+
+        await logAdminAction(adminUserId, "add_manager", existing?.id ?? null, { email, activated });
+
+        return new Response(
+          JSON.stringify({ success: true, activated }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "remove_manager": {
+        const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+        if (!email) {
+          return new Response(
+            JSON.stringify({ error: "Email is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        await supabase.from("manager_invites").delete().ilike("email", email);
+
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("email", email)
+          .maybeSingle();
+
+        if (existing?.id) {
+          await supabase
+            .from("user_roles")
+            .delete()
+            .eq("user_id", existing.id)
+            .eq("role", "moderator");
+        }
+
+        await logAdminAction(adminUserId, "remove_manager", existing?.id ?? null, { email });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       case "update_credits": {
         const { targetUserId, credits, validity } = body;
 
