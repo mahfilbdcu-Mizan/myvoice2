@@ -47,15 +47,14 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Checking admin status for user: ${user.id}`);
+    console.log(`Checking staff status for user: ${user.id}`);
 
     // Server-side role check using service role (bypasses RLS for accurate check)
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
+      .in("role", ["admin", "moderator"]);
 
     if (roleError) {
       console.error("Error checking role:", roleError);
@@ -65,11 +64,14 @@ serve(async (req) => {
       );
     }
 
-    const isAdmin = roleData !== null;
-    console.log(`User ${user.id} admin status: ${isAdmin}`);
+    const roles = (roleData ?? []).map((r: { role: string }) => r.role);
+    const isSuperAdmin = roles.includes("admin");
+    const isManager = roles.includes("moderator");
+    const isAdmin = isSuperAdmin || isManager;
+    console.log(`User ${user.id} staff status: ${isAdmin} (admin=${isSuperAdmin}, manager=${isManager})`);
 
     return new Response(
-      JSON.stringify({ isAdmin, userId: user.id }),
+      JSON.stringify({ isAdmin, isSuperAdmin, isManager, role: isSuperAdmin ? "admin" : isManager ? "manager" : null, userId: user.id }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
