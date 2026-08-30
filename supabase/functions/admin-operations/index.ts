@@ -39,14 +39,14 @@ async function validateAuth(req: Request): Promise<{ userId: string | null; erro
   return { userId: data.user.id, error: null };
 }
 
-// Verify admin role using service role key
-async function verifyAdminRole(userId: string): Promise<boolean> {
+// Verify staff roles (admin or manager) using service role key
+async function getStaffRoles(userId: string): Promise<{ isAdmin: boolean; isManager: boolean }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !serviceRoleKey) {
     console.error("Missing Supabase configuration");
-    return false;
+    return { isAdmin: false, isManager: false };
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -55,15 +55,15 @@ async function verifyAdminRole(userId: string): Promise<boolean> {
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
+    .in("role", ["admin", "moderator"]);
 
   if (error) {
     console.error("Error checking admin role:", error);
-    return false;
+    return { isAdmin: false, isManager: false };
   }
 
-  return roleData !== null;
+  const roles = (roleData ?? []).map((r: { role: string }) => r.role);
+  return { isAdmin: roles.includes("admin"), isManager: roles.includes("moderator") };
 }
 
 // Log admin action for audit
