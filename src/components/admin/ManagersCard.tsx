@@ -66,7 +66,8 @@ export function ManagersCard() {
     }
   };
 
-  if (isLoading || isSuperAdmin === false) return null;
+  // Only the owner (super admin) can add or remove managers
+  if (isLoading || !isSuperAdmin) return null;
 
   return (
     <Card>
