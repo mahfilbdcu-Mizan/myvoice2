@@ -11,6 +11,7 @@ import { Save, Loader2, AlertCircle, CheckCircle, Shield, Key, Eye, EyeOff, Tras
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ManagersCard } from "@/components/admin/ManagersCard";
 
 interface PlatformSetting {
   id: string;
@@ -239,6 +240,8 @@ export default function AdminSettings() {
             Configure your platform settings, contact links, and chatbot
           </p>
         </div>
+
+        <ManagersCard />
 
         {/* API Key Configuration */}
         <Card>
