@@ -241,6 +241,8 @@ export default function AdminSettings() {
           </p>
         </div>
 
+        <ManagersCard />
+
         {/* API Key Configuration */}
         <Card>
           <CardHeader>
