@@ -10,18 +10,26 @@ serve(async (req) => {
   const apiKey = Deno.env.get("AI33_API_KEY") || "";
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }
-  const targets: Array<{ path: string; method?: string; body?: unknown }> = body.targets || [];
+  const targets: Array<{ path: string; method?: string; body?: unknown; headerStyle?: string }> = body.targets || [];
+  const styles: Record<string, Record<string, string>> = {
+    xi: { "xi-api-key": apiKey },
+    bearer: { Authorization: `Bearer ${apiKey}` },
+    xapikey: { "x-api-key": apiKey },
+    apikey: { "api-key": apiKey },
+    both: { "xi-api-key": apiKey, Authorization: `Bearer ${apiKey}` },
+  };
   const out: unknown[] = [];
   for (const t of targets) {
     const method = t.method || "GET";
+    const hs = styles[t.headerStyle || "xi"] || styles.xi;
     try {
       const r = await fetch("https://api.ai33.pro" + t.path, {
         method,
-        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        headers: { ...hs, "Content-Type": "application/json" },
         body: method === "GET" ? undefined : JSON.stringify(t.body ?? {}),
       });
       const text = await r.text();
-      out.push({ path: t.path, method, status: r.status, body: text.slice(0, 800) });
+      out.push({ path: t.path, method, style: t.headerStyle || "xi", status: r.status, body: text.slice(0, 600) });
     } catch (e) {
       out.push({ path: t.path, method, error: String(e) });
     }
