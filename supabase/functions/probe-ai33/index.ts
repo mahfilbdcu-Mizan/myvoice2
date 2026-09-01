@@ -8,24 +8,22 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const apiKey = Deno.env.get("AI33_API_KEY") || "";
-  const out: Record<string, unknown> = {};
-  for (const url of [
-    "https://api.ai33.pro/openapi.json",
-    "https://api.ai33.pro/v3/openapi.json",
-  ]) {
+  let body: any = {};
+  try { body = await req.json(); } catch { /* ignore */ }
+  const targets: Array<{ path: string; method?: string; body?: unknown }> = body.targets || [];
+  const out: unknown[] = [];
+  for (const t of targets) {
+    const method = t.method || "GET";
     try {
-      const r = await fetch(url, { headers: { "xi-api-key": apiKey } });
-      const t = await r.text();
-      if (r.ok) {
-        try {
-          const j = JSON.parse(t);
-          out[url] = { status: r.status, paths: Object.keys(j.paths || {}) };
-          continue;
-        } catch { /* not json */ }
-      }
-      out[url] = { status: r.status, body: t.slice(0, 300) };
+      const r = await fetch("https://api.ai33.pro" + t.path, {
+        method,
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: method === "GET" ? undefined : JSON.stringify(t.body ?? {}),
+      });
+      const text = await r.text();
+      out.push({ path: t.path, method, status: r.status, body: text.slice(0, 800) });
     } catch (e) {
-      out[url] = { error: String(e) };
+      out.push({ path: t.path, method, error: String(e) });
     }
   }
   return new Response(JSON.stringify(out, null, 2), {
