@@ -146,6 +146,63 @@ export type Database = {
         }
         Relationships: []
       }
+      image_generations: {
+        Row: {
+          aspect_ratio: string | null
+          completed_at: string | null
+          created_at: string
+          credits_charged: number
+          error_message: string | null
+          expires_at: string
+          external_task_id: string | null
+          generations_count: number
+          id: string
+          images: Json
+          model_id: string
+          progress: number
+          prompt: string
+          resolution: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          aspect_ratio?: string | null
+          completed_at?: string | null
+          created_at?: string
+          credits_charged?: number
+          error_message?: string | null
+          expires_at?: string
+          external_task_id?: string | null
+          generations_count?: number
+          id?: string
+          images?: Json
+          model_id: string
+          progress?: number
+          prompt: string
+          resolution?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          aspect_ratio?: string | null
+          completed_at?: string | null
+          created_at?: string
+          credits_charged?: number
+          error_message?: string | null
+          expires_at?: string
+          external_task_id?: string | null
+          generations_count?: number
+          id?: string
+          images?: Json
+          model_id?: string
+          progress?: number
+          prompt?: string
+          resolution?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       manager_invites: {
         Row: {
           created_at: string
@@ -422,6 +479,7 @@ export type Database = {
         Args: { _is_blocked: boolean; _target_user_id: string }
         Returns: boolean
       }
+      cleanup_expired_image_generations: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       decrypt_api_key: { Args: { encrypted_key: string }; Returns: string }
       deduct_credits_atomic: {
