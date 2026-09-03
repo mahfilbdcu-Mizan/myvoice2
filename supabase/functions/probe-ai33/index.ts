@@ -29,7 +29,7 @@ serve(async (req) => {
         body: method === "GET" ? undefined : JSON.stringify(t.body ?? {}),
       });
       const text = await r.text();
-      out.push({ path: t.path, method, style: t.headerStyle || "xi", status: r.status, body: text.slice(0, 600) });
+      out.push({ path: t.path, method, style: t.headerStyle || "xi", status: r.status, body: text.slice(0, 6000) });
     } catch (e) {
       out.push({ path: t.path, method, error: String(e) });
     }
