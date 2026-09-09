@@ -20,7 +20,9 @@ import {
   X,
   TrendingUp,
   CalendarClock,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon
+
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,8 @@ const navItems = [
   { icon: Mic, label: "Text to Speech", href: "/dashboard" },
   { icon: Copy, label: "Voice Clone", href: "/dashboard/voice-clone" },
   { icon: Library, label: "Voice Library", href: "/dashboard/voices" },
+  { icon: ImageIcon, label: "AI Images", href: "/dashboard/images" },
+
   { icon: History, label: "History", href: "/dashboard/history" },
   { icon: FileAudio, label: "Speech to Text", href: "/dashboard/stt" },
   { icon: Languages, label: "Dubbing", href: "/dashboard/dubbing" },
