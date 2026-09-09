@@ -8,6 +8,7 @@ interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   credits: number;
+  credits_used?: number;
   is_blocked: boolean;
   has_received_free_credits: boolean;
   credits_expires_at?: string | null;
