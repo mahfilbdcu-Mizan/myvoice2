@@ -327,8 +327,9 @@ serve(async (req) => {
           );
         }
 
-        // Update credits (and validity, when provided)
-        const updatePayload: Record<string, unknown> = { credits };
+        // Update credits (and validity, when provided). A fresh grant resets usage
+        // so "used" + "remaining" always matches what the admin assigned.
+        const updatePayload: Record<string, unknown> = { credits, credits_used: 0 };
         if (expiresAt !== undefined) {
           updatePayload.credits_expires_at = expiresAt;
           updatePayload.credits_granted_at = new Date().toISOString();
@@ -426,7 +427,7 @@ serve(async (req) => {
           );
         }
 
-        const bulkPayload: Record<string, unknown> = { credits };
+        const bulkPayload: Record<string, unknown> = { credits, credits_used: 0 };
         if (bulkExpiresAt !== undefined) {
           bulkPayload.credits_expires_at = bulkExpiresAt;
           bulkPayload.credits_granted_at = new Date().toISOString();

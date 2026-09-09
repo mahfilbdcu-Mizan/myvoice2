@@ -118,11 +118,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [userApiBalance, setUserApiBalance] = useState<number | null>(null);
   const [hasUserApiKey, setHasUserApiKey] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [userUsedCredits, setUserUsedCredits] = useState<number>(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user, signOut, isLoading } = useAuth();
 
+  // Used credits come straight from the balance ledger so used + remaining always match
+  const userUsedCredits = profile?.credits_used ?? 0;
   const credits = profile?.credits ?? 0;
   const creditsExpiresAt = profile?.credits_expires_at ?? null;
   const creditsExpired = !!creditsExpiresAt && new Date(creditsExpiresAt) <= new Date();
@@ -200,21 +201,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       } catch (error) {
         console.error("Error fetching logo:", error);
       }
-
-      // Fetch user's total used credits (words_count from generation_tasks)
-      try {
-        const { data: usageData } = await supabase
-          .from("generation_tasks")
-          .select("words_count")
-          .eq("user_id", user.id);
-        
-        if (usageData) {
-          const totalUsed = usageData.reduce((sum, task) => sum + (task.words_count || 0), 0);
-          setUserUsedCredits(totalUsed);
-        }
-      } catch (error) {
-        console.error("Error fetching usage data:", error);
-      }
     }
     
     fetchData();
@@ -246,43 +232,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [user]);
 
-  // Subscribe to realtime changes on generation_tasks for live used credits
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('user-generation-tasks-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'generation_tasks',
-          filter: `user_id=eq.${user.id}`
-        },
-        async () => {
-          // Re-fetch used credits count
-          try {
-            const { data: usageData } = await supabase
-              .from("generation_tasks")
-              .select("words_count")
-              .eq("user_id", user.id);
-            
-            if (usageData) {
-              const totalUsed = usageData.reduce((sum, task) => sum + (task.words_count || 0), 0);
-              setUserUsedCredits(totalUsed);
-            }
-          } catch (error) {
-            console.error("Error refreshing usage data:", error);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  // Used credits stay in sync through the profile realtime subscription in AuthContext
 
   // Close mobile menu on route change
   useEffect(() => {

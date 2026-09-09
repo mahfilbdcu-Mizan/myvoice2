@@ -312,6 +312,7 @@ export type Database = {
           credits: number
           credits_expires_at: string | null
           credits_granted_at: string | null
+          credits_used: number
           email: string | null
           full_name: string | null
           has_received_free_credits: boolean
@@ -325,6 +326,7 @@ export type Database = {
           credits?: number
           credits_expires_at?: string | null
           credits_granted_at?: string | null
+          credits_used?: number
           email?: string | null
           full_name?: string | null
           has_received_free_credits?: boolean
@@ -338,6 +340,7 @@ export type Database = {
           credits?: number
           credits_expires_at?: string | null
           credits_granted_at?: string | null
+          credits_used?: number
           email?: string | null
           full_name?: string | null
           has_received_free_credits?: boolean
@@ -523,6 +526,10 @@ export type Database = {
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_user_blocked: { Args: { _user_id: string }; Returns: boolean }
+      refund_credits_atomic: {
+        Args: { _amount: number; _user_id: string }
+        Returns: boolean
+      }
       save_user_api_key_secure: {
         Args: {
           p_api_key: string
