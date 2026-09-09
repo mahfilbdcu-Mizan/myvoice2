@@ -239,17 +239,11 @@ async function refundCreditsForFailedTask(externalTaskId: string, reason: string
     if (!task || !task.user_id || !task.words_count) return;
     if (task.status === "failed" || task.status === "done") return;
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("credits")
-      .eq("id", task.user_id)
-      .single();
-
-    const newCredits = (profile?.credits || 0) + task.words_count;
-    await supabase
-      .from("profiles")
-      .update({ credits: newCredits })
-      .eq("id", task.user_id);
+    // Refund balance and roll back the used-credits counter so both stay in sync
+    await supabase.rpc("refund_credits_atomic", {
+      _user_id: task.user_id,
+      _amount: task.words_count,
+    });
 
     console.log(`Refunded ${task.words_count} credits to user ${task.user_id} due to: ${reason}`);
   } catch (e) {
