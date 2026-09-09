@@ -427,7 +427,7 @@ serve(async (req) => {
           );
         }
 
-        const bulkPayload: Record<string, unknown> = { credits };
+        const bulkPayload: Record<string, unknown> = { credits, credits_used: 0 };
         if (bulkExpiresAt !== undefined) {
           bulkPayload.credits_expires_at = bulkExpiresAt;
           bulkPayload.credits_granted_at = new Date().toISOString();
