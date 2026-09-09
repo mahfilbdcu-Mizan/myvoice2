@@ -118,11 +118,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [userApiBalance, setUserApiBalance] = useState<number | null>(null);
   const [hasUserApiKey, setHasUserApiKey] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [userUsedCredits, setUserUsedCredits] = useState<number>(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user, signOut, isLoading } = useAuth();
 
+  // Used credits come straight from the balance ledger so used + remaining always match
+  const userUsedCredits = profile?.credits_used ?? 0;
   const credits = profile?.credits ?? 0;
   const creditsExpiresAt = profile?.credits_expires_at ?? null;
   const creditsExpired = !!creditsExpiresAt && new Date(creditsExpiresAt) <= new Date();
