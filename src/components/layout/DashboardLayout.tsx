@@ -201,21 +201,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       } catch (error) {
         console.error("Error fetching logo:", error);
       }
-
-      // Fetch user's total used credits (words_count from generation_tasks)
-      try {
-        const { data: usageData } = await supabase
-          .from("generation_tasks")
-          .select("words_count")
-          .eq("user_id", user.id);
-        
-        if (usageData) {
-          const totalUsed = usageData.reduce((sum, task) => sum + (task.words_count || 0), 0);
-          setUserUsedCredits(totalUsed);
-        }
-      } catch (error) {
-        console.error("Error fetching usage data:", error);
-      }
     }
     
     fetchData();
