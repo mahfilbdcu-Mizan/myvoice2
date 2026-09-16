@@ -98,13 +98,13 @@ export default function AdminOrders() {
     
     if (result.success) {
       toast({
-        title: "API Key সেট হয়েছে",
-        description: `ইউজারের জন্য API Key সেট করা হয়েছে${result.remainingCredits ? ` (ব্যালেন্স: ${result.remainingCredits.toLocaleString()})` : ''}`,
+        title: "API key saved",
+        description: `API key set for this user${result.remainingCredits ? ` (balance: ${result.remainingCredits.toLocaleString()})` : ''}`,
       });
     } else {
       toast({
-        title: "API Key সেট ব্যর্থ",
-        description: result.error || "API Key সেট করা যায়নি",
+        title: "Could not save API key",
+        description: result.error || "Failed to set the API key",
         variant: "destructive",
       });
     }
@@ -340,9 +340,9 @@ export default function AdminOrders() {
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>ইউজারের জন্য API Key সেট করুন</DialogTitle>
+              <DialogTitle>Set API key for user</DialogTitle>
               <DialogDescription>
-                {settingApiKeyOrder?.profiles?.email || "ইউজার"} এর জন্য API Key সেট করুন। এই Key দিয়ে তিনি সার্ভিস ব্যবহার করতে পারবেন।
+                Set an API key for {settingApiKeyOrder?.profiles?.email || "this user"}. They will use this key for the service.
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
@@ -357,7 +357,7 @@ export default function AdminOrders() {
                 />
               </div>
               <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-                <p><strong>নোট:</strong> API Key সেট করার পর ইউজার শুধু ক্রেডিট দেখতে ও ব্যবহার করতে পারবে। Key দেখতে বা কপি করতে পারবে না।</p>
+                <p><strong>Note:</strong> After saving, the user can only see and use credits. They cannot view or copy the key.</p>
               </div>
             </div>
             <DialogFooter>
@@ -365,7 +365,7 @@ export default function AdminOrders() {
                 setSettingApiKeyOrder(null);
                 setApiKeyInput("");
               }}>
-                বাতিল
+                Cancel
               </Button>
               <Button 
                 onClick={handleSetApiKey}
@@ -376,7 +376,7 @@ export default function AdminOrders() {
                 ) : (
                   <Key className="h-4 w-4 mr-2" />
                 )}
-                API Key সেট করুন
+                Set API Key
               </Button>
             </DialogFooter>
           </DialogContent>

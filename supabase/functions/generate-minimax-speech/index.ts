@@ -177,14 +177,14 @@ serve(async (req) => {
 
     if (creditsExpiresAt && new Date(creditsExpiresAt) <= new Date()) {
       return new Response(
-        JSON.stringify({ error: "আপনার ক্রেডিটের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।" }),
+        JSON.stringify({ error: "Your credits have expired. Please contact the administrator." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (availableCredits < wordsCount) {
       return new Response(
-        JSON.stringify({ error: `পর্যাপ্ত ক্রেডিট নেই। প্রয়োজন ${wordsCount}, আপনার আছে ${availableCredits}।` }),
+        JSON.stringify({ error: `Not enough credits. Required ${wordsCount}, you have ${availableCredits}.` }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -269,7 +269,7 @@ serve(async (req) => {
       const isMaintenance = isServiceIssue;
 
       if (isServiceIssue) {
-        errorMessage = "সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন। আপনার কোনো ক্রেডিট কাটা হয়নি।";
+        errorMessage = "The service is temporarily unavailable. We are working on it — please try again shortly. No credits were used.";
       }
 
 

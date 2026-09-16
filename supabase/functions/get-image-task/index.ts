@@ -113,7 +113,7 @@ serve(async (req) => {
     } else if (status === "error" || status === "failed") {
       updates.status = "failed";
       updates.error_message =
-        "ইমেজ তৈরি করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।";
+        "Could not generate the image. Please try again shortly.";
     }
 
     const { data: updated } = await admin

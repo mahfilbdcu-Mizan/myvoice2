@@ -50,10 +50,10 @@ interface ImageTask {
 
 function timeLeft(expiresAt: string): string {
   const ms = new Date(expiresAt).getTime() - Date.now();
-  if (ms <= 0) return "মেয়াদ শেষ";
+  if (ms <= 0) return "Expired";
   const hours = Math.floor(ms / 3600000);
   const minutes = Math.floor((ms % 3600000) / 60000);
-  return `${hours}ঘ ${minutes}মি বাকি`;
+  return `${hours}h ${minutes}m left`;
 }
 
 export default function DashboardImages() {
@@ -117,21 +117,21 @@ export default function DashboardImages() {
       if (!task) continue;
       setActiveTask(task);
       if (task.status === "completed") {
-        toast({ title: "ইমেজ তৈরি হয়েছে", description: `${task.credits_charged} ক্রেডিট কাটা হয়েছে` });
+        toast({ title: "Image ready", description: `${task.credits_charged} credits used` });
         loadHistory();
         return;
       }
       if (task.status === "failed") {
         toast({
-          title: "ব্যর্থ হয়েছে",
-          description: task.error_message || "ইমেজ তৈরি করা যায়নি",
+          title: "Generation failed",
+          description: task.error_message || "Could not generate the image",
           variant: "destructive",
         });
         loadHistory();
         return;
       }
     }
-    toast({ title: "সময় শেষ", description: "ইমেজ তৈরি হতে অনেক সময় নিচ্ছে", variant: "destructive" });
+    toast({ title: "Timed out", description: "The image is taking too long to generate", variant: "destructive" });
   };
 
   const handleGenerate = async () => {
@@ -153,16 +153,16 @@ export default function DashboardImages() {
         const message =
           (error as any)?.context?.body?.error ||
           error.message ||
-          "ইমেজ তৈরি করা যায়নি";
+          "Could not generate the image";
         throw new Error(message);
       }
       if (data?.error) throw new Error(data.error);
 
-      toast({ title: "জেনারেশন শুরু হয়েছে", description: `${data.credits_charged} ক্রেডিট কাটা হয়েছে` });
+      toast({ title: "Generation started", description: `${data.credits_charged} credits used` });
       await loadHistory();
       await pollTask(data.id);
     } catch (e: any) {
-      toast({ title: "ব্যর্থ হয়েছে", description: e.message, variant: "destructive" });
+      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
@@ -187,14 +187,14 @@ export default function DashboardImages() {
           <div>
             <h1 className="text-3xl font-bold">AI Image Generation</h1>
             <p className="text-muted-foreground">
-              টেক্সট থেকে ইমেজ তৈরি করুন — ডাউনলোড লিংক ৪৮ ঘণ্টা পর্যন্ত থাকবে
+              Turn text into images — download links stay available for 48 hours
             </p>
           </div>
 
           <Card>
             <CardHeader>
               <CardTitle>Create Image</CardTitle>
-              <CardDescription>মডেল বেছে নিন এবং আপনার আইডিয়া লিখুন</CardDescription>
+              <CardDescription>Pick a model and describe your idea</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">
@@ -287,7 +287,7 @@ export default function DashboardImages() {
               {estimatedCost > 0 && (
                 <div className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  আনুমানিক খরচ: <span className="font-semibold">{estimatedCost} ক্রেডিট</span>
+                  Estimated cost: <span className="font-semibold">{estimatedCost} credits</span>
                 </div>
               )}
 
@@ -295,7 +295,7 @@ export default function DashboardImages() {
                 <div className="space-y-2">
                   <Progress value={activeTask.progress} />
                   <p className="text-center text-sm text-muted-foreground">
-                    তৈরি হচ্ছে... {activeTask.progress}%
+                    Generating... {activeTask.progress}%
                   </p>
                 </div>
               )}
@@ -323,11 +323,11 @@ export default function DashboardImages() {
           <Card>
             <CardHeader>
               <CardTitle>My Images</CardTitle>
-              <CardDescription>ইমেজগুলো ৪৮ ঘণ্টা পর অটোমেটিক মুছে যাবে</CardDescription>
+              <CardDescription>Images are deleted automatically after 48 hours</CardDescription>
             </CardHeader>
             <CardContent>
               {history.length === 0 ? (
-                <p className="py-8 text-center text-muted-foreground">এখনো কোনো ইমেজ নেই</p>
+                <p className="py-8 text-center text-muted-foreground">No images yet</p>
               ) : (
                 <div className="space-y-6">
                   {history.map((task) => (
@@ -363,10 +363,10 @@ export default function DashboardImages() {
                         </div>
                       ) : task.status === "failed" ? (
                         <p className="text-sm text-destructive">
-                          {task.error_message || "ইমেজ তৈরি করা যায়নি"}
+                          {task.error_message || "Could not generate the image"}
                         </p>
                       ) : (
-                        <p className="text-sm text-muted-foreground">প্রসেস হচ্ছে...</p>
+                        <p className="text-sm text-muted-foreground">Processing...</p>
                       )}
                     </div>
                   ))}

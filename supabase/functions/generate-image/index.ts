@@ -10,7 +10,7 @@ const AI33_IMAGE_URL = "https://api.ai33.pro/v1i/task/generate-image";
 const AI33_MODELS_URL = "https://api.ai33.pro/v1i/models";
 
 const MAINTENANCE_MESSAGE =
-  "সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন। আপনার কোনো ক্রেডিট কাটা হয়নি।";
+  "The service is temporarily unavailable. We are working on it — please try again shortly. No credits were used.";
 
 function serviceClient() {
   return createClient(
@@ -99,7 +99,7 @@ serve(async (req) => {
     if (expiresAt && new Date(expiresAt) <= new Date()) {
       return new Response(
         JSON.stringify({
-          error: "আপনার ক্রেডিটের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।",
+          error: "Your credits have expired. Please contact the administrator.",
         }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -121,7 +121,7 @@ serve(async (req) => {
     if (estimate > 0 && availableCredits < estimate) {
       return new Response(
         JSON.stringify({
-          error: `পর্যাপ্ত ক্রেডিট নেই। প্রয়োজন প্রায় ${estimate}, আপনার আছে ${availableCredits}।`,
+          error: `Not enough credits. About ${estimate} required, you have ${availableCredits}.`,
         }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );

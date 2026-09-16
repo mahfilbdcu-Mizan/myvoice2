@@ -104,7 +104,7 @@ function CreditsPanel({
             <span className="text-sm font-semibold text-destructive">Service Notice</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন।
+            The service is temporarily unavailable. We are working on it — please try again shortly.
           </p>
         </div>
       )}
