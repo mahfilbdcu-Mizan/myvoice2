@@ -63,7 +63,7 @@ serve(async (req) => {
 
     if (profile?.is_blocked) {
       return new Response(
-        JSON.stringify({ error: "আপনার অ্যাকাউন্টটি ব্লক করা হয়েছে।" }),
+        JSON.stringify({ error: "Your account has been blocked." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -76,7 +76,7 @@ serve(async (req) => {
     if (available < VOICE_CLONE_CREDIT_COST) {
       return new Response(
         JSON.stringify({
-          error: `ভয়েস ক্লোন করতে ${VOICE_CLONE_CREDIT_COST} ক্রেডিট প্রয়োজন। আপনার আছে ${available} ক্রেডিট।`,
+          error: `Voice cloning requires ${VOICE_CLONE_CREDIT_COST} credits. You have ${available} credits.`,
         }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -85,7 +85,7 @@ serve(async (req) => {
     const API_KEY = getApiKey();
     if (!API_KEY) {
       return new Response(
-        JSON.stringify({ error: "সার্ভিসটি সাময়িকভাবে রক্ষণাবেক্ষণে আছে। অনুগ্রহ করে কিছুক্ষণ পরে চেষ্টা করুন।" }),
+        JSON.stringify({ error: "The service is temporarily under maintenance. Please try again shortly." }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -121,7 +121,7 @@ serve(async (req) => {
 
     if (deductError || deducted !== true) {
       return new Response(
-        JSON.stringify({ error: "পর্যাপ্ত ক্রেডিট নেই অথবা ক্রেডিটের মেয়াদ শেষ হয়ে গেছে।" }),
+        JSON.stringify({ error: "Not enough credits, or your credits have expired." }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -154,9 +154,9 @@ serve(async (req) => {
       });
       chargedUserId = null;
 
-      let userMessage = "ভয়েস ক্লোন করা যায়নি। আপনার ক্রেডিট ফেরত দেওয়া হয়েছে।";
+      let userMessage = "Voice cloning failed. Your credits have been refunded.";
       if (response.status === 401 || response.status === 402 || response.status >= 500) {
-        userMessage = "সার্ভিসটি সাময়িকভাবে রক্ষণাবেক্ষণে আছে। অনুগ্রহ করে কিছুক্ষণ পরে চেষ্টা করুন। আপনার ক্রেডিট ফেরত দেওয়া হয়েছে।";
+        userMessage = "The service is temporarily under maintenance. Please try again shortly. Your credits have been refunded.";
       } else {
         try {
           const errorJson = JSON.parse(errorText);
@@ -191,7 +191,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: "ভয়েস ক্লোন করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।" }),
+      JSON.stringify({ error: "Voice cloning failed. Please try again." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

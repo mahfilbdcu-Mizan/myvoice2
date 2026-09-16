@@ -258,7 +258,7 @@ export default function DashboardCredits() {
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Send Money করার পরে TXID / Transaction ID নিচে দিন।
+                      After sending money, enter the TXID / Transaction ID below.
                     </p>
                   </div>
                 )}

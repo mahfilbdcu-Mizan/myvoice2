@@ -418,7 +418,7 @@ serve(async (req) => {
 
     if (creditsExpiresAt && new Date(creditsExpiresAt) <= new Date()) {
       return new Response(
-        JSON.stringify({ error: "আপনার ক্রেডিটের মেয়াদ শেষ হয়ে গেছে। অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।" }),
+        JSON.stringify({ error: "Your credits have expired. Please contact the administrator." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -426,7 +426,7 @@ serve(async (req) => {
     if (availableCredits < wordCount) {
       return new Response(
         JSON.stringify({
-          error: `পর্যাপ্ত ক্রেডিট নেই। প্রয়োজন ${wordCount}, আপনার আছে ${availableCredits}।`,
+          error: `Not enough credits. Required ${wordCount}, you have ${availableCredits}.`,
         }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -496,7 +496,7 @@ serve(async (req) => {
         response.status === 402;
 
       if (isMaintenance || isProviderBalanceIssue) {
-        errorMessage = "সাইটে সাময়িক সমস্যা চলছে। আমরা ঠিক করছি — কিছুক্ষণ পরে আবার চেষ্টা করুন। আপনার কোনো ক্রেডিট কাটা হয়নি।";
+        errorMessage = "The service is temporarily unavailable. We are working on it — please try again shortly. No credits were used.";
       }
 
       if (taskId) {
@@ -550,10 +550,10 @@ serve(async (req) => {
         const isMaintenance = upstreamMsg ? isMaintenanceMessage(upstreamMsg) : false;
 
         const friendly = isMaintenance
-          ? "ElevenLabs/AI33 সাময়িকভাবে বন্ধ আছে। একটু পরে আবার চেষ্টা করুন। কোনো ক্রেডিট কাটা হয়নি।"
+          ? "The voice service is temporarily unavailable. Please try again shortly. No credits were used."
           : (upstreamMsg
               ? `Upstream API error: ${upstreamMsg}`
-              : "Voice API থেকে কোনো task ID পাওয়া যায়নি। সম্ভবত API সাময়িকভাবে বন্ধ। কোনো ক্রেডিট কাটা হয়নি।");
+              : "No task ID was returned by the voice service. It may be temporarily unavailable. No credits were used.");
 
         if (taskId) {
           await updateTask(taskId, { status: "failed", error_message: friendly });
