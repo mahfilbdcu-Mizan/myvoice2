@@ -103,6 +103,7 @@ export interface FetchVoicesOptions {
   age?: string;
   accent?: string;
   category?: string;
+  provider?: string;
 }
 
 export interface FetchVoicesResult {
