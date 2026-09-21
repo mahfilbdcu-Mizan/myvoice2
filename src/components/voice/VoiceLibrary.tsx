@@ -88,6 +88,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose, provider
         gender: selectedGender !== "All" ? selectedGender : undefined,
         language: selectedLanguage !== "All" ? selectedLanguage : undefined,
         age: selectedAge !== "All" ? selectedAge : undefined,
+        provider,
       });
       setVoices(result.voices);
       setHasMore(result.has_more);
@@ -96,7 +97,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose, provider
       console.error("Failed to fetch voices:", error);
     }
     setIsLoading(false);
-  }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge]);
+  }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge, provider]);
 
   useEffect(() => {
     fetchVoices();
