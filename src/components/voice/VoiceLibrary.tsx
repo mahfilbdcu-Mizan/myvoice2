@@ -47,9 +47,11 @@ interface VoiceLibraryProps {
   onSelectVoice?: (voice: { id: string; name: string }) => void;
   isModal?: boolean;
   onClose?: () => void;
+  provider?: string;
+  providerLabel?: string;
 }
 
-export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceLibraryProps) {
+export function VoiceLibrary({ onSelectVoice, isModal = false, onClose, provider = "elevenlabs", providerLabel = "ElevenLabs" }: VoiceLibraryProps) {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,6 +88,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
         gender: selectedGender !== "All" ? selectedGender : undefined,
         language: selectedLanguage !== "All" ? selectedLanguage : undefined,
         age: selectedAge !== "All" ? selectedAge : undefined,
+        provider,
       });
       setVoices(result.voices);
       setHasMore(result.has_more);
@@ -94,7 +97,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceL
       console.error("Failed to fetch voices:", error);
     }
     setIsLoading(false);
-  }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge]);
+  }, [currentPage, debouncedSearch, selectedGender, selectedLanguage, selectedAge, provider]);
 
   useEffect(() => {
     fetchVoices();

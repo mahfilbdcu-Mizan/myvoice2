@@ -103,6 +103,7 @@ export interface FetchVoicesOptions {
   age?: string;
   accent?: string;
   category?: string;
+  provider?: string;
 }
 
 export interface FetchVoicesResult {
@@ -132,6 +133,7 @@ export async function fetchVoicesFromAPI(options: FetchVoicesOptions = {}): Prom
           age: options.age || "",
           accent: options.accent || "",
           category: options.category || "",
+          provider: options.provider || "elevenlabs",
         }),
       }
     );
