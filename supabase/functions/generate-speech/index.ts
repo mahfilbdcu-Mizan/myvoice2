@@ -19,7 +19,7 @@ function calculateCreditCost(text: string): number {
 
 
 const AI33_V3_TTS_URL = "https://api.ai33.pro/v3/text-to-speech";
-const AI33_VOICE_PREFIXES = ["elevenlabs_", "minimax_", "clone_", "edge_", "kokoro_"];
+const AI33_VOICE_PREFIXES = ["elevenlabs_", "minimax_", "clone_", "edge_", "kokoro_", "fishaudio_", "vbee_"];
 
 function getV3VoiceId(voiceId: string): string {
   const trimmed = voiceId.trim();

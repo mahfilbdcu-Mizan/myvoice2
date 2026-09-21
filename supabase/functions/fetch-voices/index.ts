@@ -67,13 +67,17 @@ serve(async (req) => {
       age = "",
       accent = "",
       category = "",
-      use_cases = ""
+      use_cases = "",
+      provider = "elevenlabs"
     } = body;
+
+    const ALLOWED_PROVIDERS = ["elevenlabs", "minimax", "clone", "edge", "kokoro", "vbee", "fishaudio"];
+    const selectedProvider = ALLOWED_PROVIDERS.includes(String(provider)) ? String(provider) : "elevenlabs";
 
     // Build query params for AI33 v3 unified voice library.
     // v3 returns prefixed voice IDs like elevenlabs_<id>, which are required by v3 TTS.
     const params = new URLSearchParams();
-    params.set("provider", "elevenlabs");
+    params.set("provider", selectedProvider);
     params.set("page_size", String(Math.min(Number(page_size) || 100, 100)));
     params.set("page", String((Number(page) || 0) + 1));
     if (search) params.set("q", search);
