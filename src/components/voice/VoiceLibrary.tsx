@@ -47,9 +47,11 @@ interface VoiceLibraryProps {
   onSelectVoice?: (voice: { id: string; name: string }) => void;
   isModal?: boolean;
   onClose?: () => void;
+  provider?: string;
+  providerLabel?: string;
 }
 
-export function VoiceLibrary({ onSelectVoice, isModal = false, onClose }: VoiceLibraryProps) {
+export function VoiceLibrary({ onSelectVoice, isModal = false, onClose, provider = "elevenlabs", providerLabel = "ElevenLabs" }: VoiceLibraryProps) {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

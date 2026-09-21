@@ -133,6 +133,7 @@ export async function fetchVoicesFromAPI(options: FetchVoicesOptions = {}): Prom
           age: options.age || "",
           accent: options.accent || "",
           category: options.category || "",
+          provider: options.provider || "elevenlabs",
         }),
       }
     );
