@@ -23,7 +23,9 @@ import {
   AlertTriangle,
   Image as ImageIcon
 
+  Music2,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,6 +42,8 @@ const navItems = [
   { icon: Copy, label: "Voice Clone", href: "/dashboard/voice-clone" },
   { icon: Library, label: "Voice Library", href: "/dashboard/voices" },
   { icon: ImageIcon, label: "AI Images", href: "/dashboard/images" },
+  { icon: Music2, label: "AI Music", href: "/dashboard/music" },
+
 
   { icon: History, label: "History", href: "/dashboard/history" },
   { icon: FileAudio, label: "Speech to Text", href: "/dashboard/stt" },
