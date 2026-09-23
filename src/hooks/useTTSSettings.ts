@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 
+export type TTSProviderId = "elevenlabs" | "minimax" | "fishaudio" | "vbee";
+
 interface TTSSettings {
   // Provider
-  provider: "elevenlabs" | "minimax";
+  provider: TTSProviderId;
+  // Fish Audio / Vbee voices (AI33 v3 unified library)
+  fishVoice?: { id: string; name: string } | null;
+  vbeeVoice?: { id: string; name: string } | null;
   
   // Text
   text: string;
