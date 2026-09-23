@@ -106,9 +106,9 @@ serve(async (req) => {
       );
     }
 
-    if (file.size > 20 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       return new Response(
-        JSON.stringify({ error: "File size must be less than 20MB" }),
+        JSON.stringify({ error: "File size must be less than 10MB" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
