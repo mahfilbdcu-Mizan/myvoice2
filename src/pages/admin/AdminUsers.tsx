@@ -51,6 +51,7 @@ export default function AdminUsers() {
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [isSettingApiKey, setIsSettingApiKey] = useState(false);
   const [isDeletingApiKey, setIsDeletingApiKey] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkCredits, setBulkCredits] = useState("");
   const [bulkValidity, setBulkValidity] = useState<CreditValidity>("keep");
