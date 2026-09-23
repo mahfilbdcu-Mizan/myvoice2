@@ -551,6 +551,13 @@ export async function getUserProfileForAdmin(userId: string): Promise<UserProfil
   return data;
 }
 
+// Admin function to permanently delete a user account
+export async function deleteUserAccount(userId: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await invokeAdminOperation({ action: "delete_user", targetUserId: userId });
+  if (error) return { success: false, error };
+  return { success: true };
+}
+
 export interface DeleteUserApiKeyResult {
   success: boolean;
   error?: string;
