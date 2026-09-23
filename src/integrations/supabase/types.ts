@@ -227,6 +227,75 @@ export type Database = {
         }
         Relationships: []
       }
+      music_generations: {
+        Row: {
+          completed_at: string | null
+          create_mode: string
+          created_at: string
+          credits_charged: number
+          error_message: string | null
+          expires_at: string
+          external_task_id: string | null
+          id: string
+          idea: string | null
+          instrumental: boolean
+          lyrics: string | null
+          model: string | null
+          progress: number
+          provider: string
+          status: string
+          tags: string | null
+          title: string | null
+          tracks: Json
+          user_id: string
+          vocal_gender: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          create_mode?: string
+          created_at?: string
+          credits_charged?: number
+          error_message?: string | null
+          expires_at?: string
+          external_task_id?: string | null
+          id?: string
+          idea?: string | null
+          instrumental?: boolean
+          lyrics?: string | null
+          model?: string | null
+          progress?: number
+          provider?: string
+          status?: string
+          tags?: string | null
+          title?: string | null
+          tracks?: Json
+          user_id: string
+          vocal_gender?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          create_mode?: string
+          created_at?: string
+          credits_charged?: number
+          error_message?: string | null
+          expires_at?: string
+          external_task_id?: string | null
+          id?: string
+          idea?: string | null
+          instrumental?: boolean
+          lyrics?: string | null
+          model?: string | null
+          progress?: number
+          provider?: string
+          status?: string
+          tags?: string | null
+          title?: string | null
+          tracks?: Json
+          user_id?: string
+          vocal_gender?: string | null
+        }
+        Relationships: []
+      }
       packages: {
         Row: {
           created_at: string | null
@@ -483,6 +552,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_image_generations: { Args: never; Returns: undefined }
+      cleanup_expired_music_generations: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       decrypt_api_key: { Args: { encrypted_key: string }; Returns: string }
       deduct_credits_atomic: {
