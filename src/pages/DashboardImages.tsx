@@ -413,6 +413,17 @@ export default function DashboardImages() {
                       ) : (
                         <p className="text-sm text-muted-foreground">Processing...</p>
                       )}
+
+                      <div className="flex justify-end border-t pt-3">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(task.id)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

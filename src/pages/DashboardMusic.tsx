@@ -405,11 +405,13 @@ export default function DashboardMusic() {
                                 </p>
                                 <audio controls src={track.audio_url} className="w-full" />
                               </div>
-                              <Button size="sm" variant="outline" asChild>
-                                <a href={track.audio_url} target="_blank" rel="noopener noreferrer">
-                                  <Download className="mr-1 h-4 w-4" /> Download
-                                </a>
-                              </Button>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" asChild>
+                            <a href={track.audio_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="mr-1 h-4 w-4" /> Download
+                            </a>
+                          </Button>
+                        </div>
                             </div>
                           ))}
                         </div>
@@ -420,6 +422,17 @@ export default function DashboardMusic() {
                       ) : (
                         <p className="text-sm text-muted-foreground">Processing...</p>
                       )}
+
+                      <div className="flex justify-end border-t pt-3">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(task.id)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
