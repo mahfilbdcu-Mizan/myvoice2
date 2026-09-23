@@ -107,6 +107,9 @@ serve(async (req) => {
     const data = await response.json();
     console.log("Voice clone deleted successfully");
 
+    // Remove ownership record
+    await supabase.from("voice_clones").delete().eq("voice_id", voiceCloneId);
+
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
