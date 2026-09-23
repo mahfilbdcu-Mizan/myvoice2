@@ -38,13 +38,23 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTTSSettings } from "@/hooks/useTTSSettings";
 import { MinimaxVoiceLibrary } from "./MinimaxVoiceLibrary";
+import { VoiceLibrary } from "./VoiceLibrary";
 
 interface TextToSpeechPanelProps {
   selectedVoice?: { id: string; name: string; provider?: string } | null;
   onOpenVoiceLibrary?: () => void;
 }
 
-type TTSProvider = "elevenlabs" | "minimax";
+type TTSProvider = "elevenlabs" | "minimax" | "fishaudio" | "vbee";
+
+const providerLabels: Record<TTSProvider, string> = {
+  elevenlabs: "ElevenLabs",
+  minimax: "Minimax",
+  fishaudio: "Fish Audio",
+  vbee: "Vbee",
+};
+
+type V3Voice = { id: string; name: string };
 
 const defaultElevenLabsModels = [
   { id: "eleven_multilingual_v2", name: "Multilingual v2" },
@@ -124,6 +134,11 @@ export function TextToSpeechPanel({
   const [loadingMinimaxVoices, setLoadingMinimaxVoices] = useState(false);
   const [showMinimaxVoiceLibrary, setShowMinimaxVoiceLibrary] = useState(false);
   
+  // Fish Audio / Vbee voices (AI33 v3 library)
+  const [fishVoice, setFishVoice] = useState<V3Voice | null>(null);
+  const [vbeeVoice, setVbeeVoice] = useState<V3Voice | null>(null);
+  const [showV3VoiceLibrary, setShowV3VoiceLibrary] = useState(false);
+
   // Track if we've loaded saved voice
   const [savedVoiceLoaded, setSavedVoiceLoaded] = useState(false);
 
@@ -152,6 +167,8 @@ export function TextToSpeechPanel({
       setMinimaxVol([s.minimaxVol]);
       setMinimaxPitch([s.minimaxPitch]);
       setMinimaxSpeed([s.minimaxSpeed]);
+      if (s.fishVoice) setFishVoice(s.fishVoice);
+      if (s.vbeeVoice) setVbeeVoice(s.vbeeVoice);
       if (s.minimaxVoice) {
         setSelectedMinimaxVoice(s.minimaxVoice as MinimaxVoice);
       }
@@ -237,6 +254,16 @@ export function TextToSpeechPanel({
       voice_name: selectedMinimaxVoice.voice_name,
     });
   }, [selectedMinimaxVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateFishVoice(fishVoice);
+  }, [fishVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateVbeeVoice(vbeeVoice);
+  }, [vbeeVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
 
   // Save ElevenLabs voice when it changes from parent
   useEffect(() => {
@@ -429,6 +456,15 @@ export function TextToSpeechPanel({
       return;
     }
 
+    if ((provider === "fishaudio" || provider === "vbee") && !activeV3Voice) {
+      toast({
+        title: "Missing information",
+        description: `Please select a ${providerLabels[provider]} voice`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (provider === "minimax" && !selectedMinimaxVoice) {
       toast({
         title: "Missing information",
@@ -446,13 +482,16 @@ export function TextToSpeechPanel({
     setTaskStatus("Starting generation...");
     
     try {
-      if (provider === "elevenlabs") {
-        // ElevenLabs generation
+      if (provider !== "minimax") {
+        // ElevenLabs / Fish Audio / Vbee generation (AI33 v3)
+        const activeVoice = provider === "elevenlabs"
+          ? { id: selectedVoice!.id, name: selectedVoice!.name }
+          : activeV3Voice!;
         const result = await generateSpeech({
           text: text.trim(),
-          voiceId: selectedVoice!.id,
-          voiceName: selectedVoice!.name,
-          model,
+          voiceId: activeVoice.id,
+          voiceName: activeVoice.name,
+          model: provider === "elevenlabs" ? model : undefined,
           speed: speed[0],
           stability: stability[0],
           similarity: similarity[0],
@@ -687,11 +726,13 @@ export function TextToSpeechPanel({
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
   };
 
-  const currentVoice = provider === "elevenlabs" 
-    ? selectedVoice 
-    : selectedMinimaxVoice 
-      ? { id: selectedMinimaxVoice.voice_id, name: selectedMinimaxVoice.voice_name }
-      : null;
+  const currentVoice = provider === "elevenlabs"
+    ? selectedVoice
+    : provider === "minimax"
+      ? (selectedMinimaxVoice
+          ? { id: selectedMinimaxVoice.voice_id, name: selectedMinimaxVoice.voice_name }
+          : null)
+      : activeV3Voice;
 
   return (
     <div className="flex h-full flex-col">
