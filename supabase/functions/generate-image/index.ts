@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const AI33_IMAGE_URL = "https://api.ai33.pro/v1i/task/generate-image";
 const AI33_MODELS_URL = "https://api.ai33.pro/v1i/models";
+const AI33_PRICE_URL = "https://api.ai33.pro/v1i/task/price";
+
 
 const MAINTENANCE_MESSAGE =
   "The service is temporarily unavailable. We are working on it — please try again shortly. No credits were used.";
