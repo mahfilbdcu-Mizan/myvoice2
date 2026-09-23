@@ -186,10 +186,10 @@ export default function DashboardHistory() {
       syncAllProcessingTasks();
     }, 1000);
     
-    // Set up interval (every 3 seconds for faster updates)
+    // Set up interval (every 8 seconds - light on the server, still responsive)
     const intervalId = setInterval(() => {
       syncAllProcessingTasks();
-    }, 3000);
+    }, 8000);
     
     return () => {
       clearTimeout(initialTimeout);
