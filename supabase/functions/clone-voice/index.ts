@@ -129,15 +129,13 @@ serve(async (req) => {
 
     console.log("Cloning voice:", voiceName, "language:", languageTag, "user:", userId);
 
+    // AI33 v3 clone endpoint: audio_file + voice_name (+ optional remove_background)
     const apiFormData = new FormData();
-    apiFormData.append("file", file);
+    apiFormData.append("audio_file", file, (file as File).name || "sample.mp3");
     apiFormData.append("voice_name", voiceName);
-    apiFormData.append("preview_text", previewText);
-    apiFormData.append("language_tag", languageTag);
-    apiFormData.append("need_noise_reduction", needNoiseReduction.toString());
-    apiFormData.append("gender_tag", genderTag);
+    apiFormData.append("remove_background", needNoiseReduction ? "true" : "false");
 
-    const response = await fetch("https://api.ai33.pro/v1m/voice/clone", {
+    const response = await fetch("https://api.ai33.pro/v3/text-to-speech/voice-clone", {
       method: "POST",
       headers: { "xi-api-key": API_KEY },
       body: apiFormData,
