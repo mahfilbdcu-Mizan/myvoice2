@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Music2, Download, Clock } from "lucide-react";
+import { Loader2, Music2, Download, Clock, Trash2 } from "lucide-react";
 
 interface MusicTrack {
   audio_url?: string;
@@ -103,6 +103,23 @@ export default function DashboardMusic() {
     loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleDelete = async (taskId: string) => {
+    const previous = history;
+    setHistory((prev) => prev.filter((t) => t.id !== taskId));
+    if (activeTask?.id === taskId) setActiveTask(null);
+    const { error } = await supabase.from("music_generations").delete().eq("id", taskId);
+    if (error) {
+      setHistory(previous);
+      toast({
+        title: "Delete failed",
+        description: "Could not delete the song",
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Deleted", description: "Song removed from your history" });
+    }
+  };
 
   const pollTask = async (id: string) => {
     for (let i = 0; i < 200; i++) {
@@ -388,11 +405,13 @@ export default function DashboardMusic() {
                                 </p>
                                 <audio controls src={track.audio_url} className="w-full" />
                               </div>
-                              <Button size="sm" variant="outline" asChild>
-                                <a href={track.audio_url} target="_blank" rel="noopener noreferrer">
-                                  <Download className="mr-1 h-4 w-4" /> Download
-                                </a>
-                              </Button>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" asChild>
+                            <a href={track.audio_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="mr-1 h-4 w-4" /> Download
+                            </a>
+                          </Button>
+                        </div>
                             </div>
                           ))}
                         </div>
@@ -403,6 +422,17 @@ export default function DashboardMusic() {
                       ) : (
                         <p className="text-sm text-muted-foreground">Processing...</p>
                       )}
+
+                      <div className="flex justify-end border-t pt-3">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(task.id)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

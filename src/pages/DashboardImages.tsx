@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ImageIcon, Download, Clock, Sparkles } from "lucide-react";
+import { Loader2, ImageIcon, Download, Clock, Sparkles, Trash2 } from "lucide-react";
 import { imageModelLabel, imageModelDescription } from "@/lib/ai33-image-models";
 
 interface ImageModel {
@@ -109,7 +109,25 @@ export default function DashboardImages() {
 
   useEffect(() => {
     loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleDelete = async (taskId: string) => {
+    const previous = history;
+    setHistory((prev) => prev.filter((t) => t.id !== taskId));
+    if (activeTask?.id === taskId) setActiveTask(null);
+    const { error } = await supabase.from("image_generations").delete().eq("id", taskId);
+    if (error) {
+      setHistory(previous);
+      toast({
+        title: "Delete failed",
+        description: "Could not delete the image",
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Deleted", description: "Image removed from your history" });
+    }
+  };
 
   const pollTask = async (id: string) => {
     for (let i = 0; i < 120; i++) {
@@ -395,6 +413,17 @@ export default function DashboardImages() {
                       ) : (
                         <p className="text-sm text-muted-foreground">Processing...</p>
                       )}
+
+                      <div className="flex justify-end border-t pt-3">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(task.id)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
