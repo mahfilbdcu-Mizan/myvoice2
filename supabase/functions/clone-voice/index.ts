@@ -173,6 +173,19 @@ serve(async (req) => {
     const data = await response.json();
     console.log("Voice cloned successfully");
 
+    // Record ownership so each user only sees their own clones
+    const clonedVoiceId: string | null =
+      data.cloned_voice_id ?? data.voice_id ?? data.data?.voice_id ?? data.data?.cloned_voice_id ?? null;
+    if (clonedVoiceId) {
+      const { error: trackError } = await supabase.from("voice_clones").upsert(
+        { user_id: userId, voice_id: clonedVoiceId, voice_name: voiceName },
+        { onConflict: "user_id,voice_id" }
+      );
+      if (trackError) console.error("Failed to record voice clone ownership:", trackError);
+    } else {
+      console.error("Clone response had no voice id; cannot record ownership", JSON.stringify(data).slice(0, 500));
+    }
+
     return new Response(JSON.stringify({ ...data, credits_charged: VOICE_CLONE_CREDIT_COST }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

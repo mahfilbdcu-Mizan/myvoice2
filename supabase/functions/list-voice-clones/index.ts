@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,12 +15,19 @@ function getApiKey(): string | null {
   return apiKey;
 }
 
+function admin() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+}
+
 function validateAuth(req: Request): string | null {
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return null;
   }
-  
+
   try {
     const token = authHeader.replace("Bearer ", "");
     const payload = JSON.parse(atob(token.split(".")[1]));
@@ -51,6 +59,29 @@ serve(async (req) => {
       );
     }
 
+    // Only show clones this user owns
+    const supabase = admin();
+    const { data: ownedRows, error: ownedError } = await supabase
+      .from("voice_clones")
+      .select("voice_id")
+      .eq("user_id", userId);
+
+    if (ownedError) {
+      console.error("Failed to load owned clones:", ownedError);
+      return new Response(
+        JSON.stringify({ error: "Failed to load your voice clones" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const ownedIds = new Set((ownedRows || []).map((r: { voice_id: string }) => r.voice_id));
+
+    if (ownedIds.size === 0) {
+      return new Response(JSON.stringify({ data: [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     console.log("Fetching voice clones for user:", userId);
 
     const response = await fetch("https://api.ai33.pro/v1m/voice/clone", {
@@ -71,9 +102,13 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log(`Fetched ${data.data?.length || 0} voice clones`);
+    const allClones = Array.isArray(data.data) ? data.data : [];
+    const userClones = allClones.filter(
+      (c: { voice_id?: string }) => c.voice_id && ownedIds.has(c.voice_id)
+    );
+    console.log(`User ${userId} owns ${userClones.length} of ${allClones.length} clones`);
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({ ...data, data: userClones }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
