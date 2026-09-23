@@ -186,10 +186,10 @@ export default function DashboardHistory() {
       syncAllProcessingTasks();
     }, 1000);
     
-    // Set up interval (every 3 seconds for faster updates)
+    // Set up interval (every 8 seconds - light on the server, still responsive)
     const intervalId = setInterval(() => {
       syncAllProcessingTasks();
-    }, 3000);
+    }, 8000);
     
     return () => {
       clearTimeout(initialTimeout);
@@ -241,10 +241,12 @@ export default function DashboardHistory() {
 
   const fetchTasks = async () => {
     try {
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("generation_tasks")
         .select("*")
         .eq("user_id", user?.id)
+        .gt("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(50);
 

@@ -551,6 +551,8 @@ export type Database = {
         Args: { _is_blocked: boolean; _target_user_id: string }
         Returns: boolean
       }
+      cleanup_expired_generation_tasks: { Args: never; Returns: undefined }
+      cleanup_expired_generations: { Args: never; Returns: undefined }
       cleanup_expired_image_generations: { Args: never; Returns: undefined }
       cleanup_expired_music_generations: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
