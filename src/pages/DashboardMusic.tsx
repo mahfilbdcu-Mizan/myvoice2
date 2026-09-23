@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { BlockedUserGuard } from "@/components/BlockedUserGuard";
@@ -104,12 +104,19 @@ export default function DashboardMusic() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const cancelledRef = useRef<Set<string>>(new Set());
+
   const handleDelete = async (taskId: string) => {
     const previous = history;
+    cancelledRef.current.add(taskId);
     setHistory((prev) => prev.filter((t) => t.id !== taskId));
-    if (activeTask?.id === taskId) setActiveTask(null);
+    if (activeTask?.id === taskId) {
+      setActiveTask(null);
+      setIsGenerating(false);
+    }
     const { error } = await supabase.from("music_generations").delete().eq("id", taskId);
     if (error) {
+      cancelledRef.current.delete(taskId);
       setHistory(previous);
       toast({
         title: "Delete failed",
@@ -122,12 +129,14 @@ export default function DashboardMusic() {
   };
 
   const pollTask = async (id: string) => {
-    for (let i = 0; i < 200; i++) {
+    while (!cancelledRef.current.has(id)) {
       await new Promise((r) => setTimeout(r, 4000));
+      if (cancelledRef.current.has(id)) return;
       const { data, error } = await supabase.functions.invoke("get-music-task", { body: { id } });
       if (error) continue;
       const task = data?.task as MusicTask | undefined;
       if (!task) continue;
+      if (cancelledRef.current.has(id)) return;
       setActiveTask(task);
       if (task.status === "completed") {
         toast({ title: "Song ready", description: `${task.credits_charged} credits used` });
@@ -144,10 +153,6 @@ export default function DashboardMusic() {
         return;
       }
     }
-    toast({
-      title: "Still processing",
-      description: "The song is taking longer than usual. Check back in a moment.",
-    });
   };
 
   const handleGenerate = async () => {
