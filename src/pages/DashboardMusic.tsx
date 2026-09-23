@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Music2, Download, Clock } from "lucide-react";
+import { Loader2, Music2, Download, Clock, Trash2 } from "lucide-react";
 
 interface MusicTrack {
   audio_url?: string;

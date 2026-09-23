@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ImageIcon, Download, Clock, Sparkles } from "lucide-react";
+import { Loader2, ImageIcon, Download, Clock, Sparkles, Trash2 } from "lucide-react";
 import { imageModelLabel, imageModelDescription } from "@/lib/ai33-image-models";
 
 interface ImageModel {
