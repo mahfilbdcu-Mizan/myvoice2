@@ -241,10 +241,12 @@ export default function DashboardHistory() {
 
   const fetchTasks = async () => {
     try {
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("generation_tasks")
         .select("*")
         .eq("user_id", user?.id)
+        .gt("created_at", cutoff)
         .order("created_at", { ascending: false })
         .limit(50);
 
