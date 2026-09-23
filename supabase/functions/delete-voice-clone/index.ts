@@ -87,7 +87,7 @@ serve(async (req) => {
 
     console.log("Deleting voice clone:", voiceCloneId);
 
-    const response = await fetch(`https://api.ai33.pro/v1m/voice/clone/${voiceCloneId}`, {
+    const response = await fetch(`https://api.ai33.pro/v3/text-to-speech/voice-clone/${voiceCloneId}`, {
       method: "DELETE",
       headers: {
         "xi-api-key": API_KEY,
