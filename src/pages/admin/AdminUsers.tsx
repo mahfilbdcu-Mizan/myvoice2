@@ -23,9 +23,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key, Trash2, Users } from "lucide-react";
+import { Search, Edit, Loader2, AlertTriangle, Eye, Ban, CheckCircle, Key, Trash2, Users, UserX } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllUsers, updateUserCredits, bulkUpdateUserCredits, type CreditValidity, toggleUserBlock, setUserApiKey, deleteUserApiKey, type UserProfile } from "@/lib/admin-api";
+import { getAllUsers, updateUserCredits, bulkUpdateUserCredits, type CreditValidity, toggleUserBlock, setUserApiKey, deleteUserApiKey, deleteUserAccount, type UserProfile } from "@/lib/admin-api";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +51,7 @@ export default function AdminUsers() {
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [isSettingApiKey, setIsSettingApiKey] = useState(false);
   const [isDeletingApiKey, setIsDeletingApiKey] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkCredits, setBulkCredits] = useState("");
   const [bulkValidity, setBulkValidity] = useState<CreditValidity>("keep");
@@ -317,6 +318,31 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDeleteUser = async (user: UserProfile) => {
+    const confirmed = window.confirm(
+      `Permanently delete the account of ${user.email}? All their credits and history will be removed. They can sign up again with Google.`
+    );
+    if (!confirmed) return;
+
+    setDeletingUser(user.id);
+    const result = await deleteUserAccount(user.id);
+    setDeletingUser(null);
+
+    if (result.success) {
+      toast({
+        title: "User deleted",
+        description: `${user.email} has been removed`,
+      });
+      fetchUsers();
+    } else {
+      toast({
+        title: "Failed to delete user",
+        description: result.error || "Could not delete this account",
+        variant: "destructive",
+      });
+    }
+  };
+
   const creditsValue = parseInt(newCredits, 10);
   const showWarning = !isNaN(creditsValue) && creditsValue > WARN_THRESHOLD;
 
@@ -491,8 +517,22 @@ export default function AdminUsers() {
                             ) : (
                               <Ban className="h-4 w-4" />
                             )}
+                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user)}
+                            disabled={deletingUser === user.id}
+                            title="Delete user account"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            {deletingUser === user.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UserX className="h-4 w-4" />
+                            )}
                           </Button>
-                        </div>
+                         </div>
                       </TableCell>
                     </TableRow>
                   ))}

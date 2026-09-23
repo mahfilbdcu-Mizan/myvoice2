@@ -715,6 +715,71 @@ serve(async (req) => {
         );
       }
 
+      case "delete_user": {
+        const { targetUserId } = body;
+
+        if (!targetUserId || typeof targetUserId !== "string") {
+          return new Response(
+            JSON.stringify({ error: "Target user ID is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (targetUserId === adminUserId) {
+          return new Response(
+            JSON.stringify({ error: "You cannot delete your own account" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Never allow deleting a super admin
+        const { data: targetRoles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", targetUserId);
+
+        if ((targetRoles ?? []).some((r: { role: string }) => r.role === "admin")) {
+          return new Response(
+            JSON.stringify({ error: "Admin accounts cannot be deleted" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: targetProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", targetUserId)
+          .maybeSingle();
+
+        // Clean up user-owned data first
+        await supabase.from("user_api_keys").delete().eq("user_id", targetUserId);
+        await supabase.from("generation_tasks").delete().eq("user_id", targetUserId);
+        await supabase.from("image_generations").delete().eq("user_id", targetUserId);
+        await supabase.from("music_generations").delete().eq("user_id", targetUserId);
+        await supabase.from("credit_orders").delete().eq("user_id", targetUserId);
+        await supabase.from("user_roles").delete().eq("user_id", targetUserId);
+        await supabase.from("profiles").delete().eq("id", targetUserId);
+
+        const { error: authDeleteError } = await supabase.auth.admin.deleteUser(targetUserId);
+
+        if (authDeleteError) {
+          console.error("Error deleting auth user:", authDeleteError);
+          return new Response(
+            JSON.stringify({ error: "Failed to delete user: " + authDeleteError.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        await logAdminAction(adminUserId, "delete_user", targetUserId, {
+          email: targetProfile?.email ?? null,
+        });
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: "Unknown action" }),
