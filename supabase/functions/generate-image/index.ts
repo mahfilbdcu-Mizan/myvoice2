@@ -105,18 +105,45 @@ serve(async (req) => {
       );
     }
 
-    // Pre-check using the provider's own published price for this model
+    // Exact provider price for this exact request (same figure AI33 charges)
     let estimate = 0;
     try {
-      const modelsRes = await fetch(AI33_MODELS_URL, { headers: { "xi-api-key": apiKey } });
-      if (modelsRes.ok) {
-        const modelsJson = await modelsRes.json();
-        const model = (modelsJson.models || []).find((m: any) => m.model_id === modelId);
-        estimate = Number(model?.presented_credits || 0) * generations;
+      const modelParameters: Record<string, unknown> = {};
+      if (aspectRatio) modelParameters.aspect_ratio = aspectRatio;
+      if (resolution) modelParameters.resolution = resolution;
+      if (quality) modelParameters.quality = quality;
+
+      const priceRes = await fetch(AI33_PRICE_URL, {
+        method: "POST",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model_id: modelId,
+          generations_count: generations,
+          model_parameters: modelParameters,
+          assets: 0,
+        }),
+      });
+      if (priceRes.ok) {
+        const priceJson = await priceRes.json();
+        estimate = Math.ceil(Number(priceJson?.credits || 0));
       }
     } catch (_e) {
-      // Non-fatal: fall back to post-start check
+      // Non-fatal: fall back to the published per-model price
     }
+
+    if (estimate <= 0) {
+      try {
+        const modelsRes = await fetch(AI33_MODELS_URL, { headers: { "xi-api-key": apiKey } });
+        if (modelsRes.ok) {
+          const modelsJson = await modelsRes.json();
+          const model = (modelsJson.models || []).find((m: any) => m.model_id === modelId);
+          estimate = Number(model?.presented_credits || 0) * generations;
+        }
+      } catch (_e) {
+        // Non-fatal: fall back to post-start check
+      }
+    }
+
 
     if (estimate > 0 && availableCredits < estimate) {
       return new Response(
