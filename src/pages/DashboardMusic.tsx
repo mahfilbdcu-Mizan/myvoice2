@@ -38,6 +38,16 @@ interface MusicTask {
   expires_at: string;
 }
 
+const MUSIC_COST = 3600;
+
+const IDEA_SUGGESTIONS = [
+  "progressive folk",
+  "dance-punk",
+  "soulful samples",
+  "stirring",
+  "house funk",
+];
+
 const STYLE_SUGGESTIONS = [
   "Dreamy",
   "Atmospheric",
@@ -179,7 +189,7 @@ export default function DashboardMusic() {
       <BlockedUserGuard featureName="Music Generation">
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold">AI Music Generation</h1>
+            <h1 className="text-3xl font-bold">Music 2</h1>
             <p className="text-muted-foreground">
               Create full songs from an idea or your own lyrics — downloads stay available for 48 hours
             </p>
@@ -194,12 +204,12 @@ export default function DashboardMusic() {
               <Tabs value={mode} onValueChange={(v) => setMode(v as "simple" | "custom")}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="simple">Simple</TabsTrigger>
-                  <TabsTrigger value="custom">Custom</TabsTrigger>
+                  <TabsTrigger value="custom">Advanced</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="simple" className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label>Song Idea</Label>
+                    <Label>Song Description</Label>
                     <Textarea
                       value={idea}
                       onChange={(e) => setIdea(e.target.value)}
@@ -208,6 +218,20 @@ export default function DashboardMusic() {
                       maxLength={500}
                     />
                     <p className="text-xs text-muted-foreground">{idea.length} / 500</p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {IDEA_SUGGESTIONS.map((chip) => (
+                        <Badge
+                          key={chip}
+                          variant="outline"
+                          className="cursor-pointer"
+                          onClick={() =>
+                            setIdea((prev) => (prev.trim() ? `${prev.trim()}, ${chip}` : chip))
+                          }
+                        >
+                          {chip}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between rounded-lg border p-3">
@@ -282,6 +306,12 @@ export default function DashboardMusic() {
                   </div>
                 </TabsContent>
               </Tabs>
+
+              <div className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
+                <Music2 className="h-4 w-4 text-primary" />
+                Cost: <span className="font-semibold">{MUSIC_COST} credits</span>
+                <span className="text-muted-foreground">(2 songs per generation)</span>
+              </div>
 
               {activeTask && activeTask.status === "processing" && (
                 <div className="space-y-2">
