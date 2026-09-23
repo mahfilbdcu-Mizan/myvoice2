@@ -8,6 +8,13 @@
       "when": 1790154838002,
       "tag": "0000_create_music_generations",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790155477541,
+      "tag": "0001_expire_generation_tasks_48h",
+      "breakpoints": true
     }
   ]
 }
