@@ -15,6 +15,13 @@
       "when": 1790155477541,
       "tag": "0001_expire_generation_tasks_48h",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790162192534,
+      "tag": "0002_create_voice_clones",
+      "breakpoints": true
     }
   ]
 }

@@ -500,6 +500,30 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_clones: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          voice_id: string
+          voice_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          voice_id: string
+          voice_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          voice_id?: string
+          voice_name?: string | null
+        }
+        Relationships: []
+      }
       voices: {
         Row: {
           accent: string | null
