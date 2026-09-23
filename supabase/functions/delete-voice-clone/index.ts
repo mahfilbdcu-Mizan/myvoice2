@@ -62,6 +62,29 @@ serve(async (req) => {
       );
     }
 
+    // Ownership check: users can only delete their own clones (staff allowed)
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: owned } = await supabase
+      .from("voice_clones")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("voice_id", voiceCloneId)
+      .maybeSingle();
+
+    if (!owned) {
+      const { data: isStaff } = await supabase.rpc("is_staff", { _user_id: userId });
+      if (!isStaff) {
+        return new Response(
+          JSON.stringify({ error: "You can only delete your own voice clones" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     console.log("Deleting voice clone:", voiceCloneId);
 
     const response = await fetch(`https://api.ai33.pro/v1m/voice/clone/${voiceCloneId}`, {
