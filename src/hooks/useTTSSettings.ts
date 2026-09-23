@@ -36,6 +36,8 @@ const STORAGE_KEY = "tts_settings";
 const defaultSettings: TTSSettings = {
   provider: "elevenlabs",
   text: "",
+  fishVoice: null,
+  vbeeVoice: null,
   elevenLabsVoice: null,
   elevenLabsModel: "eleven_multilingual_v2",
   language: "auto",
@@ -91,7 +93,9 @@ export function useTTSSettings(userId: string | undefined) {
   };
 
   // Update individual settings
-  const updateProvider = (provider: "elevenlabs" | "minimax") => saveSettings({ provider });
+  const updateProvider = (provider: TTSProviderId) => saveSettings({ provider });
+  const updateFishVoice = (voice: { id: string; name: string } | null) => saveSettings({ fishVoice: voice });
+  const updateVbeeVoice = (voice: { id: string; name: string } | null) => saveSettings({ vbeeVoice: voice });
   const updateText = (text: string) => saveSettings({ text });
   
   // ElevenLabs
@@ -118,6 +122,8 @@ export function useTTSSettings(userId: string | undefined) {
     settings,
     isLoaded,
     updateProvider,
+    updateFishVoice,
+    updateVbeeVoice,
     updateText,
     updateElevenLabsVoice,
     updateElevenLabsModel,
