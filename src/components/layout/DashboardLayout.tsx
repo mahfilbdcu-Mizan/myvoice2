@@ -21,9 +21,9 @@ import {
   TrendingUp,
   CalendarClock,
   AlertTriangle,
-  Image as ImageIcon
-
+  Image as ImageIcon,
   Music2,
+
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
