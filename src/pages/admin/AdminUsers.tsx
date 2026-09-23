@@ -517,8 +517,22 @@ export default function AdminUsers() {
                             ) : (
                               <Ban className="h-4 w-4" />
                             )}
+                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user)}
+                            disabled={deletingUser === user.id}
+                            title="Delete user account"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            {deletingUser === user.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UserX className="h-4 w-4" />
+                            )}
                           </Button>
-                        </div>
+                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
