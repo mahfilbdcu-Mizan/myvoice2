@@ -41,8 +41,8 @@ const navItems = [
   { icon: Mic, label: "Text to Speech", href: "/dashboard" },
   { icon: Copy, label: "Voice Clone", href: "/dashboard/voice-clone" },
   { icon: Library, label: "Voice Library", href: "/dashboard/voices" },
-  { icon: ImageIcon, label: "AI Images", href: "/dashboard/images" },
-  { icon: Music2, label: "AI Music", href: "/dashboard/music" },
+  { icon: ImageIcon, label: "Imagen 2", href: "/dashboard/imagen2" },
+  { icon: Music2, label: "Music 2", href: "/dashboard/music2" },
 
 
   { icon: History, label: "History", href: "/dashboard/history" },

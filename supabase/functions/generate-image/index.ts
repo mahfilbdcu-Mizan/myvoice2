@@ -156,19 +156,24 @@ serve(async (req) => {
       );
     }
 
-    const payload: Record<string, unknown> = {
-      model_id: modelId,
-      prompt,
-      generations,
-    };
-    if (aspectRatio) payload.aspect_ratio = aspectRatio;
-    if (resolution) payload.resolution = resolution;
-    if (quality) payload.quality = quality;
+    // Provider expects multipart/form-data with model_parameters as a JSON string
+    const modelParams: Record<string, unknown> = {};
+    if (aspectRatio) modelParams.aspect_ratio = aspectRatio;
+    if (resolution) modelParams.resolution = resolution;
+    if (quality) modelParams.quality = quality;
+
+    const form = new FormData();
+    form.append("prompt", prompt);
+    form.append("model_id", modelId);
+    form.append("generations_count", String(generations));
+    if (Object.keys(modelParams).length > 0) {
+      form.append("model_parameters", JSON.stringify(modelParams));
+    }
 
     const response = await fetch(AI33_IMAGE_URL, {
       method: "POST",
-      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      headers: { "xi-api-key": apiKey },
+      body: form,
     });
 
     const rawText = await response.text();

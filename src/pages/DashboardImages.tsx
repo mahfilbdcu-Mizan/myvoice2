@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ImageIcon, Download, Clock, Sparkles } from "lucide-react";
+import { imageModelLabel, imageModelDescription } from "@/lib/ai33-image-models";
 
 interface ImageModel {
   model_id: string;
@@ -65,6 +66,7 @@ export default function DashboardImages() {
   const [prompt, setPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState<string>("");
   const [resolution, setResolution] = useState<string>("");
+  const [quality, setQuality] = useState<string>("");
   const [generations, setGenerations] = useState<string>("1");
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTask, setActiveTask] = useState<ImageTask | null>(null);
@@ -90,6 +92,7 @@ export default function DashboardImages() {
     if (!selectedModel) return;
     setAspectRatio(selectedModel.default_aspect_ratio || selectedModel.aspect_ratios?.[0] || "");
     setResolution(selectedModel.default_resolution || selectedModel.resolutions?.[0] || "");
+    setQuality(selectedModel.default_quality || selectedModel.qualities?.[0] || "");
   }, [selectedModel]);
 
   const loadHistory = async () => {
@@ -145,6 +148,7 @@ export default function DashboardImages() {
           model_id: modelId,
           aspect_ratio: aspectRatio || undefined,
           resolution: resolution || undefined,
+          quality: quality || undefined,
           generations: Number(generations),
         },
       });
@@ -185,7 +189,7 @@ export default function DashboardImages() {
       <BlockedUserGuard featureName="Image Generation">
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold">AI Image Generation</h1>
+            <h1 className="text-3xl font-bold">Imagen 2</h1>
             <p className="text-muted-foreground">
               Turn text into images — download links stay available for 48 hours
             </p>
@@ -206,12 +210,17 @@ export default function DashboardImages() {
                   <SelectContent>
                     {models.map((m) => (
                       <SelectItem key={m.model_id} value={m.model_id}>
-                        {m.model_id}
+                        {imageModelLabel(m.model_id)}
                         {m.presented_credits ? ` — ${m.presented_credits} credits` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {!!selectedModel && (
+                  <p className="text-xs text-muted-foreground">
+                    {imageModelDescription(selectedModel.model_id)}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -258,6 +267,24 @@ export default function DashboardImages() {
                         {selectedModel.resolutions.map((r) => (
                           <SelectItem key={r} value={r}>
                             {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {!!selectedModel?.qualities?.length && (
+                  <div className="space-y-2">
+                    <Label>Quality</Label>
+                    <Select value={quality} onValueChange={setQuality}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedModel.qualities.map((q) => (
+                          <SelectItem key={q} value={q}>
+                            {q}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -335,7 +362,7 @@ export default function DashboardImages() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="line-clamp-1 text-sm font-medium">{task.prompt}</p>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline">{task.model_id}</Badge>
+                          <Badge variant="outline">{imageModelLabel(task.model_id)}</Badge>
                           <Badge variant="secondary" className="gap-1">
                             <Clock className="h-3 w-3" />
                             {timeLeft(task.expires_at)}

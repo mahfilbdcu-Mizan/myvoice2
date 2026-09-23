@@ -49,7 +49,9 @@ const App = () => (
             <Route path="/dashboard/voices" element={<DashboardVoices />} />
             <Route path="/dashboard/voice-clone" element={<DashboardVoiceClone />} />
             <Route path="/dashboard/images" element={<DashboardImages />} />
+            <Route path="/dashboard/imagen2" element={<DashboardImages />} />
             <Route path="/dashboard/music" element={<DashboardMusic />} />
+            <Route path="/dashboard/music2" element={<DashboardMusic />} />
 
 
             <Route path="/dashboard/credits" element={<DashboardCredits />} />
