@@ -38,13 +38,23 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTTSSettings } from "@/hooks/useTTSSettings";
 import { MinimaxVoiceLibrary } from "./MinimaxVoiceLibrary";
+import { VoiceLibrary } from "./VoiceLibrary";
 
 interface TextToSpeechPanelProps {
   selectedVoice?: { id: string; name: string; provider?: string } | null;
   onOpenVoiceLibrary?: () => void;
 }
 
-type TTSProvider = "elevenlabs" | "minimax";
+type TTSProvider = "elevenlabs" | "minimax" | "fishaudio" | "vbee";
+
+const providerLabels: Record<TTSProvider, string> = {
+  elevenlabs: "ElevenLabs",
+  minimax: "Minimax",
+  fishaudio: "Fish Audio",
+  vbee: "Vbee",
+};
+
+type V3Voice = { id: string; name: string };
 
 const defaultElevenLabsModels = [
   { id: "eleven_multilingual_v2", name: "Multilingual v2" },
@@ -124,12 +134,20 @@ export function TextToSpeechPanel({
   const [loadingMinimaxVoices, setLoadingMinimaxVoices] = useState(false);
   const [showMinimaxVoiceLibrary, setShowMinimaxVoiceLibrary] = useState(false);
   
+  // Fish Audio / Vbee voices (AI33 v3 library)
+  const [fishVoice, setFishVoice] = useState<V3Voice | null>(null);
+  const [vbeeVoice, setVbeeVoice] = useState<V3Voice | null>(null);
+  const [showV3VoiceLibrary, setShowV3VoiceLibrary] = useState(false);
+
   // Track if we've loaded saved voice
   const [savedVoiceLoaded, setSavedVoiceLoaded] = useState(false);
 
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  const activeV3Voice = provider === "fishaudio" ? fishVoice : provider === "vbee" ? vbeeVoice : null;
+  const setActiveV3Voice = provider === "fishaudio" ? setFishVoice : setVbeeVoice;
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
@@ -152,6 +170,8 @@ export function TextToSpeechPanel({
       setMinimaxVol([s.minimaxVol]);
       setMinimaxPitch([s.minimaxPitch]);
       setMinimaxSpeed([s.minimaxSpeed]);
+      if (s.fishVoice) setFishVoice(s.fishVoice);
+      if (s.vbeeVoice) setVbeeVoice(s.vbeeVoice);
       if (s.minimaxVoice) {
         setSelectedMinimaxVoice(s.minimaxVoice as MinimaxVoice);
       }
@@ -237,6 +257,16 @@ export function TextToSpeechPanel({
       voice_name: selectedMinimaxVoice.voice_name,
     });
   }, [selectedMinimaxVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateFishVoice(fishVoice);
+  }, [fishVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
+
+  useEffect(() => {
+    if (!ttsSettings.isLoaded || !savedVoiceLoaded) return;
+    ttsSettings.updateVbeeVoice(vbeeVoice);
+  }, [vbeeVoice, ttsSettings.isLoaded, savedVoiceLoaded]);
 
   // Save ElevenLabs voice when it changes from parent
   useEffect(() => {
@@ -429,6 +459,15 @@ export function TextToSpeechPanel({
       return;
     }
 
+    if ((provider === "fishaudio" || provider === "vbee") && !activeV3Voice) {
+      toast({
+        title: "Missing information",
+        description: `Please select a ${providerLabels[provider]} voice`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (provider === "minimax" && !selectedMinimaxVoice) {
       toast({
         title: "Missing information",
@@ -446,13 +485,16 @@ export function TextToSpeechPanel({
     setTaskStatus("Starting generation...");
     
     try {
-      if (provider === "elevenlabs") {
-        // ElevenLabs generation
+      if (provider !== "minimax") {
+        // ElevenLabs / Fish Audio / Vbee generation (AI33 v3)
+        const activeVoice = provider === "elevenlabs"
+          ? { id: selectedVoice!.id, name: selectedVoice!.name }
+          : activeV3Voice!;
         const result = await generateSpeech({
           text: text.trim(),
-          voiceId: selectedVoice!.id,
-          voiceName: selectedVoice!.name,
-          model,
+          voiceId: activeVoice.id,
+          voiceName: activeVoice.name,
+          model: provider === "elevenlabs" ? model : undefined,
           speed: speed[0],
           stability: stability[0],
           similarity: similarity[0],
@@ -687,11 +729,13 @@ export function TextToSpeechPanel({
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
   };
 
-  const currentVoice = provider === "elevenlabs" 
-    ? selectedVoice 
-    : selectedMinimaxVoice 
-      ? { id: selectedMinimaxVoice.voice_id, name: selectedMinimaxVoice.voice_name }
-      : null;
+  const currentVoice = provider === "elevenlabs"
+    ? selectedVoice
+    : provider === "minimax"
+      ? (selectedMinimaxVoice
+          ? { id: selectedMinimaxVoice.voice_id, name: selectedMinimaxVoice.voice_name }
+          : null)
+      : activeV3Voice;
 
   return (
     <div className="flex h-full flex-col">
@@ -705,7 +749,7 @@ export function TextToSpeechPanel({
         </div>
         
         <Tabs value={provider} onValueChange={(v) => setProvider(v as TTSProvider)} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="elevenlabs" className="gap-2">
               <span className="hidden sm:inline">ElevenLabs</span>
               <span className="sm:hidden">EL</span>
@@ -713,6 +757,14 @@ export function TextToSpeechPanel({
             <TabsTrigger value="minimax" className="gap-2">
               <span className="hidden sm:inline">Minimax</span>
               <span className="sm:hidden">MM</span>
+            </TabsTrigger>
+            <TabsTrigger value="fishaudio" className="gap-2">
+              <span className="hidden sm:inline">Fish Audio</span>
+              <span className="sm:hidden">Fish</span>
+            </TabsTrigger>
+            <TabsTrigger value="vbee" className="gap-2">
+              <span className="hidden sm:inline">Vbee</span>
+              <span className="sm:hidden">Vbee</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -778,7 +830,19 @@ export function TextToSpeechPanel({
                   <Play className="h-4 w-4 text-primary" />
                 </div>
               )}
-              {provider === "elevenlabs" ? (
+              {provider === "fishaudio" || provider === "vbee" ? (
+                activeV3Voice ? (
+                  <div>
+                    <p className="font-medium">{activeV3Voice.name}</p>
+                    <p className="text-sm text-muted-foreground">{providerLabels[provider]} voice</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-medium">No voice selected</p>
+                    <p className="text-sm text-muted-foreground">Choose from the library</p>
+                  </div>
+                )
+              ) : provider === "elevenlabs" ? (
                 selectedVoice ? (
                   <div>
                     <p className="font-medium">{selectedVoice.name}</p>
@@ -816,7 +880,11 @@ export function TextToSpeechPanel({
               )}
             </div>
             
-            {provider === "elevenlabs" ? (
+            {provider === "fishaudio" || provider === "vbee" ? (
+              <Button variant="outline" onClick={() => setShowV3VoiceLibrary(true)}>
+                {activeV3Voice ? "Change Voice" : "Select Voice"}
+              </Button>
+            ) : provider === "elevenlabs" ? (
               <Button variant="outline" onClick={onOpenVoiceLibrary}>
                 {selectedVoice ? "Change Voice" : "Select Voice"}
               </Button>
@@ -837,6 +905,20 @@ export function TextToSpeechPanel({
                 setShowMinimaxVoiceLibrary(false);
               }}
               onClose={() => setShowMinimaxVoiceLibrary(false)}
+            />
+          )}
+
+          {/* Fish Audio / Vbee Voice Library Modal */}
+          {showV3VoiceLibrary && (provider === "fishaudio" || provider === "vbee") && (
+            <VoiceLibrary
+              isModal
+              provider={provider}
+              providerLabel={providerLabels[provider]}
+              onSelectVoice={(voice) => {
+                setActiveV3Voice(voice);
+                setShowV3VoiceLibrary(false);
+              }}
+              onClose={() => setShowV3VoiceLibrary(false)}
             />
           )}
 
@@ -881,6 +963,7 @@ export function TextToSpeechPanel({
         {/* Settings & Output Panel */}
         <div className="space-y-4">
           {/* Model Selection */}
+          {(provider === "elevenlabs" || provider === "minimax") && (
           <div className="rounded-xl border border-border bg-card p-4">
             <Label className="text-sm font-medium">Model</Label>
             <Select 
@@ -899,6 +982,7 @@ export function TextToSpeechPanel({
               </SelectContent>
             </Select>
           </div>
+          )}
 
           {/* Voice Settings */}
           <Collapsible open={showSettings} onOpenChange={setShowSettings}>
@@ -918,7 +1002,31 @@ export function TextToSpeechPanel({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-4 space-y-5 rounded-xl border border-border bg-card p-4">
-              {provider === "elevenlabs" ? (
+              {provider === "fishaudio" || provider === "vbee" ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Speed: {speed[0].toFixed(2)}</label>
+                    </div>
+                    <Slider
+                      value={speed}
+                      onValueChange={setSpeed}
+                      min={0.5}
+                      max={1.5}
+                      step={0.01}
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => setSpeed([1.0])}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset values
+                  </Button>
+                </>
+              ) : provider === "elevenlabs" ? (
                 <>
                   {/* ElevenLabs Settings */}
                   <div className="space-y-2">
@@ -1156,7 +1264,7 @@ export function TextToSpeechPanel({
           <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="mb-2 font-semibold">Generation Info</h3>
             <p className="text-sm text-muted-foreground">
-              Provider: <span className="font-semibold text-foreground capitalize">{provider}</span>
+              Provider: <span className="font-semibold text-foreground">{providerLabels[provider]}</span>
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               Text length: <span className="font-semibold text-foreground">{charCount}</span> characters

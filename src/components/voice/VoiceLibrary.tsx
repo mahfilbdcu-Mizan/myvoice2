@@ -159,7 +159,7 @@ export function VoiceLibrary({ onSelectVoice, isModal = false, onClose, provider
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Voice Library</h1>
           <p className="text-muted-foreground">
-            Explore and select from thousands of AI voices powered by ElevenLabs
+            Explore and select from thousands of AI voices powered by {providerLabel}
           </p>
         </div>
       )}
