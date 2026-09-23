@@ -104,6 +104,23 @@ export default function DashboardMusic() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const handleDelete = async (taskId: string) => {
+    const previous = history;
+    setHistory((prev) => prev.filter((t) => t.id !== taskId));
+    if (activeTask?.id === taskId) setActiveTask(null);
+    const { error } = await supabase.from("music_generations").delete().eq("id", taskId);
+    if (error) {
+      setHistory(previous);
+      toast({
+        title: "Delete failed",
+        description: "Could not delete the song",
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Deleted", description: "Song removed from your history" });
+    }
+  };
+
   const pollTask = async (id: string) => {
     for (let i = 0; i < 200; i++) {
       await new Promise((r) => setTimeout(r, 4000));

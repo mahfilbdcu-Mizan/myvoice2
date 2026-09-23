@@ -109,7 +109,25 @@ export default function DashboardImages() {
 
   useEffect(() => {
     loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleDelete = async (taskId: string) => {
+    const previous = history;
+    setHistory((prev) => prev.filter((t) => t.id !== taskId));
+    if (activeTask?.id === taskId) setActiveTask(null);
+    const { error } = await supabase.from("image_generations").delete().eq("id", taskId);
+    if (error) {
+      setHistory(previous);
+      toast({
+        title: "Delete failed",
+        description: "Could not delete the image",
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Deleted", description: "Image removed from your history" });
+    }
+  };
 
   const pollTask = async (id: string) => {
     for (let i = 0; i < 120; i++) {
