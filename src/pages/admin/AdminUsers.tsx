@@ -629,13 +629,14 @@ export default function AdminUsers() {
             </DialogHeader>
             <div className="py-4">
               <label className="text-sm font-medium">Credits</label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="grid grid-cols-5 gap-2 mt-2">
                 {QUICK_CREDIT_OPTIONS.map((amount) => (
                   <Button
                     key={amount}
                     type="button"
                     variant={newCredits === String(amount) ? "default" : "outline"}
                     size="sm"
+                    className="px-2"
                     onClick={() => setNewCredits(String(amount))}
                   >
                     {(amount / 1_000_000)}M
