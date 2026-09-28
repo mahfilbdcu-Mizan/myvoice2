@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // Constants for credit validation
-const MAX_CREDITS = 100_000_000; // 100 million max
-const MAX_SINGLE_CHANGE = 50_000_000; // 50 million max single change
+const MAX_CREDITS = 2_147_483_647; // database integer max - effectively unlimited
+const MAX_SINGLE_CHANGE = 2_147_483_647; // no practical limit on single change
 
 // Server-side admin verification via edge function
 export async function checkIsAdmin(): Promise<boolean> {
