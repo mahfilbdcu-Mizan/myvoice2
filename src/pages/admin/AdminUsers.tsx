@@ -31,7 +31,10 @@ import { cn } from "@/lib/utils";
 
 // Credit validation constants
 const MAX_CREDITS = 2_147_483_647; // database integer max - effectively unlimited
-const QUICK_CREDIT_OPTIONS = [1_000_000, 2_000_000, 5_000_000, 10_000_000];
+const QUICK_CREDIT_OPTIONS = [
+  1_000_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000,
+  6_000_000, 7_000_000, 8_000_000, 9_000_000, 10_000_000,
+];
 const WARN_THRESHOLD = 10_000_000; // 10 million - show warning
 const LARGE_CHANGE_THRESHOLD = 1_000_000; // 1 million - require confirmation
 
