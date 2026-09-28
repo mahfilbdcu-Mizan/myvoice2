@@ -30,7 +30,8 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 // Credit validation constants
-const MAX_CREDITS = 100_000_000; // 100 million max
+const MAX_CREDITS = 2_147_483_647; // database integer max - effectively unlimited
+const QUICK_CREDIT_OPTIONS = [1_000_000, 2_000_000, 5_000_000, 10_000_000];
 const WARN_THRESHOLD = 10_000_000; // 10 million - show warning
 const LARGE_CHANGE_THRESHOLD = 1_000_000; // 1 million - require confirmation
 
@@ -625,6 +626,19 @@ export default function AdminUsers() {
             </DialogHeader>
             <div className="py-4">
               <label className="text-sm font-medium">Credits</label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {QUICK_CREDIT_OPTIONS.map((amount) => (
+                  <Button
+                    key={amount}
+                    type="button"
+                    variant={newCredits === String(amount) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setNewCredits(String(amount))}
+                  >
+                    {(amount / 1_000_000)}M
+                  </Button>
+                ))}
+              </div>
               <Input
                 type="number"
                 value={newCredits}
@@ -643,7 +657,7 @@ export default function AdminUsers() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                Maximum: {MAX_CREDITS.toLocaleString()} credits
+                Pick a quick option above, or type any amount manually — no upper limit.
               </p>
 
               <div className="mt-4">

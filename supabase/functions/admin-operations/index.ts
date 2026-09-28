@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MAX_CREDITS = 100_000_000;
-const MAX_SINGLE_CHANGE = 50_000_000;
+const MAX_CREDITS = 2_147_483_647; // database integer max - effectively unlimited
+const MAX_SINGLE_CHANGE = 2_147_483_647; // no practical limit on single change
 
 // Validate JWT and get user ID
 async function validateAuth(req: Request): Promise<{ userId: string | null; error: string | null }> {
