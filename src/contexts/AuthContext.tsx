@@ -106,15 +106,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ? `${window.location.origin}${redirectTo}`
       : `${window.location.origin}/dashboard`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    // Google blocks its sign-in page inside embedded frames (shows "403 That's an error"),
+    // so when the site is embedded, open Google sign-in in a full browser tab instead.
+    let inFrame = false;
+    try { inFrame = window.self !== window.top; } catch { inFrame = true; }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: redirectUrl,
+        skipBrowserRedirect: inFrame,
         queryParams: {
           prompt: "select_account",
         },
       },
     });
+
+    if (!error && inFrame && data?.url) {
+      const win = window.open(data.url, "_blank", "noopener,noreferrer");
+      if (!win) window.location.href = data.url;
+    }
 
     return { error: error as Error | null };
   };
