@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, Zap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ApiBusinessPlanCard } from "@/components/pricing/ApiBusinessPlanCard";
+import { PaymentMethods } from "@/components/pricing/PaymentMethods";
 
 interface Package {
   id: string;
@@ -234,8 +235,11 @@ export default function Pricing() {
                 <div className="rounded-xl border border-border bg-card p-6">
                   <h3 className="font-semibold">What payment methods do you accept?</h3>
                   <p className="mt-2 text-muted-foreground">
-                    We accept USDT payments via TRC20 network. Credits are added after admin verification.
+                    We accept bKash, Nagad and Rocket (personal or agent), as well as USDT payments via
+                    the TRC20 network. The numbers and wallet address are shown in your dashboard when you
+                    buy credits. Credits are added after admin verification.
                   </p>
+                  <PaymentMethods className="mt-5 border-t border-border pt-5" />
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6">
                   <h3 className="font-semibold">Can I use my own API key?</h3>

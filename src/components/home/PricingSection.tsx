@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight } from "lucide-react";
 import { ApiBusinessPlanCard } from "@/components/pricing/ApiBusinessPlanCard";
+import { PaymentMethods } from "@/components/pricing/PaymentMethods";
 
 interface Package {
   id: string;
@@ -105,6 +106,10 @@ export function PricingSection({ packages }: PricingSectionProps) {
 
         <div className="mx-auto mt-8 max-w-6xl sm:mt-10">
           <ApiBusinessPlanCard />
+        </div>
+
+        <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-border bg-card p-6 sm:mt-10 sm:p-8">
+          <PaymentMethods />
         </div>
 
         {/* View All Button */}
