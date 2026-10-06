@@ -1,4 +1,4 @@
-import { Mic, Languages, FileAudio, Globe, Zap } from "lucide-react";
+import { Mic, Languages, FileAudio, Globe, Zap, Image, Music2 } from "lucide-react";
 
 const features = [
   {
@@ -21,6 +21,16 @@ const features = [
     title: "29+ Languages",
     description: "Create content in multiple languages with native-sounding voices.",
   },
+  {
+    icon: Image,
+    title: "AI Image Generation",
+    description: "Turn your ideas into high-quality images from a simple text description.",
+  },
+  {
+    icon: Music2,
+    title: "AI Music Generation",
+    description: "Create original songs and instrumental music for content, brands, and projects.",
+  },
 ];
 
 export function FeaturesSection() {
@@ -42,7 +52,7 @@ export function FeaturesSection() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
             <div
               key={index}
