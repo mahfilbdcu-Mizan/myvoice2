@@ -4,6 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { HeroSection } from "@/components/home/HeroSection";
 import { StatsSection } from "@/components/home/StatsSection";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchVoicesFromAPI } from "@/lib/voice-api";
 
 // Lazy load sections for better performance
 const VoiceShowcase = lazy(() => import("@/components/home/VoiceShowcase").then(m => ({ default: m.VoiceShowcase })));
@@ -67,8 +68,22 @@ export default function Index() {
         supabase.from("packages").select("*").eq("is_active", true).order("sort_order")
       ]);
       
-      if (voicesResult.data) setVoices(voicesResult.data);
       if (packagesResult.data) setPackages(packagesResult.data);
+      // Use live voice samples (stored sample links can expire)
+      try {
+        const live = await fetchVoicesFromAPI({ page_size: 24, provider: "elevenlabs" });
+        const playable = live.voices.filter((v) => v.preview_url).slice(0, 8).map((v) => ({
+          id: v.voice_id,
+          name: v.name.split(" - ")[0],
+          accent: v.accent || v.labels?.accent || null,
+          gender: v.gender || v.labels?.gender || null,
+          age: v.age || v.labels?.age || null,
+          category: v.name.split(" - ")[1]?.split(",")[0] || v.category || null,
+          preview_url: v.preview_url || null,
+        }));
+        if (playable.length) { setVoices(playable); return; }
+      } catch { /* fall back below */ }
+      if (voicesResult.data) setVoices(voicesResult.data);
     };
     fetchData();
   }, []);
