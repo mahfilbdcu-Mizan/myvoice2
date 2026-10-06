@@ -91,6 +91,13 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
         <div className="border-t border-border bg-background p-4 md:hidden">
           <nav className="flex flex-col gap-2">
             <Link 
+              to="/" 
+              className="rounded-lg px-4 py-3 text-base font-semibold text-primary hover:bg-accent"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Home
+            </Link>
+            <Link 
               to="/voices" 
               className="rounded-lg px-4 py-3 text-base font-semibold text-primary hover:bg-accent"
               onClick={() => setIsMobileMenuOpen(false)}
