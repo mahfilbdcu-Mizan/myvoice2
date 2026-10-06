@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, Zap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ApiBusinessPlanCard } from "@/components/pricing/ApiBusinessPlanCard";
 
 interface Package {
   id: string;
@@ -169,6 +170,22 @@ export default function Pricing() {
                 ))}
               </div>
             )}
+          </div>
+        </section>
+
+        {/* Lifetime API Business */}
+        <section className="border-y border-border bg-surface-subtle py-12 sm:py-16">
+          <div className="container">
+            <div className="mx-auto mb-8 max-w-2xl text-center">
+              <Badge variant="secondary" className="mb-3">Business Opportunity</Badge>
+              <h2 className="text-3xl font-bold">Launch Your Own AI Business</h2>
+              <p className="mt-3 text-muted-foreground">
+                Choose a custom USD package built around your website, customers, and growth goals.
+              </p>
+            </div>
+            <div className="mx-auto max-w-6xl">
+              <ApiBusinessPlanCard />
+            </div>
           </div>
         </section>
 
