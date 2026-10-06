@@ -33,9 +33,19 @@ export function HeroSection() {
             Create lifelike voiceovers, podcasts, and audio content with our 
             state-of-the-art AI voice generation platform. <span className="font-semibold text-primary">10000+ premium voices</span> in <span className="font-semibold text-accent">29 languages</span>.
           </p>
+
+          <div className="animate-fade-in delay-200 mx-auto mt-5 flex max-w-3xl flex-wrap items-center justify-center gap-x-5 gap-y-2 px-4 text-xs font-semibold text-muted-foreground sm:text-sm">
+            {["ElevenLabs", "MiniMax", "Fish Audio", "Vbee"].map((provider) => (
+              <span key={provider} className="whitespace-nowrap">
+                <span className="text-primary" aria-hidden="true">★</span>
+                {` ${provider} `}
+                <span className="text-primary" aria-hidden="true">★</span>
+              </span>
+            ))}
+          </div>
           
           {/* CTA Buttons */}
-          <div className="animate-slide-up delay-200 mt-8 sm:mt-12 flex flex-col items-center justify-center gap-3 sm:gap-4 sm:flex-row px-4">
+          <div className="animate-slide-up delay-300 mt-8 sm:mt-10 flex flex-col items-center justify-center gap-3 sm:gap-4 sm:flex-row px-4">
             <Link to="/login" className="w-full sm:w-auto">
               <Button variant="hero" size="lg" className="w-full sm:w-auto group shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/35 transition-all duration-300">
                 Get Started Free
@@ -51,7 +61,7 @@ export function HeroSection() {
           </div>
 
           {/* Trust badges */}
-          <div className="animate-fade-in delay-300 mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground px-4">
+          <div className="animate-fade-in delay-400 mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground px-4">
             <div className="flex items-center gap-2 bg-success/10 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
               <CheckCircle2 className="h-4 w-4 text-success" />
               <span className="font-medium">100 free credits</span>
@@ -68,7 +78,7 @@ export function HeroSection() {
         </div>
 
         {/* Demo Preview - simplified for performance */}
-        <div className="animate-slide-up delay-400 mx-auto mt-12 sm:mt-16 lg:mt-20 max-w-4xl px-4">
+        <div className="animate-slide-up delay-500 mx-auto mt-12 sm:mt-16 lg:mt-20 max-w-4xl px-4">
           <div className="relative">
             <div className="absolute -inset-2 sm:-inset-4 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-primary/15 via-primary/5 to-primary/15 blur-xl opacity-60" />
             <div className="relative overflow-hidden rounded-xl sm:rounded-2xl border border-border/50 bg-card/90 backdrop-blur-sm shadow-2xl">
