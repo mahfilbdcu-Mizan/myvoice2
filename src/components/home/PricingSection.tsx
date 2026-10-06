@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight } from "lucide-react";
+import { ApiBusinessPlanCard } from "@/components/pricing/ApiBusinessPlanCard";
 
 interface Package {
   id: string;
@@ -100,6 +101,10 @@ export function PricingSection({ packages }: PricingSectionProps) {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        <div className="mx-auto mt-8 max-w-6xl sm:mt-10">
+          <ApiBusinessPlanCard />
         </div>
 
         {/* View All Button */}
