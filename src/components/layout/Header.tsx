@@ -39,6 +39,9 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
           </Link>
           
           <nav className="hidden items-center gap-6 md:flex">
+            <Link to="/" className="text-base font-semibold text-primary transition-colors hover:text-primary/80">
+              Home
+            </Link>
             <Link to="/voices" className="text-base font-semibold text-primary transition-colors hover:text-primary/80">
               Voices
             </Link>
