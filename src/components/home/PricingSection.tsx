@@ -42,9 +42,9 @@ export function PricingSection({ packages }: PricingSectionProps) {
         </div>
 
         {/* Pricing Grid */}
-        <div className={`mx-auto grid max-w-6xl gap-4 sm:gap-6 ${
+        <div className={`mx-auto grid max-w-7xl gap-6 sm:gap-8 ${
           packages.length === 3 ? 'md:grid-cols-3' : 
-          packages.length === 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' :
+          packages.length === 4 ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4' :
           packages.length >= 5 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-3'
         }`}>
           {packages.map((pkg) => (
@@ -54,37 +54,37 @@ export function PricingSection({ packages }: PricingSectionProps) {
             >
               {pkg.is_popular && (
                 <div className="absolute -top-2.5 sm:-top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="shadow-lg text-[10px] sm:text-xs">Most Popular</Badge>
+                  <Badge className="shadow-lg text-xs sm:text-sm">Most Popular</Badge>
                 </div>
               )}
               {pkg.discount_percentage > 0 && (
                 <div className="absolute -top-2.5 sm:-top-3 right-3 sm:right-4">
-                  <Badge variant="destructive" className="shadow-lg text-[10px] sm:text-xs">
+                  <Badge variant="destructive" className="shadow-lg text-xs sm:text-sm">
                     {pkg.discount_percentage}% OFF
                   </Badge>
                 </div>
               )}
-              <CardHeader className="pt-6 sm:pt-8">
-                <p className="text-sm sm:text-base font-medium text-[hsl(262,83%,58%)]">
+              <CardHeader className="pt-8 sm:pt-10 px-6 sm:px-8">
+                <p className="text-lg sm:text-xl font-semibold text-primary">
                   {pkg.name}
                 </p>
                 <CardTitle className="flex items-baseline gap-1.5 sm:gap-2">
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-bold">${pkg.offer_price}</span>
+                  <span className="text-4xl sm:text-5xl font-bold">${pkg.offer_price}</span>
                   {pkg.discount_percentage > 0 && (
-                    <span className="text-sm sm:text-lg text-muted-foreground line-through">
+                    <span className="text-lg sm:text-xl text-muted-foreground line-through">
                       ${pkg.real_price}
                     </span>
                   )}
                 </CardTitle>
-                <CardDescription className="text-base sm:text-lg">
+                <CardDescription className="text-lg sm:text-xl font-medium">
                   {pkg.credits.toLocaleString()} credits
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 sm:space-y-6">
-                <div className="space-y-2 sm:space-y-3">
+              <CardContent className="space-y-6 sm:space-y-8 px-6 sm:px-8 pb-8">
+                <div className="space-y-3 sm:space-y-4">
                   {pkg.features?.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2 text-xs sm:text-sm">
-                      <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success shrink-0" />
+                    <div key={index} className="flex items-start gap-3 text-base sm:text-lg leading-snug">
+                      <Check className="mt-0.5 h-5 w-5 sm:h-6 sm:w-6 text-success shrink-0" />
                       <span>{feature}</span>
                     </div>
                   ))}
@@ -92,9 +92,9 @@ export function PricingSection({ packages }: PricingSectionProps) {
                 
                 <Link to="/login">
                   <Button 
-                    className="w-full" 
+                    className="w-full h-12 text-base" 
                     variant={pkg.is_popular ? "default" : "outline"}
-                    size="default"
+                    size="lg"
                   >
                     Get Started
                   </Button>

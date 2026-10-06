@@ -39,11 +39,11 @@ export function ApiBusinessPlanCard() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-primary">BUILD. LAUNCH. GROW.</p>
-                <h3 className="text-2xl font-bold sm:text-3xl">Lifetime API Business</h3>
+                <h3 className="text-3xl font-bold sm:text-4xl">Lifetime API Business</h3>
               </div>
             </div>
 
-            <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Start your own AI voice platform and turn it into a real business. We will build your
               professional website, connect the API, and prepare everything you need to launch under
               your own brand.
@@ -58,14 +58,14 @@ export function ApiBusinessPlanCard() {
           <div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               {benefits.map((benefit) => (
-                <div key={benefit} className="flex items-start gap-2.5 text-sm">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                <div key={benefit} className="flex items-start gap-3 text-base sm:text-lg leading-snug">
+                  <Check className="mt-0.5 h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-success" />
                   <span>{benefit}</span>
                 </div>
               ))}
             </div>
 
-            <Button asChild size="lg" className="mt-7 w-full gap-2">
+            <Button asChild size="lg" className="mt-7 h-12 w-full gap-2 text-base">
               <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">
                 <Rocket className="h-4 w-4" />
                 Buy Now on Telegram
