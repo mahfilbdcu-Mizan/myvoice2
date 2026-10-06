@@ -39,7 +39,7 @@ export function VoiceShowcase({ voices }: VoiceShowcaseProps) {
         setPlayingVoice(null);
         setAudio(null);
       };
-      newAudio.play();
+      newAudio.play().catch(() => { setPlayingVoice(null); setAudio(null); });
       setAudio(newAudio);
       setPlayingVoice(voice.id);
     }
@@ -60,7 +60,7 @@ export function VoiceShowcase({ voices }: VoiceShowcaseProps) {
             Discover Our <span className="text-primary">AI Voices</span>
           </h2>
           <p className="mt-3 sm:mt-4 text-sm sm:text-base lg:text-lg text-muted-foreground">
-            Explore our collection of natural-sounding AI voices. Click to preview any voice.
+            Explore our collection of natural-sounding AI voices. Tap the play button on any voice to hear a real sample.
           </p>
         </div>
 
@@ -75,20 +75,20 @@ export function VoiceShowcase({ voices }: VoiceShowcaseProps) {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5 sm:gap-3">
-                  <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl transition-all ${
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-lg sm:rounded-xl transition-all ${
                     playingVoice === voice.id 
                       ? "bg-primary text-primary-foreground" 
                       : "bg-primary/10 group-hover:bg-primary/15"
                   }`}>
                     {playingVoice === voice.id ? (
-                      <Pause className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Pause className="h-6 w-6" />
                     ) : (
-                      <Play className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:scale-110 transition-transform" />
+                      <Play className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
                     )}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm sm:text-base">{voice.name}</h3>
-                    <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                    <h3 className="font-semibold text-lg">{voice.name}</h3>
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-sm text-muted-foreground">
                       {voice.gender && <span className="capitalize">{voice.gender}</span>}
                       {voice.age && <span>• {voice.age}</span>}
                     </div>
