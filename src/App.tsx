@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ChatBot } from "@/components/ChatBot";
 import Index from "./pages/Index";
@@ -46,6 +46,13 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/voices" element={<Navigate to="/dashboard/voices" replace />} />
+            <Route path="/text-to-speech" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/speech-to-text" element={<Navigate to="/dashboard/stt" replace />} />
+            <Route path="/dubbing" element={<Navigate to="/dashboard/dubbing" replace />} />
+            <Route path="/docs" element={<Navigate to="/pricing" replace />} />
+            <Route path="/privacy" element={<Navigate to="/contact" replace />} />
+            <Route path="/terms" element={<Navigate to="/contact" replace />} />
             <Route path="/dashboard/voices" element={<DashboardVoices />} />
             <Route path="/dashboard/voice-clone" element={<DashboardVoiceClone />} />
             <Route path="/dashboard/images" element={<DashboardImages />} />
