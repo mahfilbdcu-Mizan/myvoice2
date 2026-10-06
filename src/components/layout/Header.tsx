@@ -39,6 +39,9 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
           </Link>
           
           <nav className="hidden items-center gap-6 md:flex">
+            <Link to="/" className="text-base font-semibold text-primary transition-colors hover:text-primary/80">
+              Home
+            </Link>
             <Link to="/voices" className="text-base font-semibold text-primary transition-colors hover:text-primary/80">
               Voices
             </Link>
@@ -87,6 +90,13 @@ export function Header({ isLoggedIn = false, credits = 0 }: HeaderProps) {
       {isMobileMenuOpen && (
         <div className="border-t border-border bg-background p-4 md:hidden">
           <nav className="flex flex-col gap-2">
+            <Link 
+              to="/" 
+              className="rounded-lg px-4 py-3 text-base font-semibold text-primary hover:bg-accent"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Home
+            </Link>
             <Link 
               to="/voices" 
               className="rounded-lg px-4 py-3 text-base font-semibold text-primary hover:bg-accent"
