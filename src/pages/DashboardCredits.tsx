@@ -44,9 +44,9 @@ export default function DashboardCredits() {
   const showLocal = currency !== "USD";
   const displayRate = rateLoading ? getCurrency(currency).fallbackRate : rate;
   const localPrice = (usd: number) => formatLocalAmount(usd, currency, displayRate);
-  const currencySelector = (
+  const currencySelector = (label = "Your Country's Currency") => (
     <div className="w-full space-y-2 sm:max-w-sm">
-      <Label htmlFor="payment-currency" className="text-base font-semibold">Your Country's Currency</Label>
+      <Label htmlFor="payment-currency" className="text-base font-semibold">{label}</Label>
       <Select value={currency} onValueChange={setCurrency}>
         <SelectTrigger id="payment-currency" className="min-h-12 text-base">
           <SelectValue placeholder="Select currency" />
@@ -216,8 +216,6 @@ export default function DashboardCredits() {
             Back to packages
           </Button>
 
-          {currencySelector}
-
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Order Summary */}
             <Card>
@@ -251,6 +249,9 @@ export default function DashboardCredits() {
               <CardHeader>
                 <CardTitle>Payment Instructions</CardTitle>
                 <CardDescription>Send USDT to the following address</CardDescription>
+                <div className="pt-3">
+                  {currencySelector("Select your currency")}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
@@ -312,7 +313,7 @@ export default function DashboardCredits() {
                     {" "}to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
                   </p>
                   <p className="text-sm font-semibold text-info" aria-live="polite">
-                    👉 Select your country's currency at the top left. Once you do, this text shows the amount in your country's currency.
+                    👉 Select your currency above. Once you do, this text shows the amount in your country's currency.
                   </p>
                 </div>
 
@@ -362,7 +363,7 @@ export default function DashboardCredits() {
               Purchase credits to generate more speech. 1 credit = 1 character.
             </p>
           </div>
-          {currencySelector}
+          {currencySelector()}
         </div>
 
         {/* Current Balance */}
