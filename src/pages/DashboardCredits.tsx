@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { CURRENCIES, formatLocalAmount, getCurrency } from "@/lib/currency-rates";
 import { useCurrencyRate } from "@/hooks/useCurrencyRate";
 
@@ -44,29 +44,50 @@ export default function DashboardCredits() {
   const showLocal = currency !== "USD";
   const displayRate = rateLoading ? getCurrency(currency).fallbackRate : rate;
   const localPrice = (usd: number) => formatLocalAmount(usd, currency, displayRate);
-  const currencySelector = (label = "Your Country's Currency") => (
-    <div className="w-full space-y-2 sm:max-w-sm">
-      <Label htmlFor="payment-currency" className="text-base font-semibold">{label}</Label>
-      <Select value={currency} onValueChange={setCurrency}>
-        <SelectTrigger id="payment-currency" className="min-h-12 text-base">
-          <SelectValue placeholder="Select currency" />
-        </SelectTrigger>
-        <SelectContent className="max-h-72">
-          {CURRENCIES.map((c) => (
-            <SelectItem key={c.code} value={c.code}>
-              {c.code} — {c.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {showLocal && (
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          1 USDT ≈ {getCurrency(currency).symbol}{displayRate.toLocaleString()} {currency}
-          {!rateLoading && source === "binance" ? " (live Binance rate)" : " (estimated fixed rate)"}
-        </p>
-      )}
-    </div>
-  );
+  const currencySelector = (label = "Your Country's Currency") => {
+    const info = getCurrency(currency);
+    return (
+      <div className="w-full space-y-3 sm:max-w-sm">
+        <Label
+          htmlFor="payment-currency"
+          className="text-[11px] font-bold uppercase tracking-[0.2em] text-picker-label"
+        >
+          {label}
+        </Label>
+        <div className="group relative">
+          <div className="pointer-events-none absolute -inset-0.5 rounded-[1.35rem] bg-[image:var(--gradient-accent)] opacity-0 transition duration-300 group-hover:opacity-20" />
+          <Select value={currency} onValueChange={setCurrency}>
+            <SelectTrigger
+              id="payment-currency"
+              className="relative min-h-14 w-full rounded-2xl border border-picker-border bg-picker-surface px-5 text-left transition-colors duration-200 hover:border-picker-code/60 focus-visible:border-picker-code/60 focus-visible:ring-2 focus-visible:ring-picker-code/30 [&_svg]:text-picker-separator group-hover:[&_svg]:text-picker-code"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="text-lg font-bold text-picker-code">{currency}</span>
+                <span className="text-picker-separator">|</span>
+                <span className="truncate text-base font-medium text-picker-name">{info.name}</span>
+              </span>
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  {c.code} — {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {showLocal && (
+          <div className="flex items-center gap-2 pl-1" aria-live="polite">
+            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-picker-code" />
+            <p className="font-mono text-xs text-muted-foreground">
+              1 USDT ≈ <span className="font-bold text-foreground">{info.symbol}{displayRate.toLocaleString()} {currency}</span>{" "}
+              {!rateLoading && source === "binance" ? "(live Binance rate)" : "(estimated fixed rate)"}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   useEffect(() => {
     const fetchData = async () => {
