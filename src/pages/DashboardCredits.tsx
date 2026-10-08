@@ -10,6 +10,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CURRENCIES, formatLocalAmount, getCurrency } from "@/lib/currency-rates";
+import { useCurrencyRate } from "@/hooks/useCurrencyRate";
 
 interface Package {
   id: string;
@@ -37,6 +40,9 @@ export default function DashboardCredits() {
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [mobileNumbers, setMobileNumbers] = useState<{ label: string; number: string }[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { currency, setCurrency, rate, source, loading: rateLoading } = useCurrencyRate();
+  const showLocal = currency !== "USD";
+  const localPrice = (usd: number) => formatLocalAmount(usd, currency, rate);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -204,6 +210,12 @@ export default function DashboardCredits() {
                   <span className="text-muted-foreground">Price</span>
                   <span className="font-bold text-lg">${selectedPackage.offer_price} USDT</span>
                 </div>
+                {showLocal && !rateLoading && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">In {getCurrency(currency).name}</span>
+                    <span className="font-bold text-lg text-primary">{localPrice(selectedPackage.offer_price)}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -267,6 +279,9 @@ export default function DashboardCredits() {
                 <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4">
                   <p className="text-sm text-yellow-600 dark:text-yellow-400">
                     ⚠️ Please send exactly <strong>${selectedPackage.offer_price} USDT</strong> to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
+                    {showLocal && !rateLoading && (
+                      <> That is approximately <strong>{localPrice(selectedPackage.offer_price)}</strong> at the current rate.</>
+                    )}
                   </p>
                 </div>
 
@@ -309,11 +324,34 @@ export default function DashboardCredits() {
     <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Buy Credits</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Purchase credits to generate more speech. 1 credit = 1 character.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold">Buy Credits</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Purchase credits to generate more speech. 1 credit = 1 character.
+            </p>
+          </div>
+          <div className="w-full sm:w-64">
+            <Label className="text-xs text-muted-foreground mb-1 block">Your Currency</Label>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.code} — {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {showLocal && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                1 USD ≈ {getCurrency(currency).symbol}{rate.toLocaleString()} {currency}
+                {source === "binance" ? " (live Binance rate)" : " (fixed rate)"}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Current Balance */}
@@ -374,6 +412,11 @@ export default function DashboardCredits() {
                   )}
                   <span className="text-sm text-muted-foreground">USDT</span>
                 </CardTitle>
+                {showLocal && !rateLoading && (
+                  <p className="text-sm font-medium text-primary">
+                    ≈ {localPrice(pkg.offer_price)}
+                  </p>
+                )}
                 <CardDescription className="text-lg">
                   {pkg.credits.toLocaleString()} credits
                 </CardDescription>
