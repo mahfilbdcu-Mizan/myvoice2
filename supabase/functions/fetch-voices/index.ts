@@ -33,7 +33,7 @@ function normalizeV3Voice(voice: Record<string, any>) {
 }
 
 // Get API key from environment variable only (secure - not stored in database)
-function getApiKey(): string | null {
+async function getApiKey(): Promise<string | null> {
   const apiKey = await getPlatformAi33Key();
   if (!apiKey) {
     console.error("AI33_API_KEY environment variable not configured");
@@ -48,7 +48,7 @@ serve(async (req) => {
   }
 
   try {
-    const API_KEY = getApiKey();
+    const API_KEY = await getApiKey();
     
     if (!API_KEY) {
       console.error("API key is not configured");
