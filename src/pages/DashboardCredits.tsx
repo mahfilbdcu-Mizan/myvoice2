@@ -403,6 +403,11 @@ export default function DashboardCredits() {
                   )}
                   <span className="text-sm text-muted-foreground">USDT</span>
                 </CardTitle>
+                {showLocal && !rateLoading && (
+                  <p className="text-sm font-medium text-primary">
+                    ≈ {localPrice(pkg.offer_price)}
+                  </p>
+                )}
                 <CardDescription className="text-lg">
                   {pkg.credits.toLocaleString()} credits
                 </CardDescription>
