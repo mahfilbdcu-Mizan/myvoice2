@@ -384,7 +384,6 @@ export default function DashboardCredits() {
               Purchase credits to generate more speech. 1 credit = 1 character.
             </p>
           </div>
-          {currencySelector()}
         </div>
 
         {/* Current Balance */}
