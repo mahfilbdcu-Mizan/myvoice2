@@ -46,6 +46,14 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        picker: {
+          surface: "hsl(var(--picker-surface))",
+          border: "hsl(var(--picker-border))",
+          label: "hsl(var(--picker-label))",
+          code: "hsl(var(--picker-code))",
+          name: "hsl(var(--picker-name))",
+          separator: "hsl(var(--picker-separator))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

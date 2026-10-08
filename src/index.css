@@ -39,6 +39,13 @@
     --info: 217 91% 50%;
     --info-foreground: 0 0% 100%;
 
+    --picker-surface: 222 47% 11%;
+    --picker-border: 217 19% 27%;
+    --picker-label: 243 75% 59%;
+    --picker-code: 160 84% 39%;
+    --picker-name: 210 40% 98%;
+    --picker-separator: 217 19% 35%;
+
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 262 83% 58%;
@@ -98,6 +105,13 @@
 
     --info: 213 94% 68%;
     --info-foreground: 222 47% 11%;
+
+    --picker-surface: 217 33% 17%;
+    --picker-border: 217 19% 30%;
+    --picker-label: 234 89% 74%;
+    --picker-code: 160 84% 39%;
+    --picker-name: 210 40% 98%;
+    --picker-separator: 217 19% 40%;
 
     --border: 260 20% 18%;
     --input: 260 20% 18%;
