@@ -42,7 +42,31 @@ export default function DashboardCredits() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const { currency, setCurrency, rate, source, loading: rateLoading } = useCurrencyRate();
   const showLocal = currency !== "USD";
-  const localPrice = (usd: number) => formatLocalAmount(usd, currency, rate);
+  const displayRate = rateLoading ? getCurrency(currency).fallbackRate : rate;
+  const localPrice = (usd: number) => formatLocalAmount(usd, currency, displayRate);
+  const currencySelector = (
+    <div className="w-full space-y-2 sm:max-w-sm">
+      <Label htmlFor="payment-currency" className="text-base font-semibold">Your Country's Currency</Label>
+      <Select value={currency} onValueChange={setCurrency}>
+        <SelectTrigger id="payment-currency" className="min-h-12 text-base">
+          <SelectValue placeholder="Select currency" />
+        </SelectTrigger>
+        <SelectContent className="max-h-72">
+          {CURRENCIES.map((c) => (
+            <SelectItem key={c.code} value={c.code}>
+              {c.code} — {c.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {showLocal && (
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          1 USDT ≈ {getCurrency(currency).symbol}{displayRate.toLocaleString()} {currency}
+          {!rateLoading && source === "binance" ? " (live Binance rate)" : " (estimated fixed rate)"}
+        </p>
+      )}
+    </div>
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -183,13 +207,16 @@ export default function DashboardCredits() {
     return (
       <DashboardLayout>
         <div className="space-y-6">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => setPaymentStep("select")}
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to packages
-          </button>
+          </Button>
+
+          {currencySelector}
 
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Order Summary */}
@@ -210,7 +237,7 @@ export default function DashboardCredits() {
                   <span className="text-muted-foreground">Price</span>
                   <span className="font-bold text-lg">${selectedPackage.offer_price} USDT</span>
                 </div>
-                {showLocal && !rateLoading && (
+                {showLocal && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">In {getCurrency(currency).name}</span>
                     <span className="font-bold text-lg text-primary">{localPrice(selectedPackage.offer_price)}</span>
@@ -276,13 +303,17 @@ export default function DashboardCredits() {
                 )}
 
 
-                <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4">
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                <div className="rounded-lg bg-muted border border-border p-4 space-y-3">
+                  <p className="text-sm text-foreground">
                     ⚠️ Please send exactly <strong>${selectedPackage.offer_price} USDT</strong> to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
-                    {showLocal && !rateLoading && (
-                      <> That is approximately <strong>{localPrice(selectedPackage.offer_price)}</strong> at the current rate.</>
-                    )}
                   </p>
+                  <div className="border-t border-border pt-3" aria-live="polite">
+                    <p className="text-sm text-muted-foreground">Equivalent in {getCurrency(currency).name}</p>
+                    <p className="text-xl font-bold text-primary">≈ {localPrice(selectedPackage.offer_price)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Estimated local value only. For TRC20, send {selectedPackage.offer_price} USDT, not local currency.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -331,27 +362,7 @@ export default function DashboardCredits() {
               Purchase credits to generate more speech. 1 credit = 1 character.
             </p>
           </div>
-          <div className="w-full sm:w-64">
-            <Label className="text-xs text-muted-foreground mb-1 block">Your Currency</Label>
-            <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {CURRENCIES.map((c) => (
-                  <SelectItem key={c.code} value={c.code}>
-                    {c.code} — {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {showLocal && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                1 USD ≈ {getCurrency(currency).symbol}{rate.toLocaleString()} {currency}
-                {source === "binance" ? " (live Binance rate)" : " (fixed rate)"}
-              </p>
-            )}
-          </div>
+          {currencySelector}
         </div>
 
         {/* Current Balance */}
@@ -412,7 +423,7 @@ export default function DashboardCredits() {
                   )}
                   <span className="text-sm text-muted-foreground">USDT</span>
                 </CardTitle>
-                {showLocal && !rateLoading && (
+                {showLocal && (
                   <p className="text-sm font-medium text-primary">
                     ≈ {localPrice(pkg.offer_price)}
                   </p>
