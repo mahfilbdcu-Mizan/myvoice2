@@ -210,6 +210,12 @@ export default function DashboardCredits() {
                   <span className="text-muted-foreground">Price</span>
                   <span className="font-bold text-lg">${selectedPackage.offer_price} USDT</span>
                 </div>
+                {showLocal && !rateLoading && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">In {getCurrency(currency).name}</span>
+                    <span className="font-bold text-lg text-primary">{localPrice(selectedPackage.offer_price)}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
