@@ -315,11 +315,34 @@ export default function DashboardCredits() {
     <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Buy Credits</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Purchase credits to generate more speech. 1 credit = 1 character.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold">Buy Credits</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Purchase credits to generate more speech. 1 credit = 1 character.
+            </p>
+          </div>
+          <div className="w-full sm:w-64">
+            <Label className="text-xs text-muted-foreground mb-1 block">Your Currency</Label>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.code} — {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {showLocal && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                1 USD ≈ {getCurrency(currency).symbol}{rate.toLocaleString()} {currency}
+                {source === "binance" ? " (live Binance rate)" : " (fixed rate)"}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Current Balance */}
