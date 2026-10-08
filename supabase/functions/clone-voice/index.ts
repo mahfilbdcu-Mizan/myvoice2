@@ -16,7 +16,7 @@ function admin() {
   return createClient(url, key);
 }
 
-function getApiKey(): string | null {
+async function getApiKey(): Promise<string | null> {
   return await getPlatformAi33Key() ?? null;
 }
 
@@ -83,7 +83,7 @@ serve(async (req) => {
       );
     }
 
-    const API_KEY = getApiKey();
+    const API_KEY = await getApiKey();
     if (!API_KEY) {
       return new Response(
         JSON.stringify({ error: "The service is temporarily under maintenance. Please try again shortly." }),

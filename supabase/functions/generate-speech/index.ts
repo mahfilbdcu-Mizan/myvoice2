@@ -461,13 +461,32 @@ serve(async (req) => {
     const apiUrl = AI33_V3_TTS_URL;
     console.log("API URL:", apiUrl);
     
-    const response = await fetch(apiUrl, {
+    let response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "xi-api-key": apiKey,
       },
       body: requestBody,
     });
+
+    // If the user's own key is out of credits / invalid, automatically retry
+    // with the platform key saved in Admin Settings so generation never gets stuck.
+    if (!response.ok && isUserKey) {
+      const peek = (await response.clone().text()).toLowerCase();
+      const keyProblem =
+        response.status === 401 || response.status === 402 || response.status === 403 ||
+        peek.includes("credit") || peek.includes("unauthorized") || peek.includes("insufficient") ||
+        peek.includes("balance") || peek.includes("quota") || peek.includes("invalid api key");
+      const platformKey = keyProblem ? await getPlatformAi33Key() : null;
+      if (platformKey && platformKey !== apiKey) {
+        console.log("User key failed (", response.status, ") - retrying with platform key from Admin Settings");
+        response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "xi-api-key": platformKey },
+          body: buildV3FormData({ text, voiceId, speed: normalizedSpeed }),
+        });
+      }
+    }
     
     console.log("API Response status:", response.status, "Content-Type:", response.headers.get("content-type"));
 

@@ -293,6 +293,15 @@ serve(async (req) => {
     let { response, data, url } = await fetchTaskStatus(taskId, API_KEY);
     console.log(`Task status endpoint used: ${url}`);
 
+    // Task may have been created with the platform key (fallback) - retry with it
+    if (!response.ok) {
+      const platformKey = await getPlatformAi33Key();
+      if (platformKey && platformKey !== API_KEY) {
+        console.log("Retrying task status with platform key");
+        ({ response, data, url } = await fetchTaskStatus(taskId, platformKey));
+      }
+    }
+
     if (!response.ok) {
       const errorMessage = getErrorMessage(data) || "Failed to get task status";
       console.error("API error:", response.status, JSON.stringify(data));

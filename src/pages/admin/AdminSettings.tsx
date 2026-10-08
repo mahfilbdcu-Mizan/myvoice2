@@ -131,11 +131,11 @@ export default function AdminSettings() {
     try {
       const { error } = await supabase
         .from("platform_settings")
-        .upsert({ key: "ai33_api_key", value: apiKey }, { onConflict: "key" });
+        .upsert({ key: "ai33_api_key", value: apiKey.trim() }, { onConflict: "key" });
 
       if (error) throw error;
 
-      setCurrentApiKey(apiKey);
+      setCurrentApiKey(apiKey.trim());
       setApiKey("");
       setApiKeyStatus("valid");
       
