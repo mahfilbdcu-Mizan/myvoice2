@@ -279,6 +279,9 @@ export default function DashboardCredits() {
                 <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4">
                   <p className="text-sm text-yellow-600 dark:text-yellow-400">
                     ⚠️ Please send exactly <strong>${selectedPackage.offer_price} USDT</strong> to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
+                    {showLocal && !rateLoading && (
+                      <> That is approximately <strong>{localPrice(selectedPackage.offer_price)}</strong> at the current rate.</>
+                    )}
                   </p>
                 </div>
 
