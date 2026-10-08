@@ -219,7 +219,7 @@ async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string
   }
 
   // Fallback to the shared platform key so free-credit users can test
-  const platformKey = Deno.env.get("AI33_API_KEY");
+  const platformKey = await getPlatformAi33Key();
   if (platformKey) {
     console.log("Using shared platform API key for user:", userId);
     return { apiKey: platformKey, isUserKey: false };

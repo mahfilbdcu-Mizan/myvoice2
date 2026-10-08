@@ -143,7 +143,7 @@ async function getApiKey(userId?: string): Promise<string | null> {
     
     if (!supabaseUrl || !supabaseKey) {
       console.log("Supabase credentials not found, using env API key");
-      return Deno.env.get("AI33_API_KEY") || null;
+      return await getPlatformAi33Key() || null;
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -166,7 +166,7 @@ async function getApiKey(userId?: string): Promise<string | null> {
     }
     
     // Use environment variable only for platform API key
-    const envApiKey = Deno.env.get("AI33_API_KEY");
+    const envApiKey = await getPlatformAi33Key();
     if (envApiKey) {
       console.log("Using platform API key");
       return envApiKey;
@@ -176,7 +176,7 @@ async function getApiKey(userId?: string): Promise<string | null> {
     return null;
   } catch (e) {
     console.error("Error fetching API key:", e);
-    return Deno.env.get("AI33_API_KEY") || null;
+    return await getPlatformAi33Key() || null;
   }
 }
 

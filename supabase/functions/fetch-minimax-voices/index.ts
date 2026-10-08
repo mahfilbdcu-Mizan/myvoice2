@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 function getApiKey(): string | null {
-  const apiKey = Deno.env.get("AI33_API_KEY");
+  const apiKey = await getPlatformAi33Key();
   if (!apiKey) {
     console.error("AI33_API_KEY environment variable not configured");
     return null;

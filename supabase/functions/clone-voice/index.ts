@@ -16,7 +16,7 @@ function admin() {
 }
 
 function getApiKey(): string | null {
-  return Deno.env.get("AI33_API_KEY") ?? null;
+  return await getPlatformAi33Key() ?? null;
 }
 
 async function validateAuth(req: Request): Promise<string | null> {
