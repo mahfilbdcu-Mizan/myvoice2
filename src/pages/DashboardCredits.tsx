@@ -334,7 +334,7 @@ export default function DashboardCredits() {
                     {" "}to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
                   </p>
                   <p className="text-sm font-semibold text-info" aria-live="polite">
-                    👉 Select your currency above. Once you do, this text shows the amount in your country's currency.
+                    👉 Select your currency in the box above. Once you do, this text shows the amount in your country's currency.
                   </p>
                 </div>
 
