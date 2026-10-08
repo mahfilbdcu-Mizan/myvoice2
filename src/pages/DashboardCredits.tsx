@@ -40,6 +40,9 @@ export default function DashboardCredits() {
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [mobileNumbers, setMobileNumbers] = useState<{ label: string; number: string }[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { currency, setCurrency, rate, source, loading: rateLoading } = useCurrencyRate();
+  const showLocal = currency !== "USD";
+  const localPrice = (usd: number) => formatLocalAmount(usd, currency, rate);
 
   useEffect(() => {
     const fetchData = async () => {
