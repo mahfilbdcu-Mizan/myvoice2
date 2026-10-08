@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { getPlatformAi33Key } from "../_shared/ai33Key.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -219,7 +220,7 @@ async function getApiKeyForUser(userId: string | null): Promise<{ apiKey: string
   }
 
   // Fallback to the shared platform key so free-credit users can test
-  const platformKey = Deno.env.get("AI33_API_KEY");
+  const platformKey = await getPlatformAi33Key();
   if (platformKey) {
     console.log("Using shared platform API key for user:", userId);
     return { apiKey: platformKey, isUserKey: false };

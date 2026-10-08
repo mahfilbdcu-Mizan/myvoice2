@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { getPlatformAi33Key } from "../_shared/ai33Key.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +17,7 @@ function admin() {
 }
 
 function getApiKey(): string | null {
-  return Deno.env.get("AI33_API_KEY") ?? null;
+  return await getPlatformAi33Key() ?? null;
 }
 
 async function validateAuth(req: Request): Promise<string | null> {

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getPlatformAi33Key } from "../_shared/ai33Key.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,7 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const apiKey = Deno.env.get("AI33_API_KEY") || "";
+  const apiKey = await getPlatformAi33Key() || "";
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }
   const targets: Array<{ path: string; method?: string; body?: unknown; headerStyle?: string }> = body.targets || [];

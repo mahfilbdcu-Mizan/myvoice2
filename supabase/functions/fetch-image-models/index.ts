@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getPlatformAi33Key } from "../_shared/ai33Key.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get("AI33_API_KEY");
+    const apiKey = await getPlatformAi33Key();
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API key not configured" }), {
         status: 500,
