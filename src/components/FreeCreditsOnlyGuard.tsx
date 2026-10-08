@@ -16,8 +16,8 @@ export function FreeCreditsOnlyGuard({ children, featureName = "This feature" }:
   const isExpired = !!profile?.credits_expires_at && new Date(profile.credits_expires_at) <= new Date();
   const availableCredits = isExpired ? 0 : (profile?.credits ?? 0);
 
-  // Free credits (initial 100) can only be used for Text-to-Speech.
-  const hasOnlyFreeCredits = profile?.has_received_free_credits && availableCredits <= 100;
+  // Free credits (initial 500) can only be used for Text-to-Speech.
+  const hasOnlyFreeCredits = profile?.has_received_free_credits && availableCredits <= 500;
 
   if (hasOnlyFreeCredits) {
     return (
