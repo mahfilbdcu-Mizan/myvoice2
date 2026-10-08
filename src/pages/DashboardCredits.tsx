@@ -59,7 +59,7 @@ export default function DashboardCredits() {
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger
               id="payment-currency"
-              className="relative min-h-14 w-full rounded-2xl border border-picker-border bg-picker-surface px-5 text-left transition-colors duration-200 hover:border-picker-code/60 focus-visible:border-picker-code/60 focus-visible:ring-2 focus-visible:ring-picker-code/30 [&_svg]:text-picker-separator group-hover:[&_svg]:text-picker-code"
+              className="relative min-h-14 w-full rounded-2xl border border-picker-border bg-picker-surface px-5 text-left transition-colors duration-200 hover:border-picker-code/60 focus-visible:border-picker-code/60 focus-visible:ring-2 focus-visible:ring-picker-code/30 [&_svg]:opacity-100 [&_svg]:text-picker-arrow group-hover:[&_svg]:text-picker-code"
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span className="text-lg font-bold text-picker-code">{currency}</span>

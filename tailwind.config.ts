@@ -53,6 +53,7 @@ export default {
           code: "hsl(var(--picker-code))",
           name: "hsl(var(--picker-name))",
           separator: "hsl(var(--picker-separator))",
+          arrow: "hsl(var(--picker-arrow))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
