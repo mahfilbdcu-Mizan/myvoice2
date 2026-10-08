@@ -305,15 +305,15 @@ export default function DashboardCredits() {
 
                 <div className="rounded-lg bg-muted border border-border p-4 space-y-3">
                   <p className="text-sm text-foreground">
-                    ⚠️ Please send exactly <strong>${selectedPackage.offer_price} USDT</strong> to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
+                    ⚠️ Please send exactly <strong>${selectedPackage.offer_price} USDT</strong>
+                    {showLocal && (
+                      <strong className="text-primary"> (≈ {localPrice(selectedPackage.offer_price)})</strong>
+                    )}
+                    {" "}to the above address using <strong>{PAYMENT_NETWORK}</strong> network.
                   </p>
-                  <div className="border-t border-border pt-3" aria-live="polite">
-                    <p className="text-sm text-muted-foreground">Equivalent in {getCurrency(currency).name}</p>
-                    <p className="text-xl font-bold text-primary">≈ {localPrice(selectedPackage.offer_price)}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Estimated local value only. For TRC20, send {selectedPackage.offer_price} USDT, not local currency.
-                    </p>
-                  </div>
+                  <p className="text-sm font-semibold text-info" aria-live="polite">
+                    👉 Select your country's currency at the top left. Once you do, this text shows the amount in your country's currency.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -355,7 +355,7 @@ export default function DashboardCredits() {
     <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div className="space-y-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold">Buy Credits</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
