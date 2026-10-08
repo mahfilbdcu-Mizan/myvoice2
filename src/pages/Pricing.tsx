@@ -84,7 +84,7 @@ export default function Pricing() {
                   </div>
                   <div>
                     <p className="font-semibold">Free Starter</p>
-                    <p className="text-sm text-muted-foreground">100 credits on signup</p>
+                    <p className="text-sm text-muted-foreground">500 credits on signup</p>
                   </div>
                 </div>
                 <Link to="/login">

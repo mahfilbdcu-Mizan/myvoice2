@@ -13,7 +13,7 @@ export function CTASection() {
           </h2>
           <p className="mt-4 sm:mt-6 text-base sm:text-lg lg:text-xl text-muted-foreground">
             Join thousands of creators and start generating professional audio content today.
-            Get started with 100 free credits.
+            Get started with 500 free credits.
           </p>
           <div className="mt-8 sm:mt-10 flex flex-col items-center justify-center gap-3 sm:gap-4 sm:flex-row">
             <Link to="/login" className="w-full sm:w-auto">

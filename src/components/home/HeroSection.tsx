@@ -64,7 +64,7 @@ export function HeroSection() {
           <div className="animate-fade-in delay-400 mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground px-4">
             <div className="flex items-center gap-2 bg-success/10 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
               <CheckCircle2 className="h-4 w-4 text-success" />
-              <span className="font-medium">100 free credits</span>
+              <span className="font-medium">500 free credits</span>
             </div>
             <div className="flex items-center gap-2 bg-primary/10 rounded-full px-3 py-1.5 sm:px-4 sm:py-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />

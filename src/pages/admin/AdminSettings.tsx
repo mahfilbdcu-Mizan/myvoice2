@@ -732,7 +732,7 @@ export default function AdminSettings() {
               <Label>Free Credits on Signup</Label>
               <Input
                 type="number"
-                value={settings.free_credits_signup || "100"}
+                value={settings.free_credits_signup || "500"}
                 onChange={(e) => updateSetting("free_credits_signup", e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
