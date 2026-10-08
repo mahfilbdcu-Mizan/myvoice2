@@ -50,7 +50,7 @@ export default function DashboardCredits() {
       <div className="w-full space-y-3 sm:max-w-sm">
         <Label
           htmlFor="payment-currency"
-          className="text-[11px] font-bold uppercase tracking-[0.2em] text-picker-label"
+          className="animate-currency-breathe text-base font-bold uppercase tracking-[0.16em] text-picker-label sm:text-lg"
         >
           {label}
         </Label>
