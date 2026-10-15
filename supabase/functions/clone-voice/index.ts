@@ -155,7 +155,7 @@ serve(async (req) => {
 
       let userMessage = "Voice cloning failed. Your credits have been refunded.";
       if (response.status === 401 || response.status === 402 || response.status >= 500) {
-        userMessage = "The service is temporarily under maintenance. Please try again shortly. Your credits have been refunded.";
+        userMessage = "Your recording could not be cloned. Please try a clear 10-24 second voice recording and clone again. Your credits have been refunded.";
       } else {
         try {
           const errorJson = JSON.parse(errorText);
