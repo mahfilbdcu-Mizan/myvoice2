@@ -147,8 +147,15 @@ export function VoiceClonePanel({ onSelectClonedVoice }: VoiceClonePanelProps) {
     }
 
     setIsCloning(true);
+    let uploadFile: File = selectedFile;
+    try {
+      const prepared = await trimAudioForClone(selectedFile);
+      uploadFile = prepared.file;
+    } catch (e) {
+      console.warn("Could not trim audio, sending original", e);
+    }
     const result = await cloneVoice({
-      file: selectedFile,
+      file: uploadFile,
       voiceName: voiceName.trim(),
       previewText: previewText || "Hello, this is my cloned voice.",
       languageTag: languageTag || "English",
@@ -370,7 +377,7 @@ export function VoiceClonePanel({ onSelectClonedVoice }: VoiceClonePanelProps) {
                   <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
                   <p className="font-medium">Click or drag to upload here</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Duration 10s - 5 minutes, max 20MB
+                    Duration 10s or longer, max 20MB — only the first 24 seconds are used
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Currently only supports: .mp3
