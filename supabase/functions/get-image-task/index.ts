@@ -85,9 +85,16 @@ serve(async (req) => {
       });
     }
 
-    const upstream = await fetch(`https://api.ai33.pro/v1/task/${row.external_task_id}`, {
+    // Try current (v1) task address, then the newer v3 address if the service moved it
+    let upstream = await fetch(`https://api.ai33.pro/v1/task/${row.external_task_id}`, {
       headers: { "xi-api-key": apiKey },
     });
+    if (!upstream.ok) {
+      const v3 = await fetch(`https://api.ai33.pro/v3/task/${encodeURIComponent(row.external_task_id)}`, {
+        headers: { "xi-api-key": apiKey },
+      });
+      if (v3.ok) upstream = v3;
+    }
 
     if (!upstream.ok) {
       console.error("Task poll failed:", upstream.status, await upstream.text());
@@ -96,7 +103,8 @@ serve(async (req) => {
       });
     }
 
-    const task = await upstream.json();
+    const payload = await upstream.json();
+    const task = payload?.data ?? payload;
     const status = String(task.status || "").toLowerCase();
     const images = task.metadata?.result_images || [];
 
