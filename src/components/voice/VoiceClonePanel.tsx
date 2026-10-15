@@ -1,3 +1,4 @@
+import { trimAudioForClone } from "@/lib/trim-audio";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Upload, Play, Pause, Trash2, Loader2, HelpCircle, Share2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
