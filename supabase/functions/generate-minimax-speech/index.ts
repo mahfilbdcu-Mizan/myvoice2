@@ -220,25 +220,30 @@ serve(async (req) => {
 
     console.log("Calling Minimax TTS API with voice:", voiceId, "model:", model);
 
-    const response = await fetch("https://api.ai33.pro/v1m/task/text-to-speech", {
+    // ai33 now requires the unified v3 endpoint (FormData + provider-prefixed voice id)
+    const rawVoice = String(voiceId);
+    const prefixedVoice = /^(minimax_|clone_|elevenlabs_|edge_|kokoro_|vbee_|fishaudio_)/.test(rawVoice)
+      ? rawVoice
+      : `minimax_${rawVoice}`;
+    const form = new FormData();
+    form.append("text", text);
+    form.append("voice_id", prefixedVoice);
+    form.append("speed", String(speed ?? 1));
+    form.append("with_transcript", String(!!with_transcript));
+
+    let response = await fetch("https://api.ai33.pro/v3/text-to-speech", {
       method: "POST",
-      headers: {
-        "xi-api-key": API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text,
-        model,
-        voice_setting: {
-          voice_id: voiceId,
-          vol,
-          pitch,
-          speed,
-        },
-        language_boost,
-        with_transcript,
-      }),
+      headers: { "xi-api-key": API_KEY },
+      body: form,
     });
+
+    // API sometimes answers 200 with success:false — treat as a failure so the task never hangs
+    if (response.ok) {
+      const peek = await response.clone().json().catch(() => null);
+      if (peek && peek.success === false && !peek.task_id) {
+        response = new Response(JSON.stringify(peek), { status: 400 });
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
